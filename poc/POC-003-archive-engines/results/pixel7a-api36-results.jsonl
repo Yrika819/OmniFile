@@ -1,0 +1,54 @@
+{"ts":1789630307006,"engine":"ENV","test":"HARNESS","status":"PASS","data":{"java":"0","os":"Linux","arch":"aarch64","fixtures":"/data/local/tmp/filemanager-poc003/fixtures"}}
+{"ts":1789630307175,"engine":"COMMONS_COMPRESS_ZIP","test":"LIST_normal.zip","status":"PASS","data":{"count":3,"elapsedMs":32,"heapDeltaBytes":1534272}}
+{"ts":1789630307319,"engine":"COMMONS_COMPRESS_ZIP","test":"LIST_zip64-forced.zip","status":"PASS","data":{"count":1,"elapsedMs":1,"heapDeltaBytes":0}}
+{"ts":1789630307739,"engine":"COMMONS_COMPRESS_ZIP","test":"LIST_many-10k.zip","status":"PASS","data":{"count":10000,"elapsedMs":197,"heapDeltaBytes":4395008}}
+{"ts":1789630309512,"engine":"COMMONS_COMPRESS_ZIP","test":"LIST_many-100k.zip","status":"PASS","data":{"count":100000,"elapsedMs":1540,"heapDeltaBytes":37699584}}
+{"ts":1789630309514,"engine":"COMMONS_COMPRESS_ZIP","test":"VIRTUAL_ENTRY_OPEN","status":"PASS","data":{"entry":"nested/ユニコード😀.txt","bytes":16,"elapsedMicros":887}}
+{"ts":1789630309516,"engine":"COMMONS_COMPRESS_ZIP","test":"ENCRYPTED_READ_zip-aes256.zip","status":"PASS","data":{"canReadEntryData":false,"readSucceeded":false,"error":"org.apache.commons.compress.archivers.zip.UnsupportedZipFeatureException: Unsupported feature encryption used in entry hello.txt"}}
+{"ts":1789630309517,"engine":"COMMONS_COMPRESS_ZIP","test":"ENCRYPTED_READ_zip-traditional.zip","status":"PASS","data":{"canReadEntryData":false,"readSucceeded":false,"error":"org.apache.commons.compress.archivers.zip.UnsupportedZipFeatureException: Unsupported feature encryption used in entry hello.txt"}}
+{"ts":1789630309517,"engine":"COMMONS_COMPRESS_ZIP","test":"TRAVERSAL_GUARD","status":"PASS","data":{"rejected":2,"safe":1}}
+{"ts":1789630309518,"engine":"COMMONS_COMPRESS_ZIP","test":"SYMLINK_GUARD","status":"PASS","data":{"symlinksDetected":1,"rejectedEntries":1}}
+{"ts":1789630309520,"engine":"COMMONS_COMPRESS_ZIP","test":"DECOMPRESSION_LIMIT","status":"PASS","data":{"limitBytes":1048576,"bytesSeen":1173652,"limited":true,"declaredSize":67108864}}
+{"ts":1789630309521,"engine":"COMMONS_COMPRESS_ZIP","test":"MALFORMED_TRUNCATED","status":"PASS","data":{"expectedFailure":"java.io.IOException: Error reading Zip content from /data/local/tmp/filemanager-poc003/fixtures/malformed-truncated.zip"}}
+{"ts":1789630309794,"engine":"ZIP4J","test":"LIST_normal.zip","status":"PASS","data":{"count":3,"elapsedMs":6,"heapDeltaBytes":-41852528}}
+{"ts":1789630309941,"engine":"ZIP4J","test":"LIST_zip64-forced.zip","status":"PASS","data":{"count":1,"elapsedMs":1,"heapDeltaBytes":4096}}
+{"ts":1789630310299,"engine":"ZIP4J","test":"LIST_many-10k.zip","status":"PASS","data":{"count":10000,"elapsedMs":208,"heapDeltaBytes":2060288}}
+{"ts":1789630312240,"engine":"ZIP4J","test":"LIST_many-100k.zip","status":"PASS","data":{"count":100000,"elapsedMs":1768,"heapDeltaBytes":20430848}}
+{"ts":1789630312282,"engine":"ZIP4J","test":"ENCRYPTED_READ_zip-aes256.zip","status":"PASS","data":{"encrypted":true,"bytes":9,"entry":"hello.txt"}}
+{"ts":1789630312283,"engine":"ZIP4J","test":"ENCRYPTED_READ_zip-traditional.zip","status":"PASS","data":{"encrypted":true,"bytes":9,"entry":"hello.txt"}}
+{"ts":1789630312292,"engine":"ZIP4J","test":"SPLIT_CREATE_READ","status":"PASS","data":{"split":true,"segments":7,"entries":4,"firstEntryBytes":98304}}
+{"ts":1789630312294,"engine":"ZIP4J","test":"BUILTIN_TRAVERSAL_EXTRACTION","status":"PASS","data":{"threw":true,"escaped":false,"error":"net.lingala.zip4j.exception.ZipException: illegal file name that breaks out of the target directory: ../escape.txt"}}
+{"ts":1789630312296,"engine":"ZIP4J","test":"BUILTIN_SYMLINK_LINK_WRITE","status":"PASS","data":{"threw":true,"symlinkCreated":true,"escaped":false,"error":"net.lingala.zip4j.exception.ZipException: Unable to create parent directories: /data/local/tmp/filemanager-poc003/work/zip4j-symlink/out/link"}}
+{"ts":1789630312300,"engine":"ZIP4J","test":"DECOMPRESSION_LIMIT","status":"PASS","data":{"limitBytes":1048576,"bytesSeen":1179648,"limited":true,"declaredSize":67108864}}
+{"ts":1789630312300,"engine":"ZIP4J","test":"MALFORMED_TRUNCATED","status":"PASS","data":{"expectedFailure":"net.lingala.zip4j.exception.ZipException: Zip headers not found. Probably not a zip file"}}
+{"ts":1789630312304,"engine":"COMMONS_COMPRESS_TAR","test":"LIST_normal.tar","status":"PASS","data":{"count":2,"elapsedMs":3}}
+{"ts":1789630312307,"engine":"COMMONS_COMPRESS_TAR","test":"LIST_normal.tar.gz","status":"PASS","data":{"count":2,"elapsedMs":1}}
+{"ts":1789630312310,"engine":"COMMONS_COMPRESS_TAR","test":"LIST_normal.tar.bz2","status":"PASS","data":{"count":2,"elapsedMs":3}}
+{"ts":1789630312314,"engine":"COMMONS_COMPRESS_TAR","test":"LIST_normal.tar.xz","status":"PASS","data":{"count":2,"elapsedMs":3}}
+{"ts":1789630312314,"engine":"COMMONS_COMPRESS_TAR","test":"LIST_normal.tar.zst","status":"FAIL","data":{"error":"java.lang.NoClassDefFoundError: Failed resolution of: Lcom/github/luben/zstd/ZstdInputStream;"}}
+{"ts":1789630312315,"engine":"COMMONS_COMPRESS_TAR","test":"TRAVERSAL_GUARD","status":"PASS","data":{"rejected":1}}
+{"ts":1789630312315,"engine":"COMMONS_COMPRESS_TAR","test":"SYMLINK_GUARD","status":"PASS","data":{"linksRejected":1}}
+{"ts":1789630312315,"engine":"COMMONS_COMPRESS_TAR","test":"MALFORMED_TRUNCATED","status":"PASS","data":{"expectedFailure":"java.io.IOException: Stream closed"}}
+{"ts":1789630312467,"engine":"COMMONS_COMPRESS_7Z","test":"LIST_normal.7z","status":"PASS","data":{"count":5,"elapsedMs":5,"heapDeltaBytes":13712}}
+{"ts":1789630312619,"engine":"COMMONS_COMPRESS_7Z","test":"LIST_solid.7z","status":"PASS","data":{"count":5,"elapsedMs":3,"heapDeltaBytes":0}}
+{"ts":1789630312956,"engine":"COMMONS_COMPRESS_7Z","test":"LIST_many-10k.7z","status":"PASS","data":{"count":10001,"elapsedMs":186,"heapDeltaBytes":1802240}}
+{"ts":1789630312958,"engine":"COMMONS_COMPRESS_7Z","test":"ENCRYPTED_WITHOUT_PASSWORD","status":"PASS","data":{"expectedFailure":"org.apache.commons.compress.PasswordRequiredException: Cannot read encrypted content from /data/local/tmp/filemanager-poc003/fixtures/encrypted.7z without a password."}}
+{"ts":1789630313092,"engine":"COMMONS_COMPRESS_7Z","test":"ENCRYPTED_WITH_PASSWORD","status":"PASS","data":{"entries":5}}
+{"ts":1789630313093,"engine":"COMMONS_COMPRESS_7Z","test":"ENTRY_OPEN_normal.7z","status":"PASS","data":{"entry":"seven-safe/ユニコード😀.txt","bytes":11,"elapsedMs":0}}
+{"ts":1789630313094,"engine":"COMMONS_COMPRESS_7Z","test":"ENTRY_OPEN_solid.7z","status":"PASS","data":{"entry":"seven-safe/ユニコード😀.txt","bytes":11,"elapsedMs":0}}
+{"ts":1789630313169,"engine":"COMMONS_COMPRESS_7Z","test":"EXTRACT_64M","status":"PASS","data":{"bytes":67108864,"elapsedMs":74.763754,"mibPerSec":856.0297814901055,"note":"highly-compressible sparse-zero fixture"}}
+{"ts":1789630313169,"engine":"COMMONS_COMPRESS_7Z","test":"MALFORMED_TRUNCATED","status":"PASS","data":{"expectedFailure":"java.io.IOException: nextHeaderOffset is out of bounds"}}
+{"ts":1789630313183,"engine":"JUNRAR","test":"LIST_EXTRACT_rar4.rar","status":"PASS","data":{"format":"RAR15","entries":2,"firstEntry":"FILE1.TXT","firstEntryBytes":7,"elapsedMs":13}}
+{"ts":1789630313185,"engine":"JUNRAR","test":"LIST_EXTRACT_rar5.rar","status":"PASS","data":{"format":"RAR50","entries":2,"firstEntry":"FILE1.TXT","firstEntryBytes":7,"elapsedMs":2}}
+{"ts":1789630313187,"engine":"JUNRAR","test":"LIST_EXTRACT_rar4-solid.rar","status":"PASS","data":{"format":"RAR15","entries":9,"firstEntry":"file1.txt","firstEntryBytes":6,"elapsedMs":1}}
+{"ts":1789630313188,"engine":"JUNRAR","test":"LIST_EXTRACT_rar5-solid.rar","status":"PASS","data":{"format":"RAR50","entries":9,"firstEntry":"file1.txt","firstEntryBytes":6,"elapsedMs":0}}
+{"ts":1789630313190,"engine":"JUNRAR","test":"LIST_EXTRACT_stored.part1.rar","status":"PASS","data":{"format":"RAR50","entries":1,"firstEntry":"stored2.bin","firstEntryBytes":120000,"elapsedMs":1}}
+{"ts":1789630313192,"engine":"JUNRAR","test":"LIST_EXTRACT_test-documents.part1.rar","status":"PASS","data":{"format":"RAR15","entries":5,"firstEntry":"testXML.xml","firstEntryBytes":766,"elapsedMs":2}}
+{"ts":1789630313255,"engine":"JUNRAR","test":"PASSWORD_rar4-password-junrar.rar","status":"PASS","data":{"entries":1,"passwordProtected":true,"encryptedHeaders":false,"firstEntryBytes":6}}
+{"ts":1789630313280,"engine":"JUNRAR","test":"PASSWORD_rar5-password-junrar.rar","status":"PASS","data":{"entries":1,"passwordProtected":true,"encryptedHeaders":false,"firstEntryBytes":6}}
+{"ts":1789630313297,"engine":"JUNRAR","test":"PASSWORD_rar5-encrypted-junrar.rar","status":"PASS","data":{"entries":1,"passwordProtected":true,"encryptedHeaders":true,"firstEntryBytes":6}}
+{"ts":1789630313298,"engine":"JUNRAR","test":"TRAVERSAL_GUARD_rar-mkdir-escape.rar","status":"PASS","data":{"entries":1,"rejectedByGuard":1}}
+{"ts":1789630313298,"engine":"JUNRAR","test":"TRAVERSAL_GUARD_rar-sibling-prefix-traversal.rar","status":"PASS","data":{"entries":1,"rejectedByGuard":1}}
+{"ts":1789630313298,"engine":"JUNRAR","test":"MALFORMED_CORRUPT_HEADER","status":"PASS","data":{"threw":false,"hasBrokenHeaders":true,"headerFailures":2,"error":""}}
+{"ts":1789630313298,"engine":"JUNRAR","test":"RAR_CREATION","status":"NO","data":{"reason":"Junrar exposes read/extract APIs only; RAR creation not claimed"}}
+{"ts":1789630313298,"engine":"CONTROL","test":"RUN_DONE","status":"PASS","data":{}}

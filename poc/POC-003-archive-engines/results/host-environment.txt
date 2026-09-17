@@ -1,0 +1,14 @@
+HOST
+Darwin YutanoMacBook-Pro.local 24.6.0 Darwin Kernel Version 24.6.0: Tue Apr 21 20:17:54 PDT 2026; root:xnu-11417.140.69.710.16~1/RELEASE_X86_64 x86_64
+ProductName:		macOS
+ProductVersion:		15.7.7
+BuildVersion:		24G720
+java version "26.0.1" 2026-04-21
+Java(TM) SE Runtime Environment (build 26.0.1+8-34)
+Java HotSpot(TM) 64-Bit Server VM (build 26.0.1+8-34, mixed mode, sharing)
+*** Zstandard CLI (64-bit) v1.5.7, by Yann Collet ***
+7ZIP
+
+7-Zip (z) 26.03 (x64) : Copyright (c) 1999-2026 Igor Pavlov : 2026-09-03
+ 64-bit locale=ja_JP.UTF-8 Threads:4 OPEN_MAX:4096
+
