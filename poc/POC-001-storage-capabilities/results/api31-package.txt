@@ -1,0 +1,123 @@
+Activity Resolver Table:
+  Non-Data Actions:
+      android.intent.action.MAIN:
+        208b97a dev.poc.filemanager.storagecap/.MainActivity filter 496552b
+          Action: "android.intent.action.MAIN"
+          Category: "android.intent.category.LAUNCHER"
+
+Provider Resolver Table:
+  Non-Data Actions:
+      android.content.action.DOCUMENTS_PROVIDER:
+        c378d88 dev.poc.filemanager.storagecap/.SyntheticDocumentsProvider filter ff6e321
+          Action: "android.content.action.DOCUMENTS_PROVIDER"
+
+Domain verification status:
+
+Registered ContentProviders:
+  dev.poc.filemanager.storagecap/.SyntheticDocumentsProvider:
+    Provider{c378d88 dev.poc.filemanager.storagecap/.SyntheticDocumentsProvider}
+
+ContentProvider Authorities:
+  [dev.poc.filemanager.storagecap.documents]:
+    Provider{c378d88 dev.poc.filemanager.storagecap/.SyntheticDocumentsProvider}
+      applicationInfo=ApplicationInfo{40e64ad dev.poc.filemanager.storagecap}
+
+Key Set Manager:
+  [dev.poc.filemanager.storagecap]
+      Signing KeySets: 36
+
+Packages:
+  Package [dev.poc.filemanager.storagecap] (79bc3e2):
+    userId=10145
+    pkg=Package{5cd7373 dev.poc.filemanager.storagecap}
+    codePath=/data/app/~~WkO0dwIPYLSqBZkMQI_5Ug==/dev.poc.filemanager.storagecap-Zv1agMouIydqvCjCXJxFmw==
+    resourcePath=/data/app/~~WkO0dwIPYLSqBZkMQI_5Ug==/dev.poc.filemanager.storagecap-Zv1agMouIydqvCjCXJxFmw==
+    legacyNativeLibraryDir=/data/app/~~WkO0dwIPYLSqBZkMQI_5Ug==/dev.poc.filemanager.storagecap-Zv1agMouIydqvCjCXJxFmw==/lib
+    extractNativeLibs=true
+    primaryCpuAbi=null
+    secondaryCpuAbi=null
+    cpuAbiOverride=null
+    versionCode=0 minSdk=31 targetSdk=36
+    minExtensionVersions=[]
+    versionName=null
+    usesNonSdkApi=false
+    splits=[base]
+    apkSigningVersion=4
+    applicationInfo=PackageImpl{5cd7373 dev.poc.filemanager.storagecap}
+    flags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ]
+    privateFlags=[ PRIVATE_FLAG_ACTIVITIES_RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION ALLOW_AUDIO_PLAYBACK_CAPTURE PRIVATE_FLAG_ALLOW_NATIVE_HEAP_POINTER_TAGGING ]
+    forceQueryable=false
+    queriesPackages=[]
+    dataDir=/data/user/0/dev.poc.filemanager.storagecap
+    supportsScreens=[small, medium, large, xlarge, resizeable, anyDensity]
+    timeStamp=2026-09-17 14:46:59
+    firstInstallTime=2026-09-17 14:47:00
+    lastUpdateTime=2026-09-17 14:47:00
+    signatures=PackageSignatures{f996230 version:4, signatures:[abe8deca], past signatures:[]}
+    installPermissionsFixed=true
+    pkgFlags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ]
+    requested permissions:
+      android.permission.MANAGE_EXTERNAL_STORAGE
+    User 0: ceDataInode=131205 installed=true hidden=false suspended=false distractionFlags=0 stopped=false notLaunched=false enabled=0 instant=false virtual=false
+      runtime permissions:
+
+Queries:
+  system apps queryable: false
+  queries via package name:
+  queries via intent:
+    com.google.android.settings.intelligence:
+      dev.poc.filemanager.storagecap
+  queryable via interaction:
+    User 0:
+      [com.android.settings,com.android.localtransport,com.android.emulator.multidisplay,com.android.inputdevices,com.android.providers.settings,android,com.android.keychain,com.android.wallpaperbackup,com.android.location.fused,com.android.server.telecom,com.android.dynsystem]:
+        dev.poc.filemanager.storagecap
+  queryable via uses-library:
+
+Package Changes:
+  Sequence number=27
+  User 0:
+    seq=0, package=com.android.settings
+    seq=1, package=com.google.android.setupwizard
+    seq=2, package=com.android.bluetooth
+    seq=14, package=com.google.android.apps.wellbeing
+    seq=15, package=com.google.android.sdksetup
+    seq=17, package=dev.poc.filemanager.storagecap
+    seq=24, package=com.google.android.googlequicksearchbox
+    seq=25, package=com.google.android.gms
+    seq=26, package=com.google.android.inputmethod.latin
+
+
+Dexopt state:
+  [dev.poc.filemanager.storagecap]
+    path: /data/app/~~WkO0dwIPYLSqBZkMQI_5Ug==/dev.poc.filemanager.storagecap-Zv1agMouIydqvCjCXJxFmw==/base.apk
+      x86_64: [status=run-from-apk] [reason=unknown]
+
+
+Compiler stats:
+  [dev.poc.filemanager.storagecap]
+    (No recorded stats)
+
+APEX session state:
+
+Active APEX packages:
+
+
+Inactive APEX packages:
+
+
+Factory APEX packages:
+
+
+Snapshot statistics
+   Unrecorded-hits: 31  Cork-level: 0
+   Summary stats               TotBlds     TotUsed     TotCork     BigBlds    ShortLvd     TotTime     MaxTime
+          0:53         now         120       50950           0           2          27          96          44
+          0:53         now         120       50950           0           2          27          96          44
+
+   Build times                  <= 1ms      <= 2ms      <= 5ms     <= 10ms     <= 20ms     <= 50ms    <= 100ms     > 100ms
+          0:53         now         115           2           1           0           1           1           0           0
+          0:53         now         115           2           1           0           1           1           0           0
+
+   Use counters                   <= 1        <= 2        <= 5       <= 10       <= 20       <= 50      <= 100       > 100
+          0:53         now          15           4           7           5           9          15          12          52
+          0:53         now          15           4           7           5           9          15          12          52
