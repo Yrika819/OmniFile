@@ -28,6 +28,12 @@ checkpoint events, and durable state. The runtime APK is explicitly POC-only.
 `runtime/results/api31/final-artifact-refresh.txt` records the later AVD
 blocker; it prevents claiming that the API31 rows are from the final APK hash.
 
+The later executor-cancellation hardening was rebuilt and passed the host
+contract suite and APK build, but the Pixel refresh was interrupted when its
+wireless ADB session dropped. The checked-in device rows therefore remain the
+earlier verified disposable capture; they are not presented as a fresh device
+run of the latest hardening commit.
+
 Observed Pixel lifecycle evidence includes `ACTIVITY_STOP` after Home,
 `mWakefulness=Dozing` during screen-off and `Awake` after wake, durable
 completion while backgrounded, and restart `REDISCOVER`. A Recents swipe was
