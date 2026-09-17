@@ -2,11 +2,11 @@
 
 > **For agentic workers:** This plan is executed inline in the requested P05-002 worktree. The harness is disposable evidence only and must not be promoted into production code.
 
-**Goal:** Build a small, deterministic fault-injection harness that tests the P05-002 recovery invariants for SAF-shaped operations without asserting Android provider or device behavior that was not exercised.
+**Goal:** Preserve the deterministic host recovery harness and add bounded real-DocumentsProvider evidence without asserting transfer/recovery behavior that was not exercised.
 
 **Architecture:** Use a host-side in-memory provider model with opaque `content://`-like locators, durable JSON-shaped operation state, and a pure reconciliation function. Inject checkpoint lag, provider disconnect/revocation, partial-output mismatch, and ambiguous finalization; assert that recovery reconciles observed provider reality, preserves the source for move operations, and blocks when authority is unavailable.
 
-**Tech Stack:** Python 3 standard library (`dataclasses`, `enum`, `hashlib`, `unittest`), no third-party dependencies, no Android app module, no ADB, and no physical-device execution.
+**Tech Stack:** Python 3 standard library for the policy harness; a separate existing disposable P0-001 raw APK supplied the bounded Pixel SAF capability probe. No production Android module or dependency was added.
 
 **Spec:** `docs/architecture/12_POC_BACKLOG.md` — POC-002 durable large operation and reconciliation requirements, interpreted with `docs/architecture/03_OPERATION_MODEL.md` and `docs/research/09_BACKGROUND_OPERATIONS.md`.
 
@@ -15,7 +15,7 @@
 - Every harness artifact is labeled exactly `POC-ONLY — NOT PRODUCTION AUTHORITY`.
 - The harness is host-side fault injection, not an Android SAF implementation and not Android provider evidence.
 - No production app, production dependency/version choice, persistence schema, executor mapping, or Android API contract may be initialized or frozen.
-- No physical device, emulator, ADB command, device data, credential, or live provider is used.
+- This branch adds no Android code and does not claim that its host harness used a device. The separate P0-001 runtime probe used only the already authorized Pixel 7a and existing persisted DocumentsProvider grant; no credential or user file was introduced.
 - Test data is generated in memory; no user data or destructive filesystem operation is permitted.
 - Recovery is reconciliation, not blind replay; durable checkpoints are observations and are not storage truth.
 - For a move-shaped operation, source deletion is never performed by reconciliation and is only eligible after independently observed finalized destination state.
@@ -67,4 +67,11 @@
 
 ## Expected Evidence Boundary
 
-The result can support only this statement: the host-side policy model deterministically classifies selected SAF-shaped recovery faults and preserves the source-deletion ordering invariant under the tested in-memory scenarios. It cannot support claims about Android `ContentResolver`, `DocumentsProvider`, persistable grants, descriptor seekability, API 31/API 36 behavior, provider-specific URI mutation, process death, power loss, SD/USB disconnect, or physical-device UX.
+The result supports two bounded statements: the host-side policy model
+deterministically classifies selected SAF-shaped recovery faults, and the
+separate Pixel probe observed one real persisted local DocumentsProvider tree
+with streaming, descriptor, rename, move, sparse-size, cancellation, and
+delete behavior. It still cannot support Local→SAF, SAF→Local, SAF→SAF
+transfer recovery, process-death reconciliation, source-mutation handling,
+grant revocation, provider disconnect, or final-artifact identity across those
+directions.
