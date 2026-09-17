@@ -12,7 +12,10 @@
 3. Media3 evidence is parent-observed on one Pixel 7a/API36 run; API31,
    pipe/provider, remote, lifecycle, and human audio acceptance remain open.
 4. Archive candidate closure remains conditional/open, including legal, parser-
-   security, real-provider, native packaging, and 16 KiB gates.
+   security, real-provider, native packaging, and 16 KiB gates. P05-004 final
+   SHA `03d7c29e04932ecfbd926cd7934f8be66ab05fa2` (`OVERALL=NOT_CLOSED`;
+   harness `PASS`); the duplicate-fixture removal hypothesis was rejected as
+   false — `duplicate.tsv` is intentional negative coverage.
 
 ## Post-scaffold non-blockers
 

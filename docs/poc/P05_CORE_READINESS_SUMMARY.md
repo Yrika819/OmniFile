@@ -21,7 +21,7 @@ production initialization.
 | P05-001 | `poc/core-readiness-executors-v1` | `41030aa7ddb089eb7b850fe85c1a0d682e3d6c8a` | `CLOSED_WITH_EXPLICIT_GATE` — fresh Pixel 7a/API36 sanity; API31 final-artifact equivalence, WorkManager, and media FGS remain open | Independent review PASS; host 5/5 and runtime contract 6/6 |
 | P05-002 | `poc/core-readiness-saf-operations-v1` | `1912ee8a40a4182407fe9b9d14e21b26e64a6199` | `PARTIALLY_RESOLVED / NOT_CLOSED` — parent-observed Pixel 7a/API36 SAF directions and restart reconciliation; interrupt/cancel, provider/API31, and pre-finalization lifecycle remain open | Final review checks PASS; host 25/25; runtime artifact/logs not retained in branch |
 | P05-003 | `poc/core-readiness-media3-v1` | `f649f1de14cea338f3471eafab43d10a9c736828` | `PARTIALLY_RESOLVED / NOT_CLOSED` — parent-observed Pixel 7a/API36 local WAV/FLAC/SAF and sequential seek-failure boundary; API31, pipe, remote, lifecycle, and human audio gates remain open | Final review PASS; host 15/15; FLAC fixture tracked |
-| P05-004 | `poc/core-readiness-archive-v1` | `6b8a60460f5fe440376ddae3161c2ad9e3a9b530` | `NOT_CLOSED` — legal, parser-security, native/16 KiB, and real archive/provider gates remain open | Final review PASS; recursive native absence probe and validator pass with expected negative results |
+| P05-004 | `poc/core-readiness-archive-v1` | `03d7c29e04932ecfbd926cd7934f8be66ab05fa2` | `NOT_CLOSED` — legal, parser-security, native/16 KiB, and real archive/provider gates remain open; duplicate-fixture removal hypothesis explicitly rejected as false (intentional negative coverage, harness green) | Final review PASS; recursive native absence probe and validator pass with expected negative results |
 
 ## Device/API matrix
 
