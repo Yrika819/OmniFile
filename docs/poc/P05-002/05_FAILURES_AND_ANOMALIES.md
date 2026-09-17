@@ -12,6 +12,8 @@
   model now represents an ambiguous final state explicitly.
 - Source and destination provider/grant authority was previously coarse; the
   model now carries independent identities, availability, and grants.
+- MOVE deletion authorization now revalidates source identity, version, length,
+  and digest after observing a matching final destination.
 
 ## Remaining anomalies and blockers
 

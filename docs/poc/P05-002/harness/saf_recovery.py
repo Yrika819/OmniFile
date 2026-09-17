@@ -197,6 +197,18 @@ def reconcile(record: OperationRecord, snapshot: ProviderSnapshot) -> RecoveryDe
                 "WAIT_FOR_SOURCE_AUTHORIZATION",
                 reason="destination is verified but source authority is unavailable for the explicit move-delete step",
             )
+        if record.operation_kind == "move" and (
+            snapshot.source_provider_id != record.source_provider_id
+            or snapshot.source_version != record.source_version
+            or snapshot.source_bytes is None
+            or len(snapshot.source_bytes) != record.expected_length
+            or _sha256(snapshot.source_bytes) != record.expected_sha256
+        ):
+            return RecoveryDecision(
+                RecoveryClass.CONFLICT_SOURCE_CHANGED,
+                "REQUIRE_USER_REVIEW",
+                reason="source identity, version, length, or content changed before move deletion authorization",
+            )
         action = (
             "REQUIRE_EXPLICIT_SOURCE_DELETE"
             if record.operation_kind == "move"

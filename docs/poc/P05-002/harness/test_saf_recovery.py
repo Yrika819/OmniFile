@@ -274,6 +274,24 @@ class SafRecoveryTests(unittest.TestCase):
         self.assertEqual(decision.classification, RecoveryClass.FINAL_DESTINATION_OBSERVED)
         self.assertEqual(decision.action, "MARK_COMPLETE")
 
+    def test_move_finalization_revalidates_source_before_delete_authorization(self) -> None:
+        source = b"0123456789abcdef"
+        decision = reconcile(
+            record_for(source, kind="move", finalization_acknowledged=True),
+            ProviderSnapshot(
+                provider_available=True,
+                grant_available=True,
+                source_available=True,
+                source_version="v2",
+                source_bytes=b"changed-source!!",
+                partial_bytes=None,
+                final_bytes=source,
+            ),
+        )
+
+        self.assertEqual(decision.classification, RecoveryClass.CONFLICT_SOURCE_CHANGED)
+        self.assertNotEqual(decision.action, "REQUIRE_EXPLICIT_SOURCE_DELETE")
+
     def test_missing_outputs_restart_from_zero(self) -> None:
         decision = reconcile(
             record_for(),

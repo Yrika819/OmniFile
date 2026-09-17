@@ -13,14 +13,15 @@ PYTHONPATH=docs/poc/P05-002/harness python3 -m unittest discover -s docs/poc/P05
 Fresh post-remediation result on 2026-09-17:
 
 ```text
-Ran 15 tests
+Ran 16 tests
 OK
 ```
 
 The host model covers partial/checkpoint reconciliation, provider and grant
 loss, source mutation, wrong-final precedence, finalization ambiguity, malformed
 terminal records, independent destination grants, final-copy completion without
-source reopen, move source preservation, and opaque locators.
+source reopen, MOVE source revalidation before delete authorization, move source
+preservation, and opaque locators.
 
 ## Evidence disposition
 
@@ -33,4 +34,4 @@ physical-device, process-death, and ADB evidence remain `NOT_TESTED`.
 
 The remediation tests were first run against the pre-remediation model and
 failed with missing-field and incorrect-policy failures. After the minimal model
-changes, the same command passed 15/15.
+changes, the same command passed 16/16.
