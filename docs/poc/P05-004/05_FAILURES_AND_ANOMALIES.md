@@ -39,3 +39,44 @@ fixture pass or the 54-record P0 summary.
 | Optional capability truth table | `PASS` for declaration model | No production wrapper exists; native capabilities remain absent |
 | Local Junrar inspection | `LICENSE_REVIEW_REQUIRED` | No local Junrar repository/license/source was available to inspect |
 | Native packaging probe | `NO_LOCAL_ARTIFACT` / `UNRESOLVED_4K_ONLY` | No AAR/ELF or 16 KiB measurement; inherited P0 was 4 KiB only |
+
+## Review finding dispositions — continuation 2026-09-18
+
+### Rejected false hypothesis: `fixtures/duplicate.tsv`
+
+| Field | Record |
+|---|---|
+| Finding | `fixtures/duplicate.tsv` prevents archive closure or should be removed |
+| Disposition | `REJECTED / FALSE HYPOTHESIS` |
+| Reason | `duplicate.tsv` is intentional negative coverage and the harness passes with it present |
+| Evidence | `tools/p05-004/test_archive_evidence_matrix.sh:27-32` requires duplicate-manifest rejection; fresh run exits `0` with `PASS: archive evidence matrix harness`; `OVERALL=NOT_CLOSED` comes from unresolved closure gates, not duplicate detection |
+| Action | Fixture retained; no harness change made for this finding |
+
+`PASS: archive evidence matrix harness` (the documented matrix harness behaves
+as expected) and `OVERALL=NOT_CLOSED` (production-readiness evidence gates
+remain) are distinct results and are not contradictory.
+
+### Adversarial review (`the-fool`, evidence-audit mode)
+
+Steelmaned thesis: the package truthfully supports a Java-first review
+direction with explicit gates while remaining `OVERALL=NOT_CLOSED`.
+
+| Attack | Outcome |
+|---|---|
+| Duplicate fixture finding correctly rejected? | Confirmed: rejection test is explicit at `test_archive_evidence_matrix.sh:27-32` and reproduced green |
+| Junrar licensing understated? | No: `LICENSE_REVIEW_REQUIRED` with absent local repository/license/source, RAR creation unsupported, engineering register not legal advice; final license classification `EXTERNAL_LICENSE_REVIEW_REQUIRED` |
+| Pixel execution confused with 16 KiB proof? | No: `NATIVE_16K=UNRESOLVED_4K_ONLY`; 4 KiB observation must not be relabeled as 16 KiB compatibility |
+| Static ELF evidence overclaimed? | No: local AAR/ELF counts are `0`/`0`; absence finding only, no `readelf` claim |
+| Fixture coverage called security proof? | No: wording is `tested corpus failed safely under the enforced application policy`; parser rows stay `UNKNOWN`/`NOT_TESTED` |
+| Scale extrapolated? | No: synthetic host metadata-index only; parser/UI/Android/device scale explicitly open; maximum actually tested scale is the synthetic 100k entry index |
+| Java-first preferred without evidence? | Acceptable as review input only: `READY_WITH_EXPLICIT_GATES`, no dependency selected, no freeze executed |
+| libarchive dismissed prematurely? | No: retained as second-stage alternative; `NOT_JUSTIFIED_FOR_CORE_V1` is scoped to CORE_V1 evidence, not a global rejection |
+| Freeze blocker mislabeled as release-only? | Consistent: zstd-jni native gates attach to the optional conditional path, not the Java-first family; Junrar license stays an explicit freeze gate for Junrar inclusion; no Technology Freeze is executed here |
+
+### Code review (continuation diff)
+
+Intent: extend closure evidence with bounded host-only probes while keeping
+`OVERALL=NOT_CLOSED`. No critical issues: documentation plus disposable
+standard-library-only harnesses; no production code, no secrets, no
+dependency declarations; `duplicate.tsv` preserved; negative testing intact;
+no P05-001/002/003 files touched. Verdict: Approve.
