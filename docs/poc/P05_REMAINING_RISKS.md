@@ -4,10 +4,15 @@
 
 ## Blockers
 
-1. No API 31 or API 36 Android runtime evidence exists for executor policy.
-2. No physical Pixel 7a P05 installation, lifecycle, SAF, or playback run exists.
-3. No real Media3/SAF/non-seekable playback evidence exists.
-4. Archive candidate closure remains conditional/open, including legal and native gates.
+1. Executor evidence is bounded: fresh Pixel 7a/API36 sanity exists, while API31
+   final-artifact equivalence, WorkManager, and media-processing FGS remain open.
+2. SAF evidence is parent-observed on one Pixel 7a/API36 run; interruption,
+   cancellation, provider revocation/disconnect, API31, and pre-finalization
+   lifecycle evidence remain open, with raw runtime artifacts not retained.
+3. Media3 evidence is parent-observed on one Pixel 7a/API36 run; API31,
+   pipe/provider, remote, lifecycle, and human audio acceptance remain open.
+4. Archive candidate closure remains conditional/open, including legal, parser-
+   security, real-provider, native packaging, and 16 KiB gates.
 
 ## Post-scaffold non-blockers
 

@@ -4,22 +4,24 @@
 
 ## Final status
 
-`P05_CORE_READINESS_INCOMPLETE — required Android runtime/device evidence was not collected and archive candidate closure remains open`
+`P05_CORE_READINESS_PARTIAL — bounded API 36 device evidence collected; archive candidate closure and multiple runtime gates remain open`
 
 The four independent branches were created from the sole authority
 `6ec9e1037d0fd86afebdec6bd1a5be67b008ccbb`. Their host-side harnesses and
-documentation were independently reviewed, but the mandatory Android runtime
-campaign was not run. Therefore this synthesis does not authorize CORE_V1
-Technology Freeze or production initialization.
+documentation were independently reviewed. Parent-controlled Pixel 7a/API 36
+runs now provide bounded executor, SAF, and Media3 PoC evidence; they do not
+close the untested API/provider/lifecycle/audio gates. P05-004 remains open.
+Therefore this synthesis does not authorize CORE_V1 Technology Freeze or
+production initialization.
 
 ## Branch disposition
 
 | PoC | Branch | Final SHA | Status | Review disposition |
 |---|---|---|---|---|
-| P05-001 | `poc/core-readiness-executors-v1` | `0a1ea0c22d5e6db8b6753a945454000bf9efddc2` | `INCOMPLETE — host fixture only; Android runtime NOT_TESTED` | Independent review findings resolved; final host verification 5/5 |
-| P05-002 | `poc/core-readiness-saf-operations-v1` | `78165d029b9362109b76cbb9a95dacf6c51be544` | `PARTIALLY_RESOLVED — host policy only; real SAF NOT_TESTED` | Independent review approved; final host verification 16/16 |
-| P05-003 | `poc/core-readiness-media3-v1` | `e27e88168314a0de9b3d4809574da60e5aec72b0` | `PARTIALLY_RESOLVED — contract model only; Media3/Android NOT_TESTED` | Independent review findings resolved; final host verification 10/10 |
-| P05-004 | `poc/core-readiness-archive-v1` | `b45c8c2184d926fcdf9242f90f8a6b6cbc33e2fc` | `NOT_CLOSED` | Independent review approved; shell validator passed with expected negative rejections |
+| P05-001 | `poc/core-readiness-executors-v1` | `41030aa7ddb089eb7b850fe85c1a0d682e3d6c8a` | `CLOSED_WITH_EXPLICIT_GATE` — fresh Pixel 7a/API36 sanity; API31 final-artifact equivalence, WorkManager, and media FGS remain open | Independent review PASS; host 5/5 and runtime contract 6/6 |
+| P05-002 | `poc/core-readiness-saf-operations-v1` | `1912ee8a40a4182407fe9b9d14e21b26e64a6199` | `PARTIALLY_RESOLVED / NOT_CLOSED` — parent-observed Pixel 7a/API36 SAF directions and restart reconciliation; interrupt/cancel, provider/API31, and pre-finalization lifecycle remain open | Final review checks PASS; host 25/25; runtime artifact/logs not retained in branch |
+| P05-003 | `poc/core-readiness-media3-v1` | `f649f1de14cea338f3471eafab43d10a9c736828` | `PARTIALLY_RESOLVED / NOT_CLOSED` — parent-observed Pixel 7a/API36 local WAV/FLAC/SAF and sequential seek-failure boundary; API31, pipe, remote, lifecycle, and human audio gates remain open | Final review PASS; host 15/15; FLAC fixture tracked |
+| P05-004 | `poc/core-readiness-archive-v1` | `6b8a60460f5fe440376ddae3161c2ad9e3a9b530` | `NOT_CLOSED` — legal, parser-security, native/16 KiB, and real archive/provider gates remain open | Final review PASS; recursive native absence probe and validator pass with expected negative results |
 
 ## Device/API matrix
 
@@ -29,7 +31,7 @@ Technology Freeze or production initialization.
 | API 33 | No Android runtime harness executed | `NOT_TESTED` |
 | API 34 | No Android runtime harness executed | `NOT_TESTED` |
 | API 35 | No Android runtime harness executed | `NOT_TESTED` |
-| API 36 / Pixel 7a | Device was observable as Pixel 7a / Android 16 / API 36, but no P05 campaign was installed or run | `NOT_TESTED` |
+| API 36 / Pixel 7a | P05-001 fresh sanity; parent-observed P05-002 SAF and P05-003 Media3 disposable runs | `PARTIAL — bounded to named APKs, fixture trees, and API 36; not production acceptance` |
 
 ## Confirmed architecture principles
 
@@ -44,7 +46,7 @@ Technology Freeze or production initialization.
 
 ## Open foundational gates
 
-- API 31 and API 36 executor lifecycle measurements, including UIDT/FGS/WorkManager/JobScheduler behavior.
-- Real Pixel 7a `ACTION_OPEN_DOCUMENT_TREE` Local↔SAF, SAF↔Local, and SAF↔SAF recovery with persisted grants and failure injection.
-- Real Media3 playback from direct/local, seekable SAF, and sequential/non-seekable sources.
-- Archive functional/provider/security/scale/license gates; Junrar legal review, zstd-jni native/page-size gates, and libarchive need remain open.
+- P05-001 API31 final-artifact equivalence, WorkManager, and media-processing FGS gates.
+- P05-002 interrupt/cancel timing, pre-finalization process death, provider revocation/disconnect, API31, and independent runtime artifact retention.
+- P05-003 API31, pipe-backed/provider-specific, remote/range, lifecycle, and human audio acceptance gates.
+- P05-004 real parser/provider/security corpus, Junrar legal approval, native packaging/ABI/16 KiB, and libarchive decision gates.

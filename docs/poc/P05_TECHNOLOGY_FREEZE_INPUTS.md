@@ -12,9 +12,16 @@ These are architecture-direction inputs only; none is frozen by this campaign:
 - Keep playback source resolution provider-neutral and capability-aware before Media3.
 - Retain a Java-first multi-engine archive candidate path as a future option, subject to the open candidate gates below.
 
+## User-frozen product identity
+
+- Display name: `OmniFile`.
+- Production Android applicationId: `com.omnifile`.
+- No production Android application, module, or package was created by this
+  campaign; disposable PoC identifiers remain PoC-only.
+
 ## Choices not frozen
 
-- applicationId, display name, namespace/package, module structure;
+- production namespace/package structure and module structure;
 - minSdk, targetSdk, compileSdk, Kotlin/AGP/Gradle/JDK versions;
 - Compose/Material/Media3/database versions and exact dependency set;
 - release signing, CI/CD, release channel, persistence schema, executor classes;
@@ -22,7 +29,8 @@ These are architecture-direction inputs only; none is frozen by this campaign:
 
 ## Technology Freeze gate
 
-`NO-GO` from this campaign. The required runtime/device evidence is missing and
-P05-004 is not closed. A separately authorized Technology Freeze task must
-re-check every SHA and rerun the required evidence before creating production
-Android structure.
+`NO-GO` from this campaign. Bounded Pixel 7a/API36 evidence exists for P05-001,
+P05-002, and P05-003, but required API/provider/lifecycle/audio gates remain
+open and P05-004 is not closed. Technology Freeze itself was not executed. A
+separately authorized Technology Freeze task must re-check every SHA and rerun
+the required evidence before creating production Android structure.
