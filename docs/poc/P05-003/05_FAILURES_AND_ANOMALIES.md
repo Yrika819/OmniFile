@@ -6,10 +6,9 @@ The first test run intentionally preceded implementation and failed during impor
 
 ## Environment blockers
 
-- The P05 worktree contains architecture/research documents but no Android application, Gradle wrapper, Media3 dependency graph, or Kotlin compiler.
+- The P05 worktree contains architecture/research documents but no Android application or Gradle wrapper. Cached Media3 1.3.1 AARs exist, but no reproducible dependency graph or raw runtime harness has been assembled.
 - Python 3.9 and `unittest` were available, so only a pure host contract harness was feasible.
-- ADB was not invoked because the user prohibited it.
-- No device, emulator, Media3 runtime, SAF provider, network provider, or real audio fixture campaign was run.
+- No Media3 ADB/device run, SAF playback run, network-provider run, or real audio fixture campaign was completed in this branch.
 
 ## Boundary anomalies retained as findings
 
