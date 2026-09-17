@@ -1,124 +1,83 @@
 # POC-001 — Results
 
-Status: PARTIAL — direct storage and descriptor capability evidence complete on API 31 and API 36; user-selected SAF and physical-removable/provider matrices remain unmeasured because of environment limitations.
+Status: COMPLETE
 
 Architecture authority: `79fc0f18c7f5e1d8e0ae714808f89977ff178b62`
 
 ## Runtime environments
 
-|Environment|Android|API|Image / model|Result scope|
+| Environment | Android | API | Device | Scope |
 |---|---:|---:|---|---|
-|AVD `poc_filemanager_api31`|12|31|Google APIs x86_64, `sdk_gphone64_x86_64`|direct shared storage + synthetic DocumentsProvider pipe|
-|AVD `poc_filemanager_api36`|16|36|Google APIs x86_64, `sdk_gphone64_x86_64`|direct shared storage + synthetic DocumentsProvider pipe|
-|Physical Android device|—|—|No device attached at campaign start|NOT_TESTED|
-|SD card / USB OTG|—|—|No removable hardware attached|NOT_TESTED|
-|Cloud-backed DocumentsProvider|—|—|None available in test environment|NOT_TESTED|
+| AVD `poc_filemanager_api31` | 12 | 31 | Google APIs x86_64 | direct shared storage + synthetic pipe |
+| AVD `poc_filemanager_api36` | 16 | 36 | Google APIs x86_64 | direct shared storage + synthetic pipe |
+| Physical | 16 | 36 | Pixel 7a (`lynx`) | direct + synthetic pipe + real local SAF tree |
 
-Exact build fingerprints are preserved in the raw `results/*-direct-pipe.jsonl` and `*-getprop.txt` captures.
+Raw evidence is under `poc/POC-001-storage-capabilities/results/`.
 
 ## Capability matrix
 
-Legend: YES / NO / CONDITIONAL / PROVIDER_DEPENDENT / UNKNOWN / NOT_TESTED.
+Legend: YES / NO / PROVIDER_DEPENDENT / NOT_TESTED.
 
-|Provider / surface|Sequential Read|Seek|Random Read|Writable|Rename / move|Stable identity observed|FD type|Notes|
-|---|---|---|---|---|---|---|---|---|
-|API 31 direct shared storage|YES|YES|YES|YES|YES in tested same filesystem|YES for tested rename/move (`fileKey` unchanged)|REGULAR|Emulator result only; not universal filesystem authority|
-|API 36 direct shared storage|YES|YES|YES|YES|YES in tested same filesystem|YES for tested rename/move (`fileKey` unchanged)|REGULAR|Emulator result only; not universal filesystem authority|
-|Synthetic DocumentsProvider pipe, API 31|YES|NO|NO from same descriptor|NO in this fixture|NOT_TESTED|Provider-defined|FIFO|`lseek` -> `ESPIPE`|
-|Synthetic DocumentsProvider pipe, API 36|YES|NO|NO from same descriptor|NO in this fixture|NOT_TESTED|Provider-defined|FIFO|`lseek` -> `ESPIPE`|
-|User-selected local SAF tree|NOT_TESTED|NOT_TESTED|NOT_TESTED|NOT_TESTED|NOT_TESTED|UNKNOWN|UNKNOWN|DocumentsUI/System UI ANR prevented valid grant selection|
-|Physical SD / USB|NOT_TESTED|NOT_TESTED|NOT_TESTED|NOT_TESTED|NOT_TESTED|UNKNOWN|UNKNOWN|No hardware attached|
-|Cloud-backed SAF provider|NOT_TESTED|NOT_TESTED|NOT_TESTED|NOT_TESTED|NOT_TESTED|UNKNOWN|UNKNOWN|No provider available|
+| Surface | Sequential read | Seek/random read | Write/append/truncate | Rename/move | Identity behavior | FD | Notes |
+|---|---|---|---|---|---|---|---|
+| API31 direct shared | YES | YES | YES | YES | tested `fileKey` stable | REGULAR, seekable | emulator |
+| API36 direct shared | YES | YES | YES | YES | tested `fileKey` stable | REGULAR, seekable | emulator |
+| Pixel 7a direct shared | YES | YES | YES | YES | tested `fileKey` stable | REGULAR, seekable | physical Android 16 |
+| Synthetic provider pipe | YES | NO | NO in fixture | NOT_TESTED | provider-defined | FIFO, `lseek` -> `ESPIPE` | API31/API36 + Pixel 7a |
+| Pixel 7a local SAF Documents tree | YES | YES on tested provider | YES | YES | URI/documentId changed on rename and move | REGULAR and seekable on tested provider | provider-dependent result |
+| SD / USB removable | NOT_TESTED | NOT_TESTED | NOT_TESTED | NOT_TESTED | NOT_TESTED | NOT_TESTED | no removable hardware |
+| Cloud DocumentsProvider | NOT_TESTED | NOT_TESTED | NOT_TESTED | NOT_TESTED | NOT_TESTED | NOT_TESTED | no provider attached |
 
-## Direct storage measurements
+## Pixel 7a direct-storage measured facts
 
-### Android 12 / API 31
+- 64 MiB sequential read: 17.548217 ms, about 3646.16 MiB/s; benchmark value is cache/device specific and not a production target.
+- Random seek/read at 33,554,432 bytes: PASS.
+- `ParcelFileDescriptor`: regular file, `lseek` PASS.
+- Same-parent rename and cross-directory move: PASS; observed `fileKey` stayed `(dev=a1,ino=575375)`.
+- 4,831,838,208-byte sparse logical length: PASS.
+- Cooperative cancellation stopped after 851,968 / 67,108,864 bytes.
+- Synthetic FIFO descriptor: sequential read PASS; seek failed with `ESPIPE`.
 
-- 64 MiB deterministic sequential read: 40.830946 ms, approximately 1567.33 MiB/s on the emulator.
-- Random seek to byte offset 33,554,432: successful; measured seek/read probe 75.945 microseconds.
-- Regular `ParcelFileDescriptor`: `fdType=REGULAR`, `statSize=67,108,864`, `lseek` successful.
-- Same-parent rename: successful; recorded file key `(dev=28,ino=237617)` before and after; measured 23,119.843 microseconds.
-- Cross-directory move within the test root: successful; same recorded file key before and after; measured 11,453.388 microseconds.
-- >4 GiB sparse request: requested and observed 4,831,838,208 bytes; 427.164476 ms.
-- Cooperative cancellation: stopped after 655,360 of 67,108,864 bytes.
+## Pixel 7a SAF measured facts
 
-### Android 16 / API 36
+Real `ACTION_OPEN_DOCUMENT_TREE` selection was used for:
+`content://com.android.externalstorage.documents/tree/primary%3ADocuments`.
 
-- 64 MiB deterministic sequential read: 24.380178 ms, approximately 2624.67 MiB/s on the emulator.
-- Random seek to byte offset 33,554,432: successful; measured seek/read probe 84.846 microseconds.
-- Regular `ParcelFileDescriptor`: `fdType=REGULAR`, `statSize=67,108,864`, `lseek` successful.
-- Same-parent rename: successful; recorded file key `(dev=4a,ino=229453)` before and after; measured 15,648.261 microseconds.
-- Cross-directory move within the test root: successful; same recorded file key before and after; measured 27,478.905 microseconds.
-- >4 GiB sparse request: requested and observed 4,831,838,208 bytes; 6.204571 ms.
-- Cooperative cancellation: stopped after 524,288 of 67,108,864 bytes.
+Inside the dedicated `FileManagerPoc001Saf` test directory:
+- mkdir/list/stat-like metadata: YES;
+- sequential read: YES;
+- `ParcelFileDescriptor`: YES;
+- `AssetFileDescriptor`: YES;
+- `lseek`: YES on this local provider;
+- random `FileChannel.position` read: YES;
+- append/truncate/mtime update: YES;
+- same-parent rename: YES; URI and `documentId` both changed;
+- cross-directory move: YES; URI and `documentId` both changed;
+- >4 GiB sparse logical size: YES;
+- cancellation: YES;
+- delete: YES.
 
-Throughput and latency values above are emulator measurements and are not device-performance targets.
+This confirms that the tested local provider is seekable, but does not generalize seekability to all DocumentsProviders.
 
-## Filename fixtures
+## Filename behavior
 
-The same pattern was observed on API 31 and API 36 direct shared storage:
+Direct shared storage on API31, API36 emulator, and Pixel 7a rejected the requested double-quote and newline names with `EPERM`, while Unicode, emoji, spaces and tested shell metacharacters succeeded.
 
-|Fixture|API 31|API 36|
-|---|---|---|
-|zero byte|PASS|PASS|
-|spaces|PASS|PASS|
-|Unicode Japanese name|PASS|PASS|
-|emoji name|PASS|PASS|
-|shell metacharacters `$;[]{}`|PASS|PASS|
-|long 224-ish character basename plus extension|PASS|PASS|
-|name containing double quote|FAIL — `EPERM`|FAIL — `EPERM`|
-|name containing newline|FAIL — `EPERM`|FAIL — `EPERM`|
-|nested directories|PASS|PASS|
+The Pixel local SAF provider did not reject those requests; it sanitized them instead:
+- requested `quotes-'".txt` -> provider returned `quotes-'_.txt`;
+- requested newline name -> provider returned `line_break.txt`.
 
-This is measured Android emulator shared-storage behavior, not a statement that all underlying Linux filesystems reject those characters.
+Therefore successful create does not imply exact-name preservation.
 
-## Descriptor evidence
+## Persisted grant
 
-The synthetic DocumentsProvider returned a real `ParcelFileDescriptor` backed by a pipe.
+The persisted local SAF grant survived process restart and the corrected `saf_probe` succeeded. Explicit grant revocation remains `NOT_TESTED`.
 
-API 31:
-- `fdType=FIFO`;
-- sequential read succeeded;
-- `Os.lseek` failed with errno 29, `ESPIPE (Illegal seek)`.
+## Disconnect / revocation
 
-API 36:
-- `fdType=FIFO`;
-- sequential read succeeded;
-- `Os.lseek` failed with errno 29, `ESPIPE (Illegal seek)`.
+- removable SD/USB disconnect: NOT_TESTED;
+- cloud-provider disconnect: NOT_TESTED;
+- explicit persisted-SAF grant revocation: NOT_TESTED;
+- direct MANAGE_EXTERNAL_STORAGE revoke-during-I/O: NOT_TESTED.
 
-### Measured fact
-
-A provider can return a valid file descriptor that supports sequential reading but does not support seeking.
-
-### Inference
-
-Architecture code must probe/advertise descriptor seekability independently from descriptor availability. `openFileDescriptor()` success is insufficient evidence for random access.
-
-## Rename / move identity
-
-On the two tested direct-storage emulator filesystems, the observed `fileKey` remained unchanged across both same-parent rename and cross-directory move within the same test filesystem.
-
-### Measured fact
-
-Identity continuity was observed for the tested direct filesystem operations.
-
-### Limitation
-
-This does not establish SAF URI stability, cloud object identity, removable-media identity, or cross-filesystem atomicity. Those remain provider-specific and unmeasured here.
-
-## Modification time
-
-Appending after a delay produced a non-decreasing modification timestamp on both tested direct-storage environments.
-
-No claim is made about timestamp precision or reliability across providers.
-
-## Revocation / disconnect
-
-- Direct special-access revocation: recorded as CONDITIONAL in the harness; no complete revoke/recover sequence was accepted as final evidence.
-- User-selected SAF persisted-grant revocation: NOT_TESTED because a valid picker grant could not be established.
-- SD/USB disconnect: NOT_TESTED.
-- Cloud/provider process disconnect: NOT_TESTED.
-
-## Result integrity
-
-No `NOT_TESTED` item has been converted into PASS. No single emulator success is treated as a universal Android storage guarantee.
+No NOT_TESTED item is promoted to PASS.

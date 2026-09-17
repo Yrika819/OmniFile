@@ -1,74 +1,39 @@
 # POC-001 — Failures and Edge Cases
 
-Status: RECORDED
+Status: COMPLETE
 
-## 1. Direct shared-storage filename restrictions
+## Direct filename restrictions
 
-### Measured fact
+On API31/API36 emulator direct storage and Pixel 7a direct shared storage, requested names containing a double quote or newline failed with `EPERM`. Unicode, emoji, spaces and the tested shell metacharacters succeeded.
 
-On both API 31 and API 36 emulator shared storage, creation of the following fixtures failed with `java.io.FileNotFoundException` wrapping `EPERM (Operation not permitted)`:
-- a filename containing `"`;
-- a filename containing a newline.
+## SAF name sanitization
 
-Unicode, emoji, spaces, and the tested shell metacharacters succeeded.
+The Pixel local SAF provider accepted the same problematic requests but changed the display/document name. This is measured provider behavior and means callers must inspect the returned metadata rather than assume exact name preservation.
 
-### Inference
+## SAF harness bugs found and corrected
 
-Filename admissibility is not equivalent to raw Linux filesystem admissibility. Android storage layers may reject names even when an underlying filesystem could theoretically encode them.
+The first physical-device implementation passed a tree URI directly to `DocumentsContract.createDocument`; this was invalid. It was corrected to derive a document URI with `getTreeDocumentId` + `buildDocumentUriUsingTree`. The persisted-grant probe needed the same correction. These are harness defects, not platform failures.
 
-### Recommendation
+## Emulator instability
 
-Future production validation/sanitization should be provider/capability aware and should report rejected names explicitly rather than assuming a universal POSIX filename domain.
+The API36 AVD repeatedly produced System UI/Launcher ANRs during the picker flow. No shell-grant bypass was used. Physical Pixel 7a testing later supplied the valid SAF evidence instead.
 
-## 2. SAF picker / emulator UI instability
+## API31 host load
 
-### Observed anomaly
+The API31 emulator consumed roughly 100% host CPU and about 2.6 GiB RSS during the campaign. UI-heavy tests were not extended there. This is an emulator/host limitation, not Android 12 performance evidence.
 
-On the API 36 Google APIs x86_64 AVD, starting normal `ACTION_OPEN_DOCUMENT_TREE` selection repeatedly surfaced ANR dialogs including:
-- `Process system isn't responding`;
-- `System UI isn't responding`;
-- `Pixel Launcher isn't responding`.
+## Removable/cloud disconnect
 
-A cold boot without snapshots did not make the picker path sufficiently reliable for evidence collection.
+No SD card, USB OTG device, or cloud-backed provider was attached. Disconnect, reconnect, lazy descriptor failure and recovery remain NOT_TESTED.
 
-### Decision
+## Persisted grant revocation
 
-No shell-grant or hidden URI-permission bypass was used. Such a bypass would not prove real user-selected SAF permission behavior.
+Grant persistence across process restart was measured. Explicit `releasePersistableUriPermission` followed by denied-access verification was not completed, so revocation remains NOT_TESTED.
 
-### Result
+## >4 GiB interpretation
 
-The local user-selected SAF matrix, persisted-grant restart test, and persisted-grant revocation test remain `NOT_TESTED` for this run.
+The sparse-length tests prove 64-bit logical size handling on the tested direct/local-SAF surfaces without filling storage with 4+ GiB of physical payload. They do not establish behavior for FAT-like removable filesystems or cloud providers.
 
-## 3. API 31 emulator host load
+## Performance values
 
-### Measured fact
-
-After API 31 boot completion, the headless QEMU process was observed at approximately 99.9% CPU and ~2.6 GB RSS on the Intel Mac host. The host load average was elevated.
-
-### Action
-
-Only the already-booted direct-storage and synthetic-pipe measurement set was collected. The API 31 emulator was then stopped rather than extending unreliable UI-heavy testing.
-
-### Result
-
-This is an environment limitation, not evidence that Android 12 itself performs poorly.
-
-## 4. Physical removable media
-
-No SD card or USB OTG device was attached to the test environment. Unplug/unmount behavior, lazy descriptor failure, URI recovery, and reconnect behavior are `NOT_TESTED`.
-
-## 5. Cloud-backed DocumentsProvider
-
-No cloud-backed provider was available in the emulator. Provider-specific flags, non-seekable remote streams, offline behavior, auth expiry, and reconnect semantics are `NOT_TESTED`.
-
-## 6. Direct permission revocation
-
-The harness records the direct `MANAGE_EXTERNAL_STORAGE` special-access case as CONDITIONAL. A complete revoke-during-active-I/O and deterministic recovery sequence was not completed, so it is not promoted to PASS.
-
-## 7. >4 GiB sparse-file interpretation
-
-Both emulator environments accepted a 4,831,838,208-byte logical length. This proves 64-bit length handling for the tested direct path and sparse operation; it does not prove equivalent behavior for FAT variants, removable media, SAF providers, cloud providers, or real allocation of >4 GiB physical data.
-
-## 8. Emulator performance numbers
-
-Sequential throughput and microsecond-scale seek timings are useful only for harness sanity and comparative observations. Emulator caching and host storage dominate them. They must not become production performance budgets.
+All throughput and latency values are single-run PoC observations only and are not production performance budgets.

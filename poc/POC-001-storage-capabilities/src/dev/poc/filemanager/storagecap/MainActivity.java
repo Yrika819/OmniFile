@@ -65,6 +65,7 @@ public final class MainActivity extends Activity {
             case "select_saf": chooseTree(); break;
             case "saf": runAsync("saf", this::runSaf); break;
             case "saf_probe": runAsync("saf_probe", this::probePersistedSaf); break;
+            case "saf_release": runAsync("saf_release", this::releasePersistedSaf); break;
             case "pipe": runAsync("pipe", this::runSyntheticPipe); break;
             case "all_no_picker": runAsync("all_no_picker", () -> { recordEnvironment(); runDirect(); runSyntheticPipe(); }); break;
             default: record("CONTROL", "UNKNOWN_MODE", "FAIL", obj("mode", mode));
@@ -280,8 +281,8 @@ public final class MainActivity extends Activity {
 
         boolean deleted = moved.delete();
         record("DIRECT", "DELETE", deleted ? "PASS" : "FAIL", obj("existsAfter", moved.exists()));
-        record("DIRECT", "DISCONNECT", "NOT_TESTED", obj("reason", "emulator internal shared storage has no physical disconnect event"));
-        record("DIRECT", "PERMISSION_REVOCATION", "CONDITIONAL", obj("reason", "MANAGE_EXTERNAL_STORAGE special access tested externally via appops; see host transcript"));
+        record("DIRECT", "DISCONNECT", "NOT_TESTED", obj("reason", "no removable-storage disconnect event exercised in this run"));
+        record("DIRECT", "PERMISSION_REVOCATION", "NOT_TESTED", obj("reason", "MANAGE_EXTERNAL_STORAGE revocation was not exercised in this run"));
     }
 
     private void runSyntheticPipe() throws Exception {
@@ -308,9 +309,11 @@ public final class MainActivity extends Activity {
         }
         Uri tree = Uri.parse(text);
         ContentResolver cr = getContentResolver();
-        record("SAF", "ROOT", "PASS", obj("treeUri", tree.toString(), "documentId", safeDocId(tree)));
+        String treeDocumentId = DocumentsContract.getTreeDocumentId(tree);
+        Uri treeDocument = DocumentsContract.buildDocumentUriUsingTree(tree, treeDocumentId);
+        record("SAF", "ROOT", "PASS", obj("treeUri", tree.toString(), "documentUri", treeDocument.toString(), "documentId", treeDocumentId));
 
-        Uri testDir = createDir(cr, tree, "FileManagerPoc001Saf");
+        Uri testDir = createDir(cr, treeDocument, "FileManagerPoc001Saf");
         if (testDir == null) throw new IOException("could not create SAF test directory");
         record("SAF", "MKDIR", "PASS", queryDocInstance(testDir));
 
@@ -436,8 +439,23 @@ public final class MainActivity extends Activity {
             record("SAF", "DELETE", deleted ? "PASS" : "FAIL", obj("uri", moveSource.toString()));
         } catch (Throwable t) { recordFailure("SAF", "DELETE", t, obj("uri", moveSource.toString())); }
 
-        record("SAF", "DISCONNECT", "NOT_TESTED", obj("reason", "no removable/cloud provider attached to emulator"));
-        record("SAF", "REVOCATION", "CONDITIONAL", obj("reason", "host-side revocation phase required; run saf_probe after adb revoke/force-stop"));
+        record("SAF", "DISCONNECT", "NOT_TESTED", obj("reason", "no removable/cloud DocumentsProvider was attached during this run"));
+        record("SAF", "REVOCATION", "NOT_TESTED", obj("reason", "explicit persisted-grant revocation was not exercised; process-restart persistence was measured separately"));
+    }
+
+    private void releasePersistedSaf() {
+        String text = getSharedPreferences(PREF, MODE_PRIVATE).getString(KEY_TREE, null);
+        if (text == null) {
+            record("SAF", "PERSISTED_GRANT_RELEASE", "NOT_TESTED", obj("reason", "no saved URI"));
+            return;
+        }
+        Uri uri = Uri.parse(text);
+        try {
+            getContentResolver().releasePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            record("SAF", "PERSISTED_GRANT_RELEASE", "PASS", obj("uri", uri.toString()));
+        } catch (Throwable t) {
+            recordFailure("SAF", "PERSISTED_GRANT_RELEASE", t, obj("uri", uri.toString()));
+        }
     }
 
     private void probePersistedSaf() {
@@ -448,8 +466,10 @@ public final class MainActivity extends Activity {
         }
         Uri uri = Uri.parse(text);
         try {
-            JSONObject m = queryDocInstance(uri);
-            record("SAF", "PERSISTED_GRANT_PROBE", "PASS", obj("uri", uri.toString(), "metadata", m));
+            String treeDocumentId = DocumentsContract.getTreeDocumentId(uri);
+            Uri documentUri = DocumentsContract.buildDocumentUriUsingTree(uri, treeDocumentId);
+            JSONObject m = queryDocInstance(documentUri);
+            record("SAF", "PERSISTED_GRANT_PROBE", "PASS", obj("treeUri", uri.toString(), "documentUri", documentUri.toString(), "metadata", m));
         } catch (Throwable t) {
             recordFailure("SAF", "PERSISTED_GRANT_PROBE", t, obj("uri", uri.toString()));
         }

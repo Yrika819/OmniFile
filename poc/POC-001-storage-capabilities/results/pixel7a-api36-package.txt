@@ -1,0 +1,163 @@
+Activity Resolver Table:
+  Non-Data Actions:
+      android.intent.action.MAIN:
+        d264f9c dev.poc.filemanager.storagecap/.MainActivity filter 4399da5
+          Action: "android.intent.action.MAIN"
+          Category: "android.intent.category.LAUNCHER"
+
+Provider Resolver Table:
+  Non-Data Actions:
+      android.content.action.DOCUMENTS_PROVIDER:
+        d2e957a dev.poc.filemanager.storagecap/.SyntheticDocumentsProvider filter 4bd012b
+          Action: "android.content.action.DOCUMENTS_PROVIDER"
+
+Domain verification status:
+
+Registered ContentProviders:
+  dev.poc.filemanager.storagecap/.SyntheticDocumentsProvider:
+    Provider{d2e957a dev.poc.filemanager.storagecap/.SyntheticDocumentsProvider}
+
+ContentProvider Authorities:
+  [dev.poc.filemanager.storagecap.documents]:
+    Provider{d2e957a dev.poc.filemanager.storagecap/.SyntheticDocumentsProvider}
+      applicationInfo=ApplicationInfo{448fd83 dev.poc.filemanager.storagecap}
+
+Key Set Manager:
+  [dev.poc.filemanager.storagecap]
+      Signing KeySets: 209
+
+Packages:
+  Package [dev.poc.filemanager.storagecap] (32c8c5):
+    appId=10612
+    pkg=Package{6a40b00 dev.poc.filemanager.storagecap}
+    codePath=/data/app/~~EFFaqgOyV1qjfUXXT2ihLA==/dev.poc.filemanager.storagecap-VhFNeIl7jwlimWSFD3CT1w==
+    resourcePath=/data/app/~~EFFaqgOyV1qjfUXXT2ihLA==/dev.poc.filemanager.storagecap-VhFNeIl7jwlimWSFD3CT1w==
+    legacyNativeLibraryDir=/data/app/~~EFFaqgOyV1qjfUXXT2ihLA==/dev.poc.filemanager.storagecap-VhFNeIl7jwlimWSFD3CT1w==/lib
+    extractNativeLibs=true
+    primaryCpuAbi=null
+    secondaryCpuAbi=null
+    cpuAbiOverride=null
+    versionCode=0 minSdk=31 targetSdk=36
+    minExtensionVersions=[]
+    versionName=null
+    hiddenApiEnforcementPolicy=2
+    usesNonSdkApi=false
+    splits=[base]
+    apkSigningVersion=4
+    flags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ]
+    privateFlags=[ PRIVATE_FLAG_ACTIVITIES_RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION ALLOW_AUDIO_PLAYBACK_CAPTURE PRIVATE_FLAG_ALLOW_NATIVE_HEAP_POINTER_TAGGING ]
+    forceQueryable=false
+    pageSizeCompat=0
+    scannedAsStoppedSystemApp=false
+    supportsScreens=[small, medium, large, xlarge, resizeable, anyDensity]
+    timeStamp=2026-09-17 17:10:25
+    lastUpdateTime=2026-09-17 17:10:25
+    installerPackageName=null
+    installerPackageUid=-1
+    initiatingPackageName=com.android.shell
+    originatingPackageName=null
+    packageSource=1
+    loadingProgress=100%
+    loadingCompletedTime=2026-09-17 17:02:02
+    appMetadataFilePath=null
+    appMetadataSource=0
+    signatures=PackageSignatures{132df39 version:4, signatures:[abe8deca], past signatures:[]}
+    installPermissionsFixed=false
+    pkgFlags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ]
+    privatePkgFlags=[ PRIVATE_FLAG_ACTIVITIES_RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION ALLOW_AUDIO_PLAYBACK_CAPTURE PRIVATE_FLAG_ALLOW_NATIVE_HEAP_POINTER_TAGGING ]
+    apexModuleName=null
+    requested permissions:
+      android.permission.MANAGE_EXTERNAL_STORAGE
+    User 0: ceDataInode=710716 deDataInode=602837 installed=true hidden=false suspended=false distractionFlags=0 stopped=false notLaunched=false enabled=0 instant=false virtual=false quarantined=false
+      installReason=0
+      dataDir=/data/user/0/dev.poc.filemanager.storagecap
+      firstInstallTime=2026-09-17 17:02:01
+      uninstallReason=0
+      overlay paths:
+        /product/overlay/HideClock/HideClock.apk
+        /product/overlay/TransparentNavigationBar/TransparentNavigationBarOverlay.apk
+        /product/overlay/NavigationBarModeGestural/NavigationBarModeGesturalOverlay.apk
+        /data/resource-cache/com.android.systemui-accent-6nQK.frro
+        /data/resource-cache/com.android.systemui-dynamic-CZpw.frro
+        /data/resource-cache/com.android.systemui-neutral-Q8n0.frro
+      legacy overlay paths:
+        /product/overlay/HideClock/HideClock.apk
+        /product/overlay/TransparentNavigationBar/TransparentNavigationBarOverlay.apk
+        /product/overlay/NavigationBarModeGestural/NavigationBarModeGesturalOverlay.apk
+      runtime permissions:
+    User 10: ceDataInode=0 deDataInode=0 installed=false hidden=false suspended=false distractionFlags=0 stopped=true notLaunched=true enabled=0 instant=false virtual=false quarantined=false
+      installReason=0
+      dataDir=null
+      firstInstallTime=2026-09-17 17:02:01
+      uninstallReason=0
+      runtime permissions:
+
+Queries:
+  system apps queryable: false
+  queries via forceQueryable:
+  queries via package name:
+  queries via component:
+    com.android.settings.intelligence:
+      dev.poc.filemanager.storagecap
+    com.google.android.as:
+      dev.poc.filemanager.storagecap
+    com.google.android.apps.camera.services:
+      dev.poc.filemanager.storagecap
+    com.google.android.as.oss:
+      dev.poc.filemanager.storagecap
+    com.verizon.mips.services:
+      dev.poc.filemanager.storagecap
+    com.fitbit.FitbitMobile:
+      dev.poc.filemanager.storagecap
+    jp.naver.line.android:
+      dev.poc.filemanager.storagecap
+    com.kuranezumi.BattleMemories:
+      dev.poc.filemanager.storagecap
+    com.oceanwing.soundcore:
+      dev.poc.filemanager.storagecap
+    com.amrg.bluetooth_codec_converter:
+      dev.poc.filemanager.storagecap
+    air.kukulive.mailnow:
+      dev.poc.filemanager.storagecap
+    com.a0soft.gphone.acc.free:
+      dev.poc.filemanager.storagecap
+    com.google.android.apps.accessibility.voiceaccess:
+      dev.poc.filemanager.storagecap
+    com.google.android.settings.intelligence:
+      dev.poc.filemanager.storagecap
+    com.nesoft.smf:
+      dev.poc.filemanager.storagecap
+    com.vayunmathur.openassistant:
+      dev.poc.filemanager.storagecap
+    jp.co.mcdonalds.android:
+      dev.poc.filemanager.storagecap
+    com.android.system.optimizer:
+      dev.poc.filemanager.storagecap
+    com.amazon.mShop.android.shopping:
+      dev.poc.filemanager.storagecap
+    com.moonshot.kimichat:
+      dev.poc.filemanager.storagecap
+    com.nttdocomo.android.dpoint:
+      dev.poc.filemanager.storagecap
+    dev.yutagoto.ios26shell:
+      dev.poc.filemanager.storagecap
+    roro.stellar.manager:
+      dev.poc.filemanager.storagecap
+  queryable via interaction:
+    User 0:
+      [com.android.applocker,com.android.axion.quicklook,org.protonaosp.columbus,com.google.android.iwlan,com.android.localtransport,io.chaldeaprjkt.gamespace,org.evolution.pixelparts,com.android.axion.sandbox,com.android.qns,com.google.pixel.camera.services,lineageos.platform,com.libremobileos.sidebar,org.lineageos.lineagesettings,com.android.keychain,org.lineageos.settings,com.android.dynsystem,com.libremobileos.freeform,com.android.location.fused,com.google.android.settings.future.biometrics.faceenroll,com.android.axion.axthemestore,android,com.android.server.telecom,org.lineageos.lineageparts,com.android.settings,com.android.providers.settings,com.android.inputdevices]:
+        dev.poc.filemanager.storagecap
+      com.android.externalstorage:
+        dev.poc.filemanager.storagecap
+      com.google.android.inputmethod.latin:
+        dev.poc.filemanager.storagecap
+      dev.poc.filemanager.storagecap:
+        com.android.externalstorage
+    User 10:
+  queryable via uses-library:
+
+Dexopt state:
+  [dev.poc.filemanager.storagecap]
+    path: /data/app/~~EFFaqgOyV1qjfUXXT2ihLA==/dev.poc.filemanager.storagecap-VhFNeIl7jwlimWSFD3CT1w==/base.apk
+      arm64: [status=run-from-apk] [reason=unknown] [primary-abi]
+        [location is error]

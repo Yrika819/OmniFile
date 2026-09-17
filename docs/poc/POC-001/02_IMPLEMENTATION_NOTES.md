@@ -1,64 +1,70 @@
 # POC-001 — Implementation Notes
 
-Status: PARTIAL EVIDENCE COMPLETE
+Status: COMPLETE
 
-All code under `poc/POC-001-storage-capabilities/` is **POC-ONLY — NOT PRODUCTION AUTHORITY**.
+## Disposable harness
 
-## Harness shape
+The PoC lives under `poc/POC-001-storage-capabilities/` and is intentionally independent from any production Android application structure.
 
-The harness is a minimal Java Android application built directly with Android SDK command-line tools rather than a production Gradle application. This avoids freezing production module structure, applicationId, namespace, dependency versions, or release configuration.
+It is built directly with `javac`, D8, `aapt2`, `zipalign` and `apksigner`. The temporary package is `dev.poc.filemanager.storagecap` and is **POC-ONLY — NOT PRODUCTION AUTHORITY**.
 
-Temporary package/authority:
-- package: `dev.poc.filemanager.storagecap`
-- DocumentsProvider authority: `dev.poc.filemanager.storagecap.documents`
+## Direct-storage test boundary
 
-The harness contains:
-- direct shared-storage probes under `/storage/emulated/0/Documents/FileManagerPoc001Direct`;
-- a synthetic `DocumentsProvider` that returns a pipe-backed `ParcelFileDescriptor`;
-- optional user-selected SAF tree probes, which require a functioning system DocumentsUI picker;
-- JSONL result persistence under app-private storage;
-- host scripts to build, install, run, and capture results.
+All direct destructive operations are restricted to:
 
-## Direct-storage probes
+`/storage/emulated/0/Documents/FileManagerPoc001Direct`
 
-Measured operations include fixture creation, nested mkdir, list/stat, sequential read, `RandomAccessFile.seek`, regular-file `ParcelFileDescriptor` + `Os.lseek`, append, truncate, same-parent rename, cross-directory move, mtime change, cooperative cancellation, >4 GiB sparse sizing, and delete.
+The harness deletes/recreates only that dedicated fixture root. It does not scan or modify unrelated user files.
 
-`Files.readAttributes(...).fileKey()` was recorded around rename/move to observe identity continuity on the emulator filesystem. This is evidence for the tested filesystem only; it is not a universal Android identity contract.
+## SAF test boundary
 
-## Descriptor probe
+The accepted physical-device SAF evidence came from a real user-style `ACTION_OPEN_DOCUMENT_TREE` flow selecting the local `Documents` tree. The harness then creates and operates only inside:
 
-`SyntheticDocumentsProvider` exposes document `pipe` using `ParcelFileDescriptor.createPipe()`. The client calls `fstat` to classify descriptor type and then calls `Os.lseek` rather than inferring seekability from descriptor availability.
+`Documents/FileManagerPoc001Saf`
 
-This directly tests the Architecture V1 requirement that native descriptor presence and seekability remain separate capabilities.
+The tree URI is persisted using `takePersistableUriPermission`.
 
-## SAF implementation path
+Two harness URI bugs were discovered and fixed during physical testing:
 
-The harness includes normal `ACTION_OPEN_DOCUMENT_TREE` selection with persistable read/write grants and subsequent `DocumentsContract` probes for:
-- list/query metadata and flags;
-- sequential read;
-- `ParcelFileDescriptor` and `AssetFileDescriptor`;
-- `lseek`/random read;
-- append/truncate;
-- rename and move identity/URI behavior;
-- >4 GiB sparse candidate where supported;
-- cancellation;
-- delete;
-- persisted grant probe.
+1. the first SAF implementation passed the tree URI directly to `DocumentsContract.createDocument`; Android correctly rejected it as an invalid document URI;
+2. the persisted-grant probe initially queried the tree URI directly.
 
-The API 36 headless emulator repeatedly produced System UI / launcher ANR dialogs when entering the picker. No permission injection or hidden bypass was used because that would not be equivalent to a real user-selected persisted SAF grant. Those SAF operations are therefore `NOT_TESTED` in this run.
+The corrected implementation converts the tree URI with `getTreeDocumentId` + `buildDocumentUriUsingTree` before document operations or metadata queries.
 
-## Build details
+These were PoC harness bugs, not Android storage failures.
 
-Build Tools: 36.0.0.
-Minimum API encoded in DEX/APK: 31.
-Target API encoded for the disposable harness: 36.
-Signing: local Android debug keystore only.
+## Descriptor testing
 
-None of the above is production configuration authority.
+A synthetic `DocumentsProvider` returns a pipe-backed `ParcelFileDescriptor`. Sequential reads are valid, while lower-level `Os.lseek` reports `ESPIPE`. This intentionally separates descriptor presence from seekability.
 
-## Artifact classification
+For the local SAF provider, the harness independently measures:
+- `ParcelFileDescriptor`;
+- `AssetFileDescriptor`;
+- lower-level `lseek`;
+- `FileChannel.position` random read.
 
-- Harness source/scripts: `DISPOSABLE`.
-- Raw JSONL/getprop/package capture: `REFERENCE_ONLY`.
-- Measured conclusions and architecture-impact documents: `REFERENCE_ONLY`.
-- No artifact is classified production-ready.
+## Identity testing
+
+Direct storage records Java/NIO `fileKey` before and after same-filesystem rename and cross-directory move.
+
+SAF records the returned URI and `documentId` before and after `DocumentsContract.renameDocument` and `moveDocument`. The harness does not assume stable identity merely because those calls succeed.
+
+## Filename testing
+
+The harness requests Unicode, emoji, spaces, quotes, shell metacharacters, newline, long names and nested directories.
+
+The requested name and provider-returned metadata are both recorded, allowing provider sanitization to be distinguished from exact-name acceptance.
+
+## Large-size and cancellation testing
+
+A 4,831,838,208-byte logical sparse length is used to exercise 64-bit size handling without intentionally filling primary storage with 4+ GiB of real payload data.
+
+Cancellation is cooperative and bounded. The test records bytes consumed before stop rather than treating cancellation as an unmeasured boolean.
+
+## Evidence collection
+
+Emulator evidence is captured directly from the app-private JSONL result file. On the physical Pixel 7a, SELinux blocked `run-as` despite the disposable debug harness, so final physical-device JSONL evidence was captured from the harness's structured `POC001` logcat records. The same JSON payload emitted by `record()` is preserved.
+
+## Deliberately excluded
+
+The PoC does not define production interfaces, storage adapters, dependency injection, module boundaries, SDK versions, worker/executor choices or release packaging.
