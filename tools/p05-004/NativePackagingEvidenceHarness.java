@@ -3,7 +3,10 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashSet;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Records the distinction between an inherited 4 KiB device observation and
@@ -11,6 +14,13 @@ import java.util.Locale;
  */
 public final class NativePackagingEvidenceHarness {
     private static final String HEADER = "candidate\tevidence\tobserved\tclassification\tnote";
+    private static final Map<String, String> EXPECTED_EVIDENCE = Map.ofEntries(
+            Map.entry(key("zstd-jni Android AAR", "local-aar"), "ABSENT\tNOT_TESTED"),
+            Map.entry(key("zstd-jni Android AAR", "local-elf"), "ABSENT\tNOT_TESTED"),
+            Map.entry(key("zstd-jni Android AAR", "p0-page-size"), "4096\tNOT_16K_EVIDENCE"),
+            Map.entry(key("libarchive 3.8.9", "local-source-build"), "ABSENT\tNOT_TESTED"),
+            Map.entry(key("libarchive 3.8.9", "local-elf"), "ABSENT\tNOT_TESTED"),
+            Map.entry(key("libarchive 3.8.9", "p0-page-size"), "ABSENT\tNOT_TESTED"));
 
     public static void main(String[] args) throws IOException {
         if (args.length != 2) {
@@ -32,6 +42,7 @@ public final class NativePackagingEvidenceHarness {
         }
         boolean sawFourKiBOnly = false;
         int rows = 0;
+        Set<String> seen = new LinkedHashSet<>();
         try (BufferedReader reader = Files.newBufferedReader(Path.of(args[1]), StandardCharsets.UTF_8)) {
             if (!HEADER.equals(reader.readLine())) {
                 fail("invalid native evidence header");
@@ -46,20 +57,46 @@ public final class NativePackagingEvidenceHarness {
                         || fields[2].isBlank() || fields[3].isBlank() || fields[4].isBlank()) {
                     fail("invalid native evidence row: " + line);
                 }
-                if (fields[1].equals("p0-page-size") && fields[2].equals("4096")
-                        && fields[3].equals("NOT_16K_EVIDENCE")) {
+                String candidate = fields[0].trim();
+                String evidence = fields[1].trim();
+                String observed = fields[2].trim();
+                String classification = fields[3].trim();
+                String key = key(candidate, evidence);
+                String expected = EXPECTED_EVIDENCE.get(key);
+                if (expected == null) {
+                    fail("unknown native evidence row: " + candidate + " / " + evidence);
+                }
+                if (!seen.add(key)) {
+                    fail("duplicate native evidence row: " + candidate + " / " + evidence);
+                }
+                if (!expected.equals(observed + "\t" + classification)) {
+                    fail("invalid native evidence row: " + line);
+                }
+                if (key.equals(key("zstd-jni Android AAR", "p0-page-size"))) {
                     sawFourKiBOnly = true;
                 }
                 rows++;
             }
         }
-        if (rows == 0 || !sawFourKiBOnly) {
+        if (rows != EXPECTED_EVIDENCE.size() || seen.size() != EXPECTED_EVIDENCE.size()) {
+            fail("expected exactly 6 unique rows; observed " + rows);
+        }
+        for (String key : EXPECTED_EVIDENCE.keySet()) {
+            if (!seen.contains(key)) {
+                fail("missing expected native evidence row: " + key.replace('\u0000', '/'));
+            }
+        }
+        if (!sawFourKiBOnly) {
             fail("native evidence does not preserve the 4 KiB versus 16 KiB distinction");
         }
         System.out.println("NATIVE_LOCAL_AAR_COUNT=" + aarCount);
         System.out.println("NATIVE_LOCAL_ELF_COUNT=" + elfCount);
         System.out.println("NATIVE_PACKAGING=" + (aarCount == 0 && elfCount == 0 ? "NO_LOCAL_ARTIFACT" : "ARTIFACT_PRESENT_REQUIRES_INSPECTION"));
         System.out.println("NATIVE_16K=UNRESOLVED_4K_ONLY");
+    }
+
+    private static String key(String candidate, String evidence) {
+        return candidate + "\u0000" + evidence;
     }
 
     private static void fail(String message) {

@@ -105,6 +105,42 @@ capability_output=$(java -cp "$BUILD_DIR" ArchiveOptionalCapabilityHarness \
 printf '%s\n' "$capability_output"
 printf '%s\n' "$capability_output" | grep -F 'OPTIONAL_CAPABILITIES=PASS'
 
+awk -F '\t' 'BEGIN { OFS="\t" } $1 == "zstd-jni Android AAR" && $2 == "TAR_ZST_DECODE" { $3 = "maybe" } { print }' \
+  "$ROOT/tools/p05-004/fixtures/optional_capabilities.tsv" > "$BUILD_DIR/capability-bad-boolean.tsv"
+if java -cp "$BUILD_DIR" ArchiveOptionalCapabilityHarness \
+  "$BUILD_DIR/capability-bad-boolean.tsv" >"$BUILD_DIR/capability-bad-boolean.out" 2>&1; then
+  echo 'invalid capability boolean unexpectedly accepted' >&2
+  exit 1
+fi
+grep -F 'invalid boolean' "$BUILD_DIR/capability-bad-boolean.out"
+
+awk -F '\t' '$1 != "zstd-jni Android AAR" || $2 != "TAR_ZST_DECODE"' \
+  "$ROOT/tools/p05-004/fixtures/optional_capabilities.tsv" > "$BUILD_DIR/capability-missing.tsv"
+if java -cp "$BUILD_DIR" ArchiveOptionalCapabilityHarness \
+  "$BUILD_DIR/capability-missing.tsv" >"$BUILD_DIR/capability-missing.out" 2>&1; then
+  echo 'missing capability row unexpectedly accepted' >&2
+  exit 1
+fi
+grep -F 'expected exactly 9 unique rows' "$BUILD_DIR/capability-missing.out"
+
+awk -F '\t' 'BEGIN { OFS="\t" } { print } NR == 2 { print }' \
+  "$ROOT/tools/p05-004/fixtures/optional_capabilities.tsv" > "$BUILD_DIR/capability-duplicate.tsv"
+if java -cp "$BUILD_DIR" ArchiveOptionalCapabilityHarness \
+  "$BUILD_DIR/capability-duplicate.tsv" >"$BUILD_DIR/capability-duplicate.out" 2>&1; then
+  echo 'duplicate capability row unexpectedly accepted' >&2
+  exit 1
+fi
+grep -F 'duplicate capability row' "$BUILD_DIR/capability-duplicate.out"
+
+awk -F '\t' 'BEGIN { OFS="\t" } $1 == "Commons Compress 1.28.0" && $2 == "TAR_READ" { $4 = "false" } { print }' \
+  "$ROOT/tools/p05-004/fixtures/optional_capabilities.tsv" > "$BUILD_DIR/capability-bad-expected.tsv"
+if java -cp "$BUILD_DIR" ArchiveOptionalCapabilityHarness \
+  "$BUILD_DIR/capability-bad-expected.tsv" >"$BUILD_DIR/capability-bad-expected.out" 2>&1; then
+  echo 'arbitrary capability expectation unexpectedly accepted' >&2
+  exit 1
+fi
+grep -F 'expected truth mismatch' "$BUILD_DIR/capability-bad-expected.out"
+
 junrar_output=$(java -cp "$BUILD_DIR" JunrarLocalInspectionHarness "$ROOT")
 printf '%s\n' "$junrar_output"
 printf '%s\n' "$junrar_output" | grep -F 'JUNRAR_CLASSIFICATION=LICENSE_REVIEW_REQUIRED'
@@ -119,5 +155,23 @@ printf '%s\n' "$native_output" | grep -F 'NATIVE_PACKAGING=NO_LOCAL_ARTIFACT'
 printf '%s\n' "$native_output" | grep -F 'NATIVE_16K=UNRESOLVED_4K_ONLY'
 printf '%s\n' "$native_output" | grep -F 'NATIVE_LOCAL_AAR_COUNT=0'
 printf '%s\n' "$native_output" | grep -F 'NATIVE_LOCAL_ELF_COUNT=0'
+
+awk -F '\t' 'BEGIN { OFS="\t" } $1 == "zstd-jni Android AAR" && $2 == "p0-page-size" { $1 = "libarchive 3.8.9" } { print }' \
+  "$ROOT/tools/p05-004/fixtures/native_packaging.tsv" > "$BUILD_DIR/native-bad-candidate.tsv"
+if java -cp "$BUILD_DIR" NativePackagingEvidenceHarness \
+  "$ROOT" "$BUILD_DIR/native-bad-candidate.tsv" >"$BUILD_DIR/native-bad-candidate.out" 2>&1; then
+  echo 'arbitrary native 4 KiB row unexpectedly accepted' >&2
+  exit 1
+fi
+grep -F 'invalid native evidence row' "$BUILD_DIR/native-bad-candidate.out"
+
+awk -F '\t' '$2 != "p0-page-size"' \
+  "$ROOT/tools/p05-004/fixtures/native_packaging.tsv" > "$BUILD_DIR/native-missing.tsv"
+if java -cp "$BUILD_DIR" NativePackagingEvidenceHarness \
+  "$ROOT" "$BUILD_DIR/native-missing.tsv" >"$BUILD_DIR/native-missing.out" 2>&1; then
+  echo 'missing native evidence row unexpectedly accepted' >&2
+  exit 1
+fi
+grep -F 'expected exactly 6 unique rows' "$BUILD_DIR/native-missing.out"
 
 echo 'PASS: archive evidence matrix harness'

@@ -35,7 +35,7 @@ The current disposable manifest compresses this to `candidate`, `gate`, `status`
 ## Pass/fail rules
 
 - A candidate cannot be `PASS` without functional, provider, security, scale, and license/provenance gates.
-- A native candidate additionally requires exact provenance, ABI inventory, reproducible build, 16 KiB, crash, size, symbols, update-ownership, and notices evidence.
+- A native candidate additionally requires exact provenance, ABI inventory, packaging inventory, reproducible build, Android API compatibility, 16 KiB, crash, size, symbols, update-ownership, and notices evidence.
 - Security closure requires individual negative-case gates for traversal, symlinks/TOCTOU, expansion, duplicates, truncation, malformed input, cancellation, nesting, password failures, and multipart failures.
 - Any missing, `NOT_TESTED`, or `UNKNOWN` material gate prevents closure.
 - A passing parser/codec fixture does not pass extraction containment, symlink, expansion, or cancellation policy.
