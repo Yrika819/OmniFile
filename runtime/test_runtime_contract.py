@@ -29,12 +29,33 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertTrue(any(row.get("model") == "Pixel 7a" for row in rows))
 
     def test_api31_matrix_is_captured_separately(self):
+        api31_rows = []
         for mode in ("foreground", "fgs", "job"):
             rows = self.load_rows(f"api31/runtime-report-{mode}.jsonl")
+            api31_rows.extend(rows)
             self.assertTrue(any(row.get("sdkInt") == "31" for row in rows), mode)
             self.assertTrue(any(row.get("event") == "COMPLETE" for row in rows), mode)
         uidt = (ROOT / "results" / "api31" / "runtime-report-uidt.jsonl").read_text()
         self.assertIn("NOT_APPLICABLE_API_LT_34", uidt)
+        provenance = (ROOT / "results" / "api31" / "artifact-provenance.txt").read_text()
+        self.assertIn("STATUS=PRIOR_DISPOSABLE_CAPTURE", provenance)
+        self.assertIn("APK_SHA256=NOT_RETAINED", provenance)
+        self.assertIn("FINAL_ARTIFACT_EQUIVALENCE=NOT_PROVEN", provenance)
+        self.assertFalse(any(row.get("event") == "REDISCOVER" for row in api31_rows))
+
+    def test_job_stop_is_invocation_scoped(self):
+        source = (ROOT / "RuntimeJobService.java").read_text()
+        self.assertIn("class JobInvocation", source)
+        self.assertIn("activeInvocation", source)
+        self.assertIn("isActive(invocation)", source)
+        self.assertIn("beginFinalization()", source)
+        self.assertIn("invocation.lock.lock()", source)
+        self.assertIn("run(uidt ? \"UIDT\" : \"JOB_SCHEDULER\", \"job_started\", probe(invocation))", source)
+        self.assertIn("finishIfActive(invocation, params)", source)
+
+    def test_recovery_provenance_survives_activity_stop(self):
+        source = (ROOT / "MainActivity.java").read_text()
+        self.assertIn("if (!recoveryMode) evidence.setLifecycle(\"activity_not_foreground\")", source)
 
     def test_restart_reconciles_and_completes(self):
         rows = self.load_rows()

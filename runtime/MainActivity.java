@@ -10,6 +10,7 @@ import android.widget.TextView;
 
 public final class MainActivity extends Activity {
     private RuntimeEvidence evidence;
+    private boolean recoveryMode;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -17,6 +18,7 @@ public final class MainActivity extends Activity {
         setContentView(new TextView(this));
         String mode = getIntent().getStringExtra("mode");
         if (mode == null) return;
+        recoveryMode = "resume".equals(mode);
         evidence.record("ACTIVITY_CREATE", mode, "RUNNING", "foreground_activity");
         if ("foreground".equals(mode)) {
             new Thread(() -> evidence.run("FOREGROUND_APP", "foreground_activity"), "p05-foreground").start();
@@ -30,9 +32,14 @@ public final class MainActivity extends Activity {
         }
     }
 
+    @Override protected void onStart() {
+        super.onStart();
+        if (evidence != null && !recoveryMode) evidence.setLifecycle("foreground_activity");
+    }
+
     @Override protected void onStop() {
         if (evidence != null) {
-            evidence.setLifecycle("activity_not_foreground");
+            if (!recoveryMode) evidence.setLifecycle("activity_not_foreground");
             evidence.record("ACTIVITY_STOP", "lifecycle", "OBSERVED", "activity_not_foreground");
         }
         super.onStop();

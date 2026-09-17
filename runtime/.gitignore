@@ -10,3 +10,4 @@ results/api31/*.txt
 !results/lifecycle-screen-on.txt
 !results/lifecycle-after-home.txt
 !results/api31/final-artifact-refresh.txt
+!results/api31/artifact-provenance.txt

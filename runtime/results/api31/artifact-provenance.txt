@@ -1,0 +1,4 @@
+STATUS=PRIOR_DISPOSABLE_CAPTURE
+APK_SHA256=NOT_RETAINED
+FINAL_ARTIFACT_EQUIVALENCE=NOT_PROVEN
+NOTE=The API31 rows are real emulator observations retained from the earlier runtime probe; the final APK refresh was blocked by the AVD exiting before ADB stayed connected.

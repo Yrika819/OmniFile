@@ -15,6 +15,16 @@ import java.util.Map;
 import java.util.Properties;
 
 final class RuntimeEvidence {
+    interface FinalizationGuard { void close(); }
+    interface CancellationProbe {
+        boolean isActive();
+        FinalizationGuard beginFinalization();
+    }
+
+    private static final CancellationProbe ALWAYS_ACTIVE = new CancellationProbe() {
+        @Override public boolean isActive() { return true; }
+        @Override public FinalizationGuard beginFinalization() { return () -> { }; }
+    };
     private final Context context;
     private final File report;
     private final File state;
@@ -75,21 +85,35 @@ final class RuntimeEvidence {
     }
 
     void run(String executor, String lifecycle) {
+        run(executor, lifecycle, ALWAYS_ACTIVE);
+    }
+
+    void run(String executor, String lifecycle, CancellationProbe probe) {
         Properties p = load();
+        if (!probe.isActive()) return;
         int start = Integer.parseInt(p.getProperty("completedUnits", "0"));
         p.setProperty("executor", executor);
         p.setProperty("phase", "RUNNING");
         save(p);
+        if (!probe.isActive()) return;
         record("START", executor, "RUNNING", lifecycle(lifecycle));
         for (int unit = start; unit < 20; unit++) {
             try { Thread.sleep(150L); } catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }
+            if (!probe.isActive()) return;
             p.setProperty("completedUnits", Integer.toString(unit + 1));
             save(p);
+            if (!probe.isActive()) return;
             record("CHECKPOINT", executor, "RUNNING", lifecycle(lifecycle));
         }
-        p.setProperty("phase", "COMPLETE");
-        save(p);
-        record("COMPLETE", executor, "COMPLETE", lifecycle(lifecycle));
+        FinalizationGuard guard = probe.beginFinalization();
+        if (guard == null) return;
+        try {
+            p.setProperty("phase", "COMPLETE");
+            save(p);
+            record("COMPLETE", executor, "COMPLETE", lifecycle(lifecycle));
+        } finally {
+            guard.close();
+        }
     }
 
     void recover() {
@@ -97,7 +121,10 @@ final class RuntimeEvidence {
         String phase = p.getProperty("phase", "ABSENT");
         String executor = p.getProperty("executor", "RECOVERY");
         record("REDISCOVER", executor, phase, "app_restart");
-        if (!"COMPLETE".equals(phase)) run(executor, "app_restart_recreated_executor");
+        if (!"COMPLETE".equals(phase)) {
+            setLifecycle("app_restart_recreated_executor");
+            run(executor, "app_restart_recreated_executor");
+        }
     }
 
     private Properties load() {
