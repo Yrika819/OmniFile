@@ -60,11 +60,12 @@ class EventRecorder:
         duration_ms: int = -1,
         detail: str = "",
     ) -> None:
+        safe_source = self._secret_query.sub(r"\1<redacted>", source)
         self._events.append(
             RuntimeEvent(
                 sequence=len(self._events),
                 kind=kind,
-                source=source,
+                source=safe_source,
                 position_ms=position_ms,
                 duration_ms=duration_ms,
                 detail=self._secret_query.sub(r"\1<redacted>", detail),

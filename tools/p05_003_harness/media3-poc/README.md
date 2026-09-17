@@ -7,7 +7,8 @@ pin is the P05-003-local Media3 `1.3.1` pin in `app/build.gradle`.
 
 The app uses actual AndroidX Media3/ExoPlayer and exposes:
 
-- an app-private deterministic WAV fixture as a real local source;
+- app-private deterministic WAV and committed primary FLAC fixtures as real
+  local sources;
 - `ACTION_OPEN_DOCUMENT_TREE`, followed by a real child-document query;
 - direct Media3 URI playback and a custom sequential/non-seekable Media3
   `DataSource` backed by `ContentResolver.openInputStream`;
@@ -16,7 +17,9 @@ The app uses actual AndroidX Media3/ExoPlayer and exposes:
 
 Every probe appends redacted JSONL to the app-private
 `files/p05_003_runtime.jsonl` file and mirrors the same events to the
-`P05-003` log tag. No ADB or device run is part of this commit.
+`P05-003` log tag. The parent performed an authorized Pixel 7a API 36 runtime
+capture; this directory remains disposable and does not establish a Technology
+Freeze.
 
 ## Exact local build
 
@@ -28,6 +31,6 @@ export GRADLE_USER_HOME=/Users/yuta/.gradle
 /Users/yuta/.gradle/wrapper/dists/gradle-9.6.0-bin/42k10rwplmzkhuboz9kdazi7s/gradle-9.6.0/bin/gradle :app:assembleDebug
 ```
 
-The resulting APK is a build artifact only. Installing or running it, using
-ADB, and accepting audio playback are intentionally outside this P05-003
-host-only verification unless separately authorized.
+The resulting APK is a disposable build artifact. Installing/running it and
+human audio acceptance remain parent-controlled; the recorded runtime result
+is summarized in `docs/poc/P05-003/04_RESULTS.md`.

@@ -171,6 +171,22 @@ class ProviderNeutralPlaybackContractTests(unittest.TestCase):
         self.assertIn("SecurityException", event.detail)
         self.assertNotIn("token=secret", event.detail)
 
+    def test_runtime_recorder_redacts_query_secrets_in_source_and_detail(self):
+        recorder = EventRecorder()
+        recorder.record(
+            EventKind.FAILURE,
+            source="https://provider/object?token=source-secret&name=song.flac",
+            detail="open failed?access_token=detail-secret&retry=1",
+        )
+
+        event = recorder.events()[0]
+        self.assertNotIn("source-secret", event.source)
+        self.assertNotIn("detail-secret", event.detail)
+        self.assertEqual(
+            "https://provider/object?token=<redacted>&name=song.flac",
+            event.source,
+        )
+
     def test_sequential_source_reads_in_fixed_chunks_and_has_no_seek(self):
         source = SequentialReadSource(b"abcdef")
 

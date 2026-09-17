@@ -21,6 +21,7 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -53,6 +54,7 @@ public final class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         addButton(root, "Use local WAV fixture", v -> chooseLocalSource());
+        addButton(root, "Use primary FLAC fixture", v -> chooseFlacSource());
         addButton(root, "Choose SAF tree", v -> chooseSafTree());
         addButton(root, "Play direct Media3 source", v -> prepareAndPlay(false));
         addButton(root, "Play sequential DataSource", v -> prepareAndPlay(true));
@@ -133,6 +135,29 @@ public final class MainActivity extends Activity {
             setStatus("source: local WAV");
         } catch (IOException error) {
             recordFailure("local fixture", error);
+        }
+    }
+
+    private void chooseFlacSource() {
+        File fixture = new File(getFilesDir(), "p05_003_primary.flac");
+        try {
+            if (!fixture.exists()) {
+                try (InputStream input = getAssets().open("p05_003_primary.flac");
+                     FileOutputStream output = new FileOutputStream(fixture)) {
+                    byte[] buffer = new byte[8192];
+                    int count;
+                    while ((count = input.read(buffer)) != -1) {
+                        output.write(buffer, 0, count);
+                    }
+                }
+            }
+            currentUri = Uri.fromFile(fixture);
+            currentSource = "local-flac";
+            recorder.record(RuntimeEventRecorder.Kind.SOURCE_RESOLVED, currentSource, -1, -1,
+                    "committed primary FLAC asset copied to app-private storage");
+            setStatus("source: primary FLAC");
+        } catch (IOException error) {
+            recordFailure("local-flac", error);
         }
     }
 

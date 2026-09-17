@@ -41,13 +41,15 @@ final class RuntimeEventRecorder {
     }
 
     synchronized void record(Kind kind, String source, long positionMs, long durationMs, String detail) {
+        String safeSource = SECRET_QUERY.matcher(source == null ? "" : source)
+                .replaceAll("$1<redacted>");
         String safeDetail = SECRET_QUERY.matcher(detail == null ? "" : detail)
                 .replaceAll("$1<redacted>");
         try {
             JSONObject event = new JSONObject();
             event.put("sequence", sequence++);
             event.put("kind", kind.name().toLowerCase(Locale.US));
-            event.put("source", source == null ? "" : source);
+            event.put("source", safeSource);
             event.put("positionMs", positionMs);
             event.put("durationMs", durationMs);
             event.put("detail", safeDetail);

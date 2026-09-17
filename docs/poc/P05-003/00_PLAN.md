@@ -6,16 +6,16 @@
 
 **Architecture:** The host harness models the provider boundary and the Android PoC exercises the next runtime boundary with actual AndroidX Media3/ExoPlayer. The PoC has an app-private local WAV fixture, an `ACTION_OPEN_DOCUMENT_TREE` source resolved to a child document, and a custom sequential/non-seekable `DataSource`; a redacted JSONL recorder captures lifecycle and failure evidence.
 
-**Verification policy:** Tests must be written before the host harness implementation and observed failing. Host tests and Android compilation may be marked PASS only from fresh command output. Android runtime, SAF playback, device, and ADB runs remain `NOT_TESTED`; no ADB action is permitted for this request.
+**Verification policy:** Tests must be written before the host harness implementation and observed failing. Host tests and Android compilation may be marked PASS only from fresh command output. The initial plan was host/build-only; an explicitly authorized parent-controlled Pixel 7a runtime phase superseded that boundary and is recorded separately below. Untested rows remain `NOT_TESTED`.
 
 ## Global constraints
 
 - Work only in `/Users/yuta/Desktop/File Manager/.worktrees/p05-media3` on `poc/core-readiness-media3-v1`.
 - Inspect `/Users/yuta/Desktop/FLACtify` read-only; do not modify it.
-- Do not touch ADB or any other worktree.
+- Parent-controlled ADB use was outside the initial plan and was later explicitly authorized for the Pixel 7a runtime phase; no other worktree was touched.
 - Do not clean, reset, stash, rebase, amend, force-push, or delete user data; the disposable PoC build is explicitly in scope.
 - Pin Media3 only inside the disposable PoC module; do not freeze a production Media3 version or add production dependencies.
-- Keep playback claims limited to fresh harness evidence; device and Media3 execution remain `NOT_TESTED`.
+- Keep playback claims limited to fresh harness evidence and the exact recorded Pixel 7a API 36 artifact; do not generalize to production or untested rows.
 
 ## Deliverables
 
@@ -47,12 +47,18 @@ cache_key(identity) -> str
 
 The `locator` is intentionally transport-only. `cache_key` must not include it, and must include `provider_id`, `object_id`, and `source_version`.
 
+The initial host-only boundary was superseded by an explicitly authorized
+parent-controlled Pixel 7a API 36 runtime capture. The production boundary
+remains unchanged.
+
 ## Execution sequence
 
 - [x] Write the failing contract/event/source tests and observe the expected missing-import RED with `PYTHONPATH=tools/p05_003_harness python3 -m unittest tools/p05_003_harness/test_p05_003_contract.py -v`.
 - [x] Implement the minimum model required by those tests.
-- [x] Re-run the focused suite and then the complete harness suite: 14 tests pass.
+- [x] Re-run the focused suite and then the complete harness suite: 15 tests pass.
 - [x] Build the Android PoC with the locally available Gradle/SDK/AGP/Media3 inputs: `:app:assembleDebug` succeeds.
 - [x] Write the eight evidence documents from the observed output and current checkout facts.
 - [x] Inspect the final diff and status; confirm only scoped files changed.
 - [x] Commit with one normal focused continuation commit after final diff/self-review; record the resulting SHA in the handoff.
+- [x] Parent runtime: local WAV/FLAC direct playback, SAF child direct playback,
+  and sequential-source seek-failure boundary.
