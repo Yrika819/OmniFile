@@ -43,7 +43,7 @@ or executor selection.
 ## Final continuation classification
 
 `CLOSED_WITH_EXPLICIT_GATE` for the requested latest-hardening sanity: the
-latest branch head was freshly built, installed, launched, and exercised on
+latest-hardened runtime source was freshly built, installed, launched, and exercised on
 the Pixel 7a/API36, and it initialized routing and rediscovered durable state.
 The earlier broad Pixel/API31/lifecycle evidence remains explicitly preserved
 at its original artifact boundary. WorkManager, media-processing FGS, and

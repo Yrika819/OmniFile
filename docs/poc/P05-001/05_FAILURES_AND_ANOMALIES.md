@@ -25,7 +25,7 @@ The disposable APK was built and exercised on both authorities. The runtime
 contract test passed:
 
 ```text
-Ran 4 tests ...
+Ran 6 tests ...
 OK
 ```
 
@@ -90,11 +90,17 @@ cancellation/provenance hardening commit `c9fcf2d`; the documentation boundary
 was recorded at `81f886e`. They remain valid only for the exact earlier APK and
 are not retroactively attributed to the latest head.
 
-On 2026-09-17 the parent rebuilt `81f886ed` and freshly installed APK
+On 2026-09-17 the parent rebuilt runtime source from `81f886ed` and freshly installed APK
 `1daaedd0280b4841e26ae35959170acd3ccd9b234bd131f5d48a0c9633ace7c0` on the
 Pixel 7a. The focused sanity passed for startup, all four available executor
 modes, durable-state discovery, and app restart/re-discovery. This is fresh
-latest-head evidence, but it is intentionally narrower than the preserved
+latest-hardened-runtime evidence, but it is intentionally narrower than the preserved
 lifecycle campaign. The direct shell `kill -9` limitation reproduced again as
 `Operation not permitted`; the existing `am force-stop` fallback completed the
 restart scenario.
+
+The fresh FGS report records `COMPLETE` followed by `SERVICE_DESTROY` with
+`durableState=RUNNING`. The runtime service writes that lifecycle field before
+the final persisted state is independently checked; the authoritative state
+file was `phase=COMPLETE`. This report-shape anomaly is retained as a harness
+limitation and is not used as evidence that completion regressed.
