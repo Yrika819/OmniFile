@@ -1,0 +1,19 @@
+{
+  "all_mechanical_assertions_passed": true,
+  "elapsed_seconds": 53.394003,
+  "scenario_pass": {
+    "baseline_copy": true,
+    "checkpoint_tradeoff_256m": true,
+    "destination_conflict": true,
+    "move_delete_ordering": true,
+    "multi_gib_2g": true,
+    "process_kill_after_transfer": true,
+    "process_kill_after_verify": true,
+    "process_kill_early": true,
+    "process_kill_mid": true,
+    "process_kill_near_end": true,
+    "source_mutation": true,
+    "synthetic_enospc_resume": true,
+    "user_cancellation_resume": true
+  }
+}

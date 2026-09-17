@@ -1,0 +1,977 @@
+{
+  "all_mechanical_assertions_passed": true,
+  "architecture_start_sha": "79fc0f18c7f5e1d8e0ae714808f89977ff178b62",
+  "elapsed_seconds": 53.394003,
+  "finished_at_ns": 1789625793993428000,
+  "host": {
+    "executable": "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+    "machine": "x86_64",
+    "platform": "macOS-15.7.7-x86_64-i386-64bit",
+    "python": "3.9.6 (default, Jan  9 2026, 11:03:41) \n[Clang 17.0.0 (clang-1700.6.4.2)]"
+  },
+  "poc": "POC-002",
+  "poc_only": true,
+  "production_authority": false,
+  "scenarios": {
+    "baseline_copy": {
+      "destination_hash": "eeda19cb2ea59654089a87e184d53da233c5a6564aac1d922306e5195f886e0c",
+      "pass": true,
+      "returncode": 0,
+      "source_hash": "eeda19cb2ea59654089a87e184d53da233c5a6564aac1d922306e5195f886e0c",
+      "state": {
+        "buffer_bytes": 1048576,
+        "checkpoint_bytes": 8388608,
+        "checkpoint_count": 1,
+        "completed_at_ns": 1789625741498061000,
+        "completed_bytes": 4194304,
+        "error": null,
+        "finalization": {
+          "destination_exists_after": true,
+          "final_dev": 16777235,
+          "final_ino": 14323370,
+          "inode_preserved": true,
+          "mechanism": "os.replace same-filesystem",
+          "observed_only_not_universal_atomicity_claim": true,
+          "partial_dev": 16777235,
+          "partial_exists_after": false,
+          "partial_ino": 14323370,
+          "same_device": true
+        },
+        "metrics": {
+          "checkpoint_persist_seconds": 0.0011189179999999965,
+          "peak_rss_bytes": 23224320,
+          "transfer_seconds": 0.016306422999999994,
+          "verification_seconds": 0.03127168799999999
+        },
+        "operation": "COPY",
+        "operation_id": "a910e656-a952-4bfe-b548-460fb00b909b",
+        "phase": "COMPLETE",
+        "retry_count": 1,
+        "source_deleted_at_ns": null,
+        "status": "COMPLETE",
+        "total_bytes": 4194304,
+        "verification": {
+          "method": "size+sha256",
+          "partial_hash_seconds": 0.014527674000000004,
+          "partial_sha256": "eeda19cb2ea59654089a87e184d53da233c5a6564aac1d922306e5195f886e0c",
+          "source_hash_seconds": 0.016744013999999988,
+          "source_sha256": "eeda19cb2ea59654089a87e184d53da233c5a6564aac1d922306e5195f886e0c",
+          "verified_at_ns": 1789625741496120000
+        }
+      }
+    },
+    "checkpoint_tradeoff_256m": {
+      "1048576": {
+        "pass": true,
+        "returncode": 0,
+        "state": {
+          "buffer_bytes": 1048576,
+          "checkpoint_bytes": 1048576,
+          "checkpoint_count": 256,
+          "completed_at_ns": 1789625763822303000,
+          "completed_bytes": 268435456,
+          "error": null,
+          "finalization": {
+            "destination_exists_after": true,
+            "final_dev": 16777235,
+            "final_ino": 14323558,
+            "inode_preserved": true,
+            "mechanism": "os.replace same-filesystem",
+            "observed_only_not_universal_atomicity_claim": true,
+            "partial_dev": 16777235,
+            "partial_exists_after": false,
+            "partial_ino": 14323558,
+            "same_device": true
+          },
+          "metrics": {
+            "checkpoint_persist_seconds": 0.3142951620000006,
+            "peak_rss_bytes": 27348992,
+            "transfer_seconds": 1.452476442,
+            "verification_seconds": 1.8090259069999999
+          },
+          "operation": "COPY",
+          "operation_id": "f17e659c-b522-4592-a839-03cc7916f27d",
+          "phase": "COMPLETE",
+          "retry_count": 1,
+          "source_deleted_at_ns": null,
+          "status": "COMPLETE",
+          "total_bytes": 268435456,
+          "verification": {
+            "method": "size+sha256",
+            "partial_hash_seconds": 0.898369094,
+            "partial_sha256": "e9a0203cb13850e827e995fb1fc39c01ad5405dc1d0e3515a19a93bb27c510a3",
+            "source_hash_seconds": 0.9106568129999999,
+            "source_sha256": "e9a0203cb13850e827e995fb1fc39c01ad5405dc1d0e3515a19a93bb27c510a3",
+            "verified_at_ns": 1789625763820112000
+          }
+        },
+        "wall_seconds": 3.4972805250000008
+      },
+      "67108864": {
+        "pass": true,
+        "returncode": 0,
+        "state": {
+          "buffer_bytes": 1048576,
+          "checkpoint_bytes": 67108864,
+          "checkpoint_count": 4,
+          "completed_at_ns": 1789625770379405000,
+          "completed_bytes": 268435456,
+          "error": null,
+          "finalization": {
+            "destination_exists_after": true,
+            "final_dev": 16777235,
+            "final_ino": 14323865,
+            "inode_preserved": true,
+            "mechanism": "os.replace same-filesystem",
+            "observed_only_not_universal_atomicity_claim": true,
+            "partial_dev": 16777235,
+            "partial_exists_after": false,
+            "partial_ino": 14323865,
+            "same_device": true
+          },
+          "metrics": {
+            "checkpoint_persist_seconds": 0.006406841000000052,
+            "peak_rss_bytes": 27262976,
+            "transfer_seconds": 0.8715075099999999,
+            "verification_seconds": 1.804613196
+          },
+          "operation": "COPY",
+          "operation_id": "fd67976e-645d-43e5-adb3-0ceddfe2bce3",
+          "phase": "COMPLETE",
+          "retry_count": 1,
+          "source_deleted_at_ns": null,
+          "status": "COMPLETE",
+          "total_bytes": 268435456,
+          "verification": {
+            "method": "size+sha256",
+            "partial_hash_seconds": 0.8981870250000001,
+            "partial_sha256": "e9a0203cb13850e827e995fb1fc39c01ad5405dc1d0e3515a19a93bb27c510a3",
+            "source_hash_seconds": 0.906426171,
+            "source_sha256": "e9a0203cb13850e827e995fb1fc39c01ad5405dc1d0e3515a19a93bb27c510a3",
+            "verified_at_ns": 1789625770372957000
+          }
+        },
+        "wall_seconds": 2.904868971999999
+      },
+      "8388608": {
+        "pass": true,
+        "returncode": 0,
+        "state": {
+          "buffer_bytes": 1048576,
+          "checkpoint_bytes": 8388608,
+          "checkpoint_count": 32,
+          "completed_at_ns": 1789625767231521000,
+          "completed_bytes": 268435456,
+          "error": null,
+          "finalization": {
+            "destination_exists_after": true,
+            "final_dev": 16777235,
+            "final_ino": 14323825,
+            "inode_preserved": true,
+            "mechanism": "os.replace same-filesystem",
+            "observed_only_not_universal_atomicity_claim": true,
+            "partial_dev": 16777235,
+            "partial_exists_after": false,
+            "partial_ino": 14323825,
+            "same_device": true
+          },
+          "metrics": {
+            "checkpoint_persist_seconds": 0.05086847499999965,
+            "peak_rss_bytes": 27312128,
+            "transfer_seconds": 1.1030416330000001,
+            "verification_seconds": 1.8347805329999998
+          },
+          "operation": "COPY",
+          "operation_id": "5eaaefb5-0eb8-4246-978a-9062414a9fca",
+          "phase": "COMPLETE",
+          "retry_count": 1,
+          "source_deleted_at_ns": null,
+          "status": "COMPLETE",
+          "total_bytes": 268435456,
+          "verification": {
+            "method": "size+sha256",
+            "partial_hash_seconds": 0.8993456759999998,
+            "partial_sha256": "e9a0203cb13850e827e995fb1fc39c01ad5405dc1d0e3515a19a93bb27c510a3",
+            "source_hash_seconds": 0.935434857,
+            "source_sha256": "e9a0203cb13850e827e995fb1fc39c01ad5405dc1d0e3515a19a93bb27c510a3",
+            "verified_at_ns": 1789625767229742000
+          }
+        },
+        "wall_seconds": 3.160289297000002
+      }
+    },
+    "destination_conflict": {
+      "destination_unchanged": true,
+      "pass": true,
+      "returncode": 2,
+      "source_exists": true,
+      "state": {
+        "buffer_bytes": 1048576,
+        "checkpoint_bytes": 8388608,
+        "checkpoint_count": 0,
+        "completed_at_ns": null,
+        "completed_bytes": 0,
+        "error": {
+          "at_ns": 1789625755498603000,
+          "code": "DESTINATION_CONFLICT",
+          "message": "final destination already exists"
+        },
+        "metrics": {
+          "checkpoint_persist_seconds": 0.0,
+          "peak_rss_bytes": 16904192,
+          "transfer_seconds": 0.0,
+          "verification_seconds": 0.0
+        },
+        "operation": "COPY",
+        "operation_id": "cfc0f1d0-f39f-47de-8c21-c2f82ed8cda2",
+        "phase": "PLAN",
+        "retry_count": 0,
+        "source_deleted_at_ns": null,
+        "status": "BLOCKED",
+        "total_bytes": 8388608,
+        "verification": null
+      }
+    },
+    "move_delete_ordering": {
+      "delete_after_complete": true,
+      "destination_exists_before_resume": false,
+      "destination_exists_final": true,
+      "final_state": {
+        "buffer_bytes": 1048576,
+        "checkpoint_bytes": 8388608,
+        "checkpoint_count": 8,
+        "completed_at_ns": 1789625759044742000,
+        "completed_bytes": 67108864,
+        "error": null,
+        "finalization": {
+          "destination_exists_after": true,
+          "final_dev": 16777235,
+          "final_ino": 14323536,
+          "inode_preserved": true,
+          "mechanism": "os.replace same-filesystem",
+          "observed_only_not_universal_atomicity_claim": true,
+          "partial_dev": 16777235,
+          "partial_exists_after": false,
+          "partial_ino": 14323536,
+          "same_device": true
+        },
+        "metrics": {
+          "checkpoint_persist_seconds": 0.013741024999999962,
+          "peak_rss_bytes": 25092096,
+          "transfer_seconds": 0.330672019,
+          "verification_seconds": 0.9055605950000001
+        },
+        "operation": "MOVE",
+        "operation_id": "1d09123a-3f52-4d18-a170-0abf7f9a3957",
+        "phase": "COMPLETE",
+        "reconciled_partial_bytes": 67108864,
+        "retry_count": 2,
+        "source_deleted_at_ns": 1789625759049570000,
+        "status": "COMPLETE",
+        "total_bytes": 67108864,
+        "verification": {
+          "method": "size+sha256",
+          "partial_hash_seconds": 0.22864013,
+          "partial_sha256": "6266e202ef7afe181b89a8d48bf83323ee875973d0c3dfdd8204fd2d8e72fac3",
+          "source_hash_seconds": 0.224234406,
+          "source_sha256": "6266e202ef7afe181b89a8d48bf83323ee875973d0c3dfdd8204fd2d8e72fac3",
+          "verified_at_ns": 1789625759042818000
+        }
+      },
+      "kill_returncode": 91,
+      "pass": true,
+      "resume_returncode": 0,
+      "source_exists_before_resume": true,
+      "source_exists_final": false,
+      "state_after_verify_kill": {
+        "buffer_bytes": 1048576,
+        "checkpoint_bytes": 8388608,
+        "checkpoint_count": 8,
+        "completed_at_ns": null,
+        "completed_bytes": 67108864,
+        "error": null,
+        "metrics": {
+          "checkpoint_persist_seconds": 0.013741024999999962,
+          "peak_rss_bytes": 16830464,
+          "transfer_seconds": 0.33057729799999996,
+          "verification_seconds": 0.4526860590000001
+        },
+        "operation": "MOVE",
+        "operation_id": "1d09123a-3f52-4d18-a170-0abf7f9a3957",
+        "phase": "VERIFY",
+        "retry_count": 1,
+        "source_deleted_at_ns": null,
+        "status": "RUNNING",
+        "total_bytes": 67108864,
+        "verification": {
+          "method": "size+sha256",
+          "partial_hash_seconds": 0.22635621900000003,
+          "partial_sha256": "6266e202ef7afe181b89a8d48bf83323ee875973d0c3dfdd8204fd2d8e72fac3",
+          "source_hash_seconds": 0.22632984000000006,
+          "source_sha256": "6266e202ef7afe181b89a8d48bf83323ee875973d0c3dfdd8204fd2d8e72fac3",
+          "verified_at_ns": 1789625758362341000
+        }
+      }
+    },
+    "multi_gib_2g": {
+      "destination_size": 2147483648,
+      "logical_bytes": 2147483648,
+      "pass": true,
+      "returncode": 0,
+      "source_blocks_512": 0,
+      "state": {
+        "buffer_bytes": 1048576,
+        "checkpoint_bytes": 67108864,
+        "checkpoint_count": 32,
+        "completed_at_ns": 1789625793632882000,
+        "completed_bytes": 2147483648,
+        "error": null,
+        "finalization": {
+          "destination_exists_after": true,
+          "final_dev": 16777235,
+          "final_ino": 14323879,
+          "inode_preserved": true,
+          "mechanism": "os.replace same-filesystem",
+          "observed_only_not_universal_atomicity_claim": true,
+          "partial_dev": 16777235,
+          "partial_exists_after": false,
+          "partial_ino": 14323879,
+          "same_device": true
+        },
+        "metrics": {
+          "checkpoint_persist_seconds": 0.05076302299999952,
+          "peak_rss_bytes": 27348992,
+          "transfer_seconds": 7.218367134,
+          "verification_seconds": 15.559024118
+        },
+        "operation": "COPY",
+        "operation_id": "679423b7-9634-4f8e-83fb-488ae164d006",
+        "phase": "COMPLETE",
+        "retry_count": 1,
+        "source_deleted_at_ns": null,
+        "status": "COMPLETE",
+        "total_bytes": 2147483648,
+        "verification": {
+          "method": "size+sha256",
+          "partial_hash_seconds": 8.364512819000002,
+          "partial_sha256": "a7c744c13cc101ed66c29f672f92455547889cc586ce6d44fe76ae824958ea51",
+          "source_hash_seconds": 7.194511298999999,
+          "source_sha256": "a7c744c13cc101ed66c29f672f92455547889cc586ce6d44fe76ae824958ea51",
+          "verified_at_ns": 1789625793631085000
+        }
+      },
+      "wall_seconds": 23.003412094000005
+    },
+    "process_kill_after_transfer": {
+      "after_resume": {
+        "destination_exists": true,
+        "partial_exists": false,
+        "source_exists": true,
+        "state": {
+          "buffer_bytes": 1048576,
+          "checkpoint_bytes": 8388608,
+          "checkpoint_count": 8,
+          "completed_at_ns": 1789625748898098000,
+          "completed_bytes": 67108864,
+          "error": null,
+          "finalization": {
+            "destination_exists_after": true,
+            "final_dev": 16777235,
+            "final_ino": 14323439,
+            "inode_preserved": true,
+            "mechanism": "os.replace same-filesystem",
+            "observed_only_not_universal_atomicity_claim": true,
+            "partial_dev": 16777235,
+            "partial_exists_after": false,
+            "partial_ino": 14323439,
+            "same_device": true
+          },
+          "metrics": {
+            "checkpoint_persist_seconds": 0.010333622999999958,
+            "peak_rss_bytes": 25251840,
+            "transfer_seconds": 0.25173666800000005,
+            "verification_seconds": 0.455198545
+          },
+          "operation": "COPY",
+          "operation_id": "ed1fa2a4-b1c5-4a91-9c2a-251d187cc417",
+          "phase": "COMPLETE",
+          "reconciled_partial_bytes": 67108864,
+          "retry_count": 2,
+          "source_deleted_at_ns": null,
+          "status": "COMPLETE",
+          "total_bytes": 67108864,
+          "verification": {
+            "method": "size+sha256",
+            "partial_hash_seconds": 0.228860693,
+            "partial_sha256": "6266e202ef7afe181b89a8d48bf83323ee875973d0c3dfdd8204fd2d8e72fac3",
+            "source_hash_seconds": 0.22633785199999998,
+            "source_sha256": "6266e202ef7afe181b89a8d48bf83323ee875973d0c3dfdd8204fd2d8e72fac3",
+            "verified_at_ns": 1789625748896115000
+          }
+        }
+      },
+      "before_resume": {
+        "child_returncode": 91,
+        "destination_exists": false,
+        "partial_bytes": 67108864,
+        "partial_exists": true,
+        "source_exists": true,
+        "state": {
+          "buffer_bytes": 1048576,
+          "checkpoint_bytes": 8388608,
+          "checkpoint_count": 8,
+          "completed_at_ns": null,
+          "completed_bytes": 67108864,
+          "error": null,
+          "metrics": {
+            "checkpoint_persist_seconds": 0.010333622999999958,
+            "peak_rss_bytes": 16855040,
+            "transfer_seconds": 0.25164881800000005,
+            "verification_seconds": 0.0
+          },
+          "operation": "COPY",
+          "operation_id": "ed1fa2a4-b1c5-4a91-9c2a-251d187cc417",
+          "phase": "VERIFY",
+          "retry_count": 1,
+          "source_deleted_at_ns": null,
+          "status": "RUNNING",
+          "total_bytes": 67108864,
+          "verification": null
+        }
+      },
+      "pass": true,
+      "resume_returncode": 0
+    },
+    "process_kill_after_verify": {
+      "after_resume": {
+        "destination_exists": true,
+        "partial_exists": false,
+        "source_exists": true,
+        "state": {
+          "buffer_bytes": 1048576,
+          "checkpoint_bytes": 8388608,
+          "checkpoint_count": 8,
+          "completed_at_ns": 1789625751169111000,
+          "completed_bytes": 67108864,
+          "error": null,
+          "finalization": {
+            "destination_exists_after": true,
+            "final_dev": 16777235,
+            "final_ino": 14323459,
+            "inode_preserved": true,
+            "mechanism": "os.replace same-filesystem",
+            "observed_only_not_universal_atomicity_claim": true,
+            "partial_dev": 16777235,
+            "partial_exists_after": false,
+            "partial_ino": 14323459,
+            "same_device": true
+          },
+          "metrics": {
+            "checkpoint_persist_seconds": 0.015237397999999944,
+            "peak_rss_bytes": 25276416,
+            "transfer_seconds": 0.26872661600000003,
+            "verification_seconds": 0.9070012049999999
+          },
+          "operation": "COPY",
+          "operation_id": "bb2c1f63-78ab-4432-923a-2c3499684880",
+          "phase": "COMPLETE",
+          "reconciled_partial_bytes": 67108864,
+          "retry_count": 2,
+          "source_deleted_at_ns": null,
+          "status": "COMPLETE",
+          "total_bytes": 67108864,
+          "verification": {
+            "method": "size+sha256",
+            "partial_hash_seconds": 0.22158371899999996,
+            "partial_sha256": "6266e202ef7afe181b89a8d48bf83323ee875973d0c3dfdd8204fd2d8e72fac3",
+            "source_hash_seconds": 0.23005879599999998,
+            "source_sha256": "6266e202ef7afe181b89a8d48bf83323ee875973d0c3dfdd8204fd2d8e72fac3",
+            "verified_at_ns": 1789625751167292000
+          }
+        }
+      },
+      "before_resume": {
+        "child_returncode": 91,
+        "destination_exists": false,
+        "partial_bytes": 67108864,
+        "partial_exists": true,
+        "source_exists": true,
+        "state": {
+          "buffer_bytes": 1048576,
+          "checkpoint_bytes": 8388608,
+          "checkpoint_count": 8,
+          "completed_at_ns": null,
+          "completed_bytes": 67108864,
+          "error": null,
+          "metrics": {
+            "checkpoint_persist_seconds": 0.015237397999999944,
+            "peak_rss_bytes": 16756736,
+            "transfer_seconds": 0.26864016,
+            "verification_seconds": 0.45535868999999995
+          },
+          "operation": "COPY",
+          "operation_id": "bb2c1f63-78ab-4432-923a-2c3499684880",
+          "phase": "VERIFY",
+          "retry_count": 1,
+          "source_deleted_at_ns": null,
+          "status": "RUNNING",
+          "total_bytes": 67108864,
+          "verification": {
+            "method": "size+sha256",
+            "partial_hash_seconds": 0.227872262,
+            "partial_sha256": "6266e202ef7afe181b89a8d48bf83323ee875973d0c3dfdd8204fd2d8e72fac3",
+            "source_hash_seconds": 0.22748642799999996,
+            "source_sha256": "6266e202ef7afe181b89a8d48bf83323ee875973d0c3dfdd8204fd2d8e72fac3",
+            "verified_at_ns": 1789625750501684000
+          }
+        }
+      },
+      "pass": true,
+      "resume_returncode": 0
+    },
+    "process_kill_early": {
+      "after_resume": {
+        "destination_exists": true,
+        "partial_exists": false,
+        "source_exists": true,
+        "state": {
+          "buffer_bytes": 1048576,
+          "checkpoint_bytes": 8388608,
+          "checkpoint_count": 8,
+          "completed_at_ns": 1789625743345067000,
+          "completed_bytes": 67108864,
+          "error": null,
+          "finalization": {
+            "destination_exists_after": true,
+            "final_dev": 16777235,
+            "final_ino": 14323382,
+            "inode_preserved": true,
+            "mechanism": "os.replace same-filesystem",
+            "observed_only_not_universal_atomicity_claim": true,
+            "partial_dev": 16777235,
+            "partial_exists_after": false,
+            "partial_ino": 14323382,
+            "same_device": true
+          },
+          "metrics": {
+            "checkpoint_persist_seconds": 0.012094405000000058,
+            "peak_rss_bytes": 27217920,
+            "transfer_seconds": 0.22923620099999997,
+            "verification_seconds": 0.453360754
+          },
+          "operation": "COPY",
+          "operation_id": "1da3bd30-76e1-4222-b6f3-be14154ee252",
+          "phase": "COMPLETE",
+          "reconciled_partial_bytes": 8388608,
+          "retry_count": 2,
+          "source_deleted_at_ns": null,
+          "status": "COMPLETE",
+          "total_bytes": 67108864,
+          "verification": {
+            "method": "size+sha256",
+            "partial_hash_seconds": 0.224718729,
+            "partial_sha256": "6266e202ef7afe181b89a8d48bf83323ee875973d0c3dfdd8204fd2d8e72fac3",
+            "source_hash_seconds": 0.22864202499999997,
+            "source_sha256": "6266e202ef7afe181b89a8d48bf83323ee875973d0c3dfdd8204fd2d8e72fac3",
+            "verified_at_ns": 1789625743342883000
+          }
+        }
+      },
+      "before_resume": {
+        "child_returncode": 91,
+        "destination_exists": false,
+        "partial_bytes": 8388608,
+        "partial_exists": true,
+        "source_exists": true,
+        "state": {
+          "buffer_bytes": 1048576,
+          "checkpoint_bytes": 8388608,
+          "checkpoint_count": 1,
+          "completed_at_ns": null,
+          "completed_bytes": 8388608,
+          "error": null,
+          "metrics": {
+            "checkpoint_persist_seconds": 0.0,
+            "peak_rss_bytes": 16850944,
+            "transfer_seconds": 0.0,
+            "verification_seconds": 0.0
+          },
+          "operation": "COPY",
+          "operation_id": "1da3bd30-76e1-4222-b6f3-be14154ee252",
+          "phase": "CHECKPOINT",
+          "retry_count": 1,
+          "source_deleted_at_ns": null,
+          "status": "RUNNING",
+          "total_bytes": 67108864,
+          "verification": null
+        }
+      },
+      "pass": true,
+      "resume_returncode": 0
+    },
+    "process_kill_mid": {
+      "after_resume": {
+        "destination_exists": true,
+        "partial_exists": false,
+        "source_exists": true,
+        "state": {
+          "buffer_bytes": 1048576,
+          "checkpoint_bytes": 8388608,
+          "checkpoint_count": 8,
+          "completed_at_ns": 1789625745174389000,
+          "completed_bytes": 67108864,
+          "error": null,
+          "finalization": {
+            "destination_exists_after": true,
+            "final_dev": 16777235,
+            "final_ino": 14323401,
+            "inode_preserved": true,
+            "mechanism": "os.replace same-filesystem",
+            "observed_only_not_universal_atomicity_claim": true,
+            "partial_dev": 16777235,
+            "partial_exists_after": false,
+            "partial_ino": 14323401,
+            "same_device": true
+          },
+          "metrics": {
+            "checkpoint_persist_seconds": 0.009470210999999965,
+            "peak_rss_bytes": 27222016,
+            "transfer_seconds": 0.13962369900000002,
+            "verification_seconds": 0.454083425
+          },
+          "operation": "COPY",
+          "operation_id": "251af0dc-a713-494a-b15e-1a55c43f9d4d",
+          "phase": "COMPLETE",
+          "reconciled_partial_bytes": 33554432,
+          "retry_count": 2,
+          "source_deleted_at_ns": null,
+          "status": "COMPLETE",
+          "total_bytes": 67108864,
+          "verification": {
+            "method": "size+sha256",
+            "partial_hash_seconds": 0.222423304,
+            "partial_sha256": "6266e202ef7afe181b89a8d48bf83323ee875973d0c3dfdd8204fd2d8e72fac3",
+            "source_hash_seconds": 0.23166012099999997,
+            "source_sha256": "6266e202ef7afe181b89a8d48bf83323ee875973d0c3dfdd8204fd2d8e72fac3",
+            "verified_at_ns": 1789625745172425000
+          }
+        }
+      },
+      "before_resume": {
+        "child_returncode": 91,
+        "destination_exists": false,
+        "partial_bytes": 33554432,
+        "partial_exists": true,
+        "source_exists": true,
+        "state": {
+          "buffer_bytes": 1048576,
+          "checkpoint_bytes": 8388608,
+          "checkpoint_count": 4,
+          "completed_at_ns": null,
+          "completed_bytes": 33554432,
+          "error": null,
+          "metrics": {
+            "checkpoint_persist_seconds": 0.003867177999999971,
+            "peak_rss_bytes": 16814080,
+            "transfer_seconds": 0.0,
+            "verification_seconds": 0.0
+          },
+          "operation": "COPY",
+          "operation_id": "251af0dc-a713-494a-b15e-1a55c43f9d4d",
+          "phase": "CHECKPOINT",
+          "retry_count": 1,
+          "source_deleted_at_ns": null,
+          "status": "RUNNING",
+          "total_bytes": 67108864,
+          "verification": null
+        }
+      },
+      "pass": true,
+      "resume_returncode": 0
+    },
+    "process_kill_near_end": {
+      "after_resume": {
+        "destination_exists": true,
+        "partial_exists": false,
+        "source_exists": true,
+        "state": {
+          "buffer_bytes": 1048576,
+          "checkpoint_bytes": 8388608,
+          "checkpoint_count": 8,
+          "completed_at_ns": 1789625747083629000,
+          "completed_bytes": 67108864,
+          "error": null,
+          "finalization": {
+            "destination_exists_after": true,
+            "final_dev": 16777235,
+            "final_ino": 14323420,
+            "inode_preserved": true,
+            "mechanism": "os.replace same-filesystem",
+            "observed_only_not_universal_atomicity_claim": true,
+            "partial_dev": 16777235,
+            "partial_exists_after": false,
+            "partial_ino": 14323420,
+            "same_device": true
+          },
+          "metrics": {
+            "checkpoint_persist_seconds": 0.010441133000000019,
+            "peak_rss_bytes": 25104384,
+            "transfer_seconds": 8.521699999999854e-05,
+            "verification_seconds": 0.453242656
+          },
+          "operation": "COPY",
+          "operation_id": "6c36865f-4842-4ec0-af5e-0dd112361a37",
+          "phase": "COMPLETE",
+          "reconciled_partial_bytes": 67108864,
+          "retry_count": 2,
+          "source_deleted_at_ns": null,
+          "status": "COMPLETE",
+          "total_bytes": 67108864,
+          "verification": {
+            "method": "size+sha256",
+            "partial_hash_seconds": 0.22810563500000003,
+            "partial_sha256": "6266e202ef7afe181b89a8d48bf83323ee875973d0c3dfdd8204fd2d8e72fac3",
+            "source_hash_seconds": 0.225137021,
+            "source_sha256": "6266e202ef7afe181b89a8d48bf83323ee875973d0c3dfdd8204fd2d8e72fac3",
+            "verified_at_ns": 1789625747081510000
+          }
+        }
+      },
+      "before_resume": {
+        "child_returncode": 91,
+        "destination_exists": false,
+        "partial_bytes": 67108864,
+        "partial_exists": true,
+        "source_exists": true,
+        "state": {
+          "buffer_bytes": 1048576,
+          "checkpoint_bytes": 8388608,
+          "checkpoint_count": 8,
+          "completed_at_ns": null,
+          "completed_bytes": 67108864,
+          "error": null,
+          "metrics": {
+            "checkpoint_persist_seconds": 0.010441133000000019,
+            "peak_rss_bytes": 16736256,
+            "transfer_seconds": 0.0,
+            "verification_seconds": 0.0
+          },
+          "operation": "COPY",
+          "operation_id": "6c36865f-4842-4ec0-af5e-0dd112361a37",
+          "phase": "CHECKPOINT",
+          "retry_count": 1,
+          "source_deleted_at_ns": null,
+          "status": "RUNNING",
+          "total_bytes": 67108864,
+          "verification": null
+        }
+      },
+      "pass": true,
+      "resume_returncode": 0
+    },
+    "source_mutation": {
+      "destination_exists": false,
+      "final_state": {
+        "buffer_bytes": 1048576,
+        "checkpoint_bytes": 8388608,
+        "checkpoint_count": 4,
+        "completed_at_ns": null,
+        "completed_bytes": 33554432,
+        "error": {
+          "at_ns": 1789625756688628000,
+          "code": "SOURCE_MUTATED",
+          "message": "source fingerprint changed: {'size': 67108864, 'mtime_ns': 1789625756480626000, 'dev': 16777235, 'ino': 14323523} != {'dev': 16777235, 'ino': 14323523, 'mtime_ns': 1789625755880430301, 'size': 67108864}"
+        },
+        "metrics": {
+          "checkpoint_persist_seconds": 0.005158791999999954,
+          "peak_rss_bytes": 16924672,
+          "transfer_seconds": 0.0,
+          "verification_seconds": 0.0
+        },
+        "operation": "COPY",
+        "operation_id": "494b0f37-3612-4ac5-889e-a8ad4fa150e5",
+        "phase": "CHECKPOINT",
+        "retry_count": 1,
+        "source_deleted_at_ns": null,
+        "status": "BLOCKED",
+        "total_bytes": 67108864,
+        "verification": null
+      },
+      "kill_returncode": 91,
+      "partial_exists": true,
+      "pass": true,
+      "pre_mutation_state": {
+        "buffer_bytes": 1048576,
+        "checkpoint_bytes": 8388608,
+        "checkpoint_count": 4,
+        "completed_at_ns": null,
+        "completed_bytes": 33554432,
+        "error": null,
+        "metrics": {
+          "checkpoint_persist_seconds": 0.005158791999999954,
+          "peak_rss_bytes": 16924672,
+          "transfer_seconds": 0.0,
+          "verification_seconds": 0.0
+        },
+        "operation": "COPY",
+        "operation_id": "494b0f37-3612-4ac5-889e-a8ad4fa150e5",
+        "phase": "CHECKPOINT",
+        "retry_count": 1,
+        "source_deleted_at_ns": null,
+        "status": "RUNNING",
+        "total_bytes": 67108864,
+        "verification": null
+      },
+      "resume_returncode": 2,
+      "source_exists": true
+    },
+    "synthetic_enospc_resume": {
+      "failed_state": {
+        "buffer_bytes": 1048576,
+        "checkpoint_bytes": 8388608,
+        "checkpoint_count": 2,
+        "completed_at_ns": null,
+        "completed_bytes": 24117248,
+        "error": {
+          "at_ns": 1789625753940484000,
+          "code": "ENOSPC",
+          "message": "[Errno 28] POC synthetic ENOSPC injection",
+          "synthetic": true
+        },
+        "metrics": {
+          "checkpoint_persist_seconds": 0.00261592699999999,
+          "peak_rss_bytes": 18886656,
+          "transfer_seconds": 0.095440086,
+          "verification_seconds": 0.0
+        },
+        "operation": "COPY",
+        "operation_id": "f19b16dd-7c10-44f3-8d72-4db338a7dd4e",
+        "phase": "CHECKPOINT",
+        "retry_count": 1,
+        "source_deleted_at_ns": null,
+        "status": "FAILED",
+        "total_bytes": 67108864,
+        "verification": null
+      },
+      "final_state": {
+        "buffer_bytes": 1048576,
+        "checkpoint_bytes": 8388608,
+        "checkpoint_count": 8,
+        "completed_at_ns": 1789625754796764000,
+        "completed_bytes": 67108864,
+        "error": null,
+        "finalization": {
+          "destination_exists_after": true,
+          "final_dev": 16777235,
+          "final_ino": 14323500,
+          "inode_preserved": true,
+          "mechanism": "os.replace same-filesystem",
+          "observed_only_not_universal_atomicity_claim": true,
+          "partial_dev": 16777235,
+          "partial_exists_after": false,
+          "partial_ino": 14323500,
+          "same_device": true
+        },
+        "metrics": {
+          "checkpoint_persist_seconds": 0.009880599000000018,
+          "peak_rss_bytes": 27344896,
+          "transfer_seconds": 0.267555022,
+          "verification_seconds": 0.45426852500000003
+        },
+        "operation": "COPY",
+        "operation_id": "f19b16dd-7c10-44f3-8d72-4db338a7dd4e",
+        "phase": "COMPLETE",
+        "reconciled_partial_bytes": 24117248,
+        "retry_count": 2,
+        "source_deleted_at_ns": null,
+        "status": "COMPLETE",
+        "total_bytes": 67108864,
+        "verification": {
+          "method": "size+sha256",
+          "partial_hash_seconds": 0.22170001300000003,
+          "partial_sha256": "6266e202ef7afe181b89a8d48bf83323ee875973d0c3dfdd8204fd2d8e72fac3",
+          "source_hash_seconds": 0.23256851200000003,
+          "source_sha256": "6266e202ef7afe181b89a8d48bf83323ee875973d0c3dfdd8204fd2d8e72fac3",
+          "verified_at_ns": 1789625754794732000
+        }
+      },
+      "injected_returncode": 4,
+      "partial_bytes_after_enospc": 24117248,
+      "pass": true,
+      "resume_returncode": 0
+    },
+    "user_cancellation_resume": {
+      "cancel_returncode": 3,
+      "cancel_state": {
+        "buffer_bytes": 1048576,
+        "checkpoint_bytes": 8388608,
+        "checkpoint_count": 2,
+        "completed_at_ns": null,
+        "completed_bytes": 20971520,
+        "error": null,
+        "metrics": {
+          "checkpoint_persist_seconds": 0.002955445000000015,
+          "peak_rss_bytes": 16818176,
+          "transfer_seconds": 0.0,
+          "verification_seconds": 0.0
+        },
+        "operation": "COPY",
+        "operation_id": "90994acd-8347-4e09-92dc-5edfe1ee0d8e",
+        "phase": "CHECKPOINT",
+        "retry_count": 1,
+        "source_deleted_at_ns": null,
+        "status": "CANCELLED",
+        "total_bytes": 67108864,
+        "verification": null
+      },
+      "destination_exists_after_cancel": true,
+      "final_state": {
+        "buffer_bytes": 1048576,
+        "checkpoint_bytes": 8388608,
+        "checkpoint_count": 8,
+        "completed_at_ns": 1789625752997516000,
+        "completed_bytes": 67108864,
+        "error": null,
+        "finalization": {
+          "destination_exists_after": true,
+          "final_dev": 16777235,
+          "final_ino": 14323480,
+          "inode_preserved": true,
+          "mechanism": "os.replace same-filesystem",
+          "observed_only_not_universal_atomicity_claim": true,
+          "partial_dev": 16777235,
+          "partial_exists_after": false,
+          "partial_ino": 14323480,
+          "same_device": true
+        },
+        "metrics": {
+          "checkpoint_persist_seconds": 0.011636619000000029,
+          "peak_rss_bytes": 27389952,
+          "transfer_seconds": 0.188371012,
+          "verification_seconds": 0.45399792
+        },
+        "operation": "COPY",
+        "operation_id": "90994acd-8347-4e09-92dc-5edfe1ee0d8e",
+        "phase": "COMPLETE",
+        "reconciled_partial_bytes": 20971520,
+        "retry_count": 2,
+        "source_deleted_at_ns": null,
+        "status": "COMPLETE",
+        "total_bytes": 67108864,
+        "verification": {
+          "method": "size+sha256",
+          "partial_hash_seconds": 0.22887464200000002,
+          "partial_sha256": "6266e202ef7afe181b89a8d48bf83323ee875973d0c3dfdd8204fd2d8e72fac3",
+          "source_hash_seconds": 0.22512327799999998,
+          "source_sha256": "6266e202ef7afe181b89a8d48bf83323ee875973d0c3dfdd8204fd2d8e72fac3",
+          "verified_at_ns": 1789625752995300000
+        }
+      },
+      "partial_bytes_after_cancel": 20971520,
+      "pass": true,
+      "resume_returncode": 0,
+      "source_exists_after_cancel": true
+    }
+  },
+  "started_at_ns": 1789625740599425000
+}
