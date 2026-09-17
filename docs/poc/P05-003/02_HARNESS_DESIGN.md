@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`tools/p05_003_harness/` is disposable host-side evidence code. It tests the provider-to-playback boundary before an Android Media3 integration exists. It is deliberately not a player, datasource, filesystem adapter, network client, or Android test fixture.
+`tools/p05_003_harness/` contains a disposable host contract harness and a disposable Android runtime harness. The Android target is deliberately not a production app, service, provider adapter, or product dependency decision.
 
 ## Model
 
@@ -15,6 +15,16 @@
 - `Resolution` — selected source mode, whether caching is required, and a bounded reason;
 - `resolve_source(...)` — capability-driven source selection;
 - `cache_key(...)` — version-aware cache identity that excludes the locator.
+- `EventKind`, `RuntimeEvent`, and `EventRecorder` — deterministic lifecycle event schema with query-secret redaction;
+- `SequentialReadSource` — finite host model that returns fixed chunks, EOF, and an explicit unsupported-seek failure.
+
+The Android PoC under `media3-poc/` defines:
+
+- an isolated `org.omnifile.poc.media3` application using actual Media3 ExoPlayer;
+- an app-private generated PCM16 WAV source;
+- `ACTION_OPEN_DOCUMENT_TREE` plus a `DocumentsContract` child-document query;
+- direct URI playback and `SequentialDataSource`, whose `open` rejects any nonzero `DataSpec.position` and whose `read` returns Media3 EOF;
+- `RuntimeEventRecorder`, which appends redacted JSONL and mirrors events to the `P05-003` log tag.
 
 ## Selection rules exercised
 
@@ -28,7 +38,7 @@
 
 ## Non-goals
 
-The harness does not prove Media3 API compatibility, ExoPlayer extractor/decoder support, descriptor seekability, SAF provider behavior, network latency, reconnect behavior, cache I/O, audio fidelity, background playback, notification behavior, or process-death recovery.
+The host harness does not prove Media3 API compatibility. The Android build proves source compilation and packaging only; neither host nor build evidence proves ExoPlayer extractor/decoder support at runtime, descriptor seekability, SAF provider playback, network latency, reconnect behavior, cache I/O, audio fidelity, background playback, notification behavior, or process-death recovery.
 
 ## Disposable status
 

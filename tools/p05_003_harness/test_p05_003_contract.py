@@ -1,10 +1,14 @@
 import unittest
 
 from p05_003_contract import (
+    EventKind,
+    EventRecorder,
     MediaIdentity,
     PlaybackRequest,
     ReadCapabilities,
+    SequentialReadSource,
     SourceMode,
+    UnsupportedSeek,
     cache_key,
     resolve_source,
 )
@@ -116,6 +120,74 @@ class ProviderNeutralPlaybackContractTests(unittest.TestCase):
         second = MediaIdentity("a", "b|c", "v1", "opaque://two")
 
         self.assertNotEqual(cache_key(first), cache_key(second))
+
+    def test_runtime_recorder_captures_required_lifecycle_events_in_order(self):
+        recorder = EventRecorder()
+        recorder.record(EventKind.SOURCE_RESOLVED, source="local")
+        recorder.record(EventKind.PREPARE, source="local")
+        recorder.record(EventKind.START, source="local")
+        recorder.record(EventKind.DURATION, source="local", duration_ms=1200)
+        recorder.record(EventKind.PLAYBACK, source="local", position_ms=0)
+        recorder.record(EventKind.SEEK, source="local", position_ms=600)
+        recorder.record(EventKind.PLAYBACK, source="local", position_ms=600)
+        recorder.record(EventKind.EOF, source="local", position_ms=1200)
+        recorder.record(EventKind.STOP, source="local", position_ms=1200)
+        recorder.record(EventKind.REOPEN, source="local")
+        recorder.record(EventKind.PLAYER_RECREATED, source="local")
+        recorder.record(EventKind.SOURCE_RESOLVED, source="local", detail="re-resolved")
+
+        events = recorder.events()
+        self.assertEqual(list(range(len(events))), [event.sequence for event in events])
+        self.assertEqual(
+            [
+                EventKind.SOURCE_RESOLVED,
+                EventKind.PREPARE,
+                EventKind.START,
+                EventKind.DURATION,
+                EventKind.PLAYBACK,
+                EventKind.SEEK,
+                EventKind.PLAYBACK,
+                EventKind.EOF,
+                EventKind.STOP,
+                EventKind.REOPEN,
+                EventKind.PLAYER_RECREATED,
+                EventKind.SOURCE_RESOLVED,
+            ],
+            recorder.kinds(),
+        )
+        self.assertEqual(1200, events[3].duration_ms)
+        self.assertEqual(600, events[5].position_ms)
+
+    def test_runtime_recorder_retains_failure_details_without_locator(self):
+        recorder = EventRecorder()
+        recorder.record(
+            EventKind.FAILURE,
+            source="saf",
+            detail="SecurityException for content://provider/doc?token=secret",
+        )
+
+        event = recorder.events()[0]
+        self.assertEqual(EventKind.FAILURE, event.kind)
+        self.assertIn("SecurityException", event.detail)
+        self.assertNotIn("token=secret", event.detail)
+
+    def test_sequential_source_reads_in_fixed_chunks_and_has_no_seek(self):
+        source = SequentialReadSource(b"abcdef")
+
+        self.assertEqual(b"ab", source.read(2))
+        self.assertEqual(b"cde", source.read(3))
+        self.assertEqual(b"f", source.read(3))
+        self.assertEqual(b"", source.read(3))
+        with self.assertRaises(UnsupportedSeek):
+            source.seek(0)
+
+    def test_sequential_source_reopen_starts_at_zero(self):
+        source = SequentialReadSource(b"abc")
+        self.assertEqual(b"a", source.read(1))
+
+        source.reopen()
+
+        self.assertEqual(b"abc", source.read(4))
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@ This campaign ran only in:
 ```text
 Path:   /Users/yuta/Desktop/File Manager-worktrees/p05-media3
 Branch: poc/core-readiness-media3-v1
-Continuation base: e27e88168314a0de9b3d4809574da60e5aec72b0
+Continuation base: 3c4cf3b1e1b78911cb4714b88de1c0d818ae8e8c
 ```
 
 The worktree was a linked worktree and was clean before the P05-003 files were added. No other File Manager worktree was edited.
@@ -17,17 +17,21 @@ The worktree was a linked worktree and was clean before the P05-003 files were a
 | Tool | Observed state | P05-003 use |
 |---|---|---|
 | Python | `Python 3.9.6` | Used for disposable standard-library harness. |
-| `unittest` | Available through Python 3.9 | Used for the 10 host contract tests. |
-| Java | `/usr/bin/java` present | Available for a disposable raw build. |
-| Kotlin compiler | Not found | Android/Kotlin harness not feasible in this checkout. |
-| Gradle wrapper/project | Not present in this worktree | No reproducible project build; cached AAR inspection only. |
-| Android application source | Not present | Instrumentation/device tests not feasible. |
-| ADB | Available and used only by the parent runtime campaign | No Media3 ADB run was performed in this branch. |
+| `unittest` | Available through Python 3.9 | Used for the 14 host contract tests. |
+| Java | Java 26.0.1 at `/Library/Java/JavaVirtualMachines/jdk-26.jdk/Contents/Home` | Used by the disposable Android build. |
+| Kotlin compiler | Not found | PoC uses Java; no Kotlin surface was added. |
+| Gradle | Gradle 9.6.0 distribution under `/Users/yuta/.gradle/wrapper/dists/` | Used directly because this repository has no existing wrapper. |
+| Android Gradle Plugin | Cached/managed `com.android.application` 9.4.0 | Used only by the disposable PoC. |
+| Android SDK | `/Users/yuta/Library/Android/sdk`, platforms API 31/36/37 | PoC compiles with API 36, min API 31. |
+| Android application source | Added only under `tools/p05_003_harness/media3-poc/` | Compile/package verified; no instrumentation/device run. |
+| ADB | Available at `/usr/local/bin/adb` | Intentionally not invoked for this request. |
 
-Cached Media3 1.3.1 AARs are present for a future disposable build:
+Cached Media3 1.3.1 AARs were resolved for the disposable build:
 `media3-common`, `datasource`, `decoder`, `container`, `database`, `extractor`,
-`exoplayer`, `session`, and `datasource-okhttp`. Their presence is not a
-compiled or runtime result and does not freeze a dependency version.
+`exoplayer`, `session`, and `datasource-okhttp`. The build resolved the P05-only
+`1.3.1` pin online after the offline attempt showed that
+`androidx.core:core:1.8.0` was not cached. This is compiled artifact evidence
+only and does not freeze a production dependency version.
 
 ## FLACtify boundary
 
@@ -37,7 +41,9 @@ The observed FLACtify Media3 baseline remains reference evidence only: Media3 `1
 
 ## Execution status
 
-The only executable evidence in this worktree is the pure host contract
-harness. Android, Media3, SAF playback, physical-device playback,
-non-seekable runtime behavior, remote-provider playback, and player recreation
-remain `NOT_TESTED`, not inferred from host tests.
+Fresh executable evidence consists of the 14-test host contract suite and a
+successful Android `:app:assembleDebug` build. The APK was inspected with
+`aapt2` as `org.omnifile.poc.media3`, version `0.5.0-poc`, compile/target API
+36, min API 31. Android/Media3 playback, SAF playback, physical-device
+playback, non-seekable runtime behavior, remote-provider playback, and player
+recreation remain `NOT_TESTED`, not inferred from build or host tests.
