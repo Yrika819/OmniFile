@@ -1,0 +1,7 @@
+# POC-ONLY — NOT PRODUCTION AUTHORITY
+vendor/
+fixtures/generated/
+fixtures/tmp/
+out/
+work/
+*.class
