@@ -1,0 +1,5 @@
+Linux localhost 6.1.134-android14-11-g66e758f7d0c0-ab13748739 #1 SMP PREEMPT Tue Jul  8 09:17:32 UTC 2025 aarch64 Toybox
+4096
+Filesystem       Size Used Avail Use% Mounted on
+/dev/block/dm-50 110G  86G   24G  79% /data/app/~~v8-FlPhTiW41tEBOMTdA3w==/com.google.android.youtube-J3BAJVlGpEguaCbb6ZRolQ==/base.apk
+/dev/fuse        110G  86G   24G  79% /storage/emulated

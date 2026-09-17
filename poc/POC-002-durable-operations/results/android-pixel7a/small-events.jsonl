@@ -1,0 +1,6 @@
+{"ts":1789636787495,"event":"SETUP","data":{"bytes":8388608,"type":"COPY","sourceMtime":1789636787447}}
+{"ts":1789636788804,"event":"CREATE_PARTIAL","data":{"path":"/data/local/tmp/filemanager-poc002/small/destination.partial"}}
+{"ts":1789636788982,"event":"CHECKPOINT","data":{"completedBytes":8388608,"peakHeapBytes":2265744,"peakPssKb":72370}}
+{"ts":1789636788983,"event":"TRANSFER_DONE","data":{"bytes":8388608,"transferMs":"177.47583","peakHeapBytes":2265744,"peakPssKb":72370}}
+{"ts":1789636789021,"event":"VERIFY_DONE","data":{"verifyMs":"32.28125","sha256":"4ae02f7bf5acd5faa4c055757cfaa9a903c7fade4654308a3940dfe4363184c7"}}
+{"ts":1789636789025,"event":"COMPLETE","data":{"atomicFinalize":true,"destinationBytes":8388608,"sourceExistsAtComplete":true}}

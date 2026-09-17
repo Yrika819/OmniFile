@@ -1,0 +1,12 @@
+{"ts":1789636851417,"event":"RETRY","data":{"from":"CANCELLED"}}
+{"ts":1789636851649,"event":"CHECKPOINT","data":{"completedBytes":75497472,"peakHeapBytes":2257552,"peakPssKb":72343}}
+{"ts":1789636851872,"event":"CHECKPOINT","data":{"completedBytes":83886080,"peakHeapBytes":2278064,"peakPssKb":72367}}
+{"ts":1789636852102,"event":"CHECKPOINT","data":{"completedBytes":92274688,"peakHeapBytes":2339536,"peakPssKb":72391}}
+{"ts":1789636852338,"event":"CHECKPOINT","data":{"completedBytes":100663296,"peakHeapBytes":2360048,"peakPssKb":72415}}
+{"ts":1789636852568,"event":"CHECKPOINT","data":{"completedBytes":109051904,"peakHeapBytes":2413328,"peakPssKb":72439}}
+{"ts":1789636852799,"event":"CHECKPOINT","data":{"completedBytes":117440512,"peakHeapBytes":2466608,"peakPssKb":72463}}
+{"ts":1789636853016,"event":"CHECKPOINT","data":{"completedBytes":125829120,"peakHeapBytes":2487120,"peakPssKb":72487}}
+{"ts":1789636853233,"event":"CHECKPOINT","data":{"completedBytes":134217728,"peakHeapBytes":2548592,"peakPssKb":72515}}
+{"ts":1789636853234,"event":"TRANSFER_DONE","data":{"bytes":134217728,"transferMs":"1815.822104","peakHeapBytes":2548592,"peakPssKb":72515}}
+{"ts":1789636853485,"event":"VERIFY_DONE","data":{"verifyMs":"246.443034","sha256":"8e923610c297e15ffec40403757660a97205e3f6f7570583bc3749ca402931d1"}}
+{"ts":1789636853490,"event":"COMPLETE","data":{"atomicFinalize":true,"destinationBytes":134217728,"sourceExistsAtComplete":true}}

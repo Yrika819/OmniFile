@@ -1,126 +1,104 @@
 # POC-002 — Results
 
-Status: MECHANICAL CORE PASS; ANDROID PLATFORM INTEGRATION NOT TESTED
+Status: COMPLETE
 
 Raw evidence:
-- `poc/POC-002-durable-operations/results/campaign.json`
-- `poc/POC-002-durable-operations/results/summary.json`
+- host: `results/campaign.json`, `results/summary.json`;
+- Pixel 7a: `results/android-pixel7a/*-events.jsonl`, `*-state.properties`, `summary.json`, device captures.
 
-Campaign wall time: **53.394003 s**.
+## Result matrix
 
-## Mechanical result matrix
-
-| Scenario | Result | Evidence classification |
+| Scenario | Host | Pixel 7a API36 |
 |---|---|---|
-| Baseline COPY | PASS | measured fact |
-| Process kill early | PASS | measured fact |
-| Process kill mid-transfer | PASS | measured fact |
-| Process kill near end | PASS | measured fact |
-| Kill after transfer / before verify | PASS | measured fact |
-| Kill after verify / before finalize | PASS | measured fact |
-| Cancellation then resume | PASS | measured fact |
-| Synthetic ENOSPC then resume | PASS | measured fact, injected fault |
-| Destination conflict | PASS | measured fact |
-| Source mutation before resume | PASS | measured fact |
-| MOVE source-delete ordering | PASS | measured fact |
-| 256 MiB checkpoint tradeoff | PASS | measured fact |
-| 2 GiB transfer | PASS | measured fact |
+| baseline COPY | PASS | PASS |
+| kill early | PASS | PASS |
+| kill mid | PASS | PASS |
+| kill near end | PASS | PASS |
+| kill after transfer / before verify | PASS | PASS |
+| kill after verify / before finalize | PASS | PASS |
+| cancellation then resume | PASS | PASS |
+| injected ENOSPC then resume | PASS | PASS |
+| destination conflict | PASS | PASS |
+| source mutation | PASS | PASS |
+| MOVE source-delete ordering | PASS | PASS |
+| 2 GiB streamed copy | PASS | PASS |
 
-All campaign mechanical assertions: **PASS**.
+## Measured fact — Android process-death reconciliation
 
-## Process-death reconciliation
+Pixel 7a kill scenarios intentionally let partial bytes get ahead of the durable checkpoint:
+- early: durable 8,388,608; actual partial 13,631,488 bytes; resumed to COMPLETE;
+- mid: durable 125,829,120; actual partial 134,217,728 bytes; resumed to COMPLETE;
+- near: durable 251,658,240; actual partial 255,066,112 bytes; resumed to COMPLETE.
 
-The five forced-exit children returned code `91`. A fresh child then recovered and reached `COMPLETE` in every case.
+`RECOVER_RECONCILE` was emitted in each case.
 
-- early kill: partial 8,388,608 bytes; resume reconciled 8,388,608 bytes;
-- mid kill: partial 33,554,432 bytes; resume reconciled 33,554,432 bytes;
-- near-end kill: partial 67,108,864 bytes; resume reconciled 67,108,864 bytes;
-- after-transfer kill: phase `VERIFY`, partial 67,108,864 bytes; resume completed;
-- after-verify kill: phase `VERIFY` with verification already persisted; resume completed.
+**Inference:** durable recovery must reconcile state with partial-storage facts rather than blindly replay the last checkpoint.
 
-**Measured fact:** durable truth did not require the original executor process to survive.
+## Phase-boundary kills
 
-**Inference:** reconciliation must compare durable state with actual partial-storage facts because state can legitimately lag written bytes.
+- after transfer/before verify: 128 MiB operation resumed, verified SHA-256 and atomically finalized;
+- after verify/before finalize: persisted VERIFIED state resumed directly to finalization.
+
+**Measured fact:** VERIFY and COMPLETE are distinct durable states.
 
 ## Cancellation
 
-Cancellation occurred at 20,971,520 bytes. State was persisted as `CANCELLED`, source remained present, final destination was absent, and the later resume reached `COMPLETE`.
+A 128 MiB operation entered `CANCELLED` at mid-transfer with its partial retained, then retried and completed.
 
-**Recommendation:** cancellation should be an explicit durable state and should not imply deletion of a recoverable partial by default.
+**Recommendation input:** cancellation should be explicit durable truth; partial deletion should be a separate policy.
 
-## Controlled storage-full fault
+## Injected storage full
 
-A synthetic ENOSPC was injected at 23 MiB. State recorded `code=ENOSPC` with `synthetic=true`; a later run without the injection reconciled the existing partial and completed.
+A controlled mid-transfer `INJECTED_ENOSPC` produced durable `BLOCKED`; retry without the injection reused the partial and completed.
 
-**Limitation:** this is not a real filesystem-full measurement and does not characterize Android provider behavior.
+**Limitation:** real Android filesystem/provider ENOSPC remains NOT_TESTED.
 
-## Destination conflict
+## Conflict and mutation
 
-A pre-existing final destination caused durable `BLOCKED` / `DESTINATION_CONFLICT`. The pre-existing destination hash was unchanged and source remained present.
+- destination conflict: durable `BLOCKED / DESTINATION_CONFLICT`; verified partial retained and final was not overwritten;
+- source mutation after a mid-transfer kill: resume produced `BLOCKED / SOURCE_MUTATED`; no final destination was produced.
 
-**Measured fact:** the harness did not silently overwrite a conflicting final destination.
+## MOVE ordering
 
-## Source mutation
+Pixel 7a event order: `... VERIFY_DONE -> COMPLETE -> MOVE_SOURCE_DELETE`. The `COMPLETE` event recorded `sourceExistsAtComplete=true`; the later delete event recorded `afterPhase=COMPLETE` and `deleted=true`.
 
-After a mid-transfer process kill, the source was modified while retaining the same total length. Resume detected a changed fingerprint and produced durable `BLOCKED` / `SOURCE_MUTATED`; final destination remained absent and the partial remained identifiable.
+**Measured fact:** source deletion was not premature.
 
-**Recommendation:** resume must revalidate source identity/version assumptions before writing further bytes.
+## Pixel 7a 2 GiB case
 
-## MOVE source deletion ordering
+- bytes: 2,147,483,648;
+- transfer: 51,262.543 ms;
+- SHA-256 verify: 4,592.618 ms;
+- peak Java heap: 12,595,728 bytes;
+- peak PSS: 74,579 KiB;
+- SHA-256 match: PASS;
+- same-filesystem atomic finalize: PASS.
 
-A MOVE was killed after VERIFY and before FINALIZE. At that point:
-- source existed: YES;
-- final destination existed: NO.
+The source began sparse, but the destination was streamed byte-for-byte and reached the full 2 GiB size.
 
-After resume:
-- destination reached `COMPLETE`;
-- source was then deleted;
-- `completed_at_ns = 1789625759044742000`;
-- `source_deleted_at_ns = 1789625759049570000`.
+**Measured fact:** memory remained bounded far below file size on physical Android.
 
-Therefore the observed delete timestamp was later than the persisted destination-complete timestamp.
+## Host checkpoint tradeoff
 
-**Measured fact:** no premature MOVE source deletion occurred in the tested implementation.
+For 256 MiB with a 1 MiB transfer buffer:
+- 1 MiB checkpoints: 256 checkpoints, ~0.314 s persistence time;
+- 8 MiB checkpoints: 32 checkpoints, ~0.051 s;
+- 64 MiB checkpoints: 4 checkpoints, ~0.006 s.
 
-## Checkpoint tradeoff — 256 MiB
+**Inference:** checkpoint cadence is a recovery-window/overhead tradeoff and should remain empirically chosen.
 
-All runs used a 1 MiB transfer buffer and size+SHA-256 verification.
+## Host 2 GiB verification cost
 
-| Checkpoint interval | Checkpoints | Wall s | Transfer s | Checkpoint persistence s | Verification s | Peak RSS bytes |
-|---:|---:|---:|---:|---:|---:|---:|
-| 1 MiB | 256 | 3.4973 | 1.4525 | 0.3143 | 1.8090 | 27,348,992 |
-| 8 MiB | 32 | 3.1603 | 1.1030 | 0.0509 | 1.8348 | 27,312,128 |
-| 64 MiB | 4 | 2.9049 | 0.8715 | 0.0064 | 1.8046 | 27,262,976 |
+Host transfer ~7.22 s versus SHA-256 verification ~15.56 s. Pixel 7a showed a different ratio (51.26 s transfer vs 4.59 s verification).
 
-**Measured fact:** on this host and persistence implementation, more frequent durable checkpoints added visible persistence overhead.
-
-**Inference:** checkpoint cadence is a recovery-window versus write-overhead tradeoff and should remain configurable/empirically chosen rather than frozen from documentation alone.
-
-## 2 GiB large transfer
-
-- logical source size: 2,147,483,648 bytes;
-- source was sparse (`st_blocks=0` before copy);
-- destination reached the full 2 GiB logical size through the normal streaming loop;
-- wall time: 23.0034 s;
-- transfer time: 7.2184 s;
-- size+SHA-256 verification time: 15.5590 s;
-- peak RSS: 27,348,992 bytes;
-- result: PASS.
-
-**Measured fact:** memory remained bounded far below file size in the host implementation.
-
-**Measured fact:** full hashing dominated the large-file runtime in this test.
-
-**Recommendation:** Architecture V1 should keep verification strategy capability/policy dependent; universal full hashing is not justified by this PoC.
+**Inference:** verification cost is device/filesystem/cache dependent; universal mandatory hashing is not justified by these two environments.
 
 ## NOT TESTED
 
-- Android API 31/36 runtime execution of POC-002;
-- Android process kill via LMK/force-stop;
-- WorkManager/UIDT/FGS/Service executor recovery;
+- real disk-full behavior;
 - SAF/cloud/network destinations;
-- true filesystem ENOSPC;
-- tens/100 GiB transfers;
-- cross-filesystem finalization;
-- power loss during fsync/rename;
-- physical-device throughput or memory.
+- cross-filesystem/provider finalization;
+- power-loss durability;
+- Android API31 execution of this harness;
+- WorkManager/UIDT/FGS/Service/Activity executor mapping;
+- tens/100 GiB transfers.

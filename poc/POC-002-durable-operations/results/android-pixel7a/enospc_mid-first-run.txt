@@ -1,0 +1,9 @@
+{"ts":1789636857263,"event":"CREATE_PARTIAL","data":{"path":"/data/local/tmp/filemanager-poc002/enospc_mid/destination.partial"}}
+{"ts":1789636857478,"event":"CHECKPOINT","data":{"completedBytes":8388608,"peakHeapBytes":2265744,"peakPssKb":72440}}
+{"ts":1789636857722,"event":"CHECKPOINT","data":{"completedBytes":16777216,"peakHeapBytes":2286256,"peakPssKb":72464}}
+{"ts":1789636857944,"event":"CHECKPOINT","data":{"completedBytes":25165824,"peakHeapBytes":2347728,"peakPssKb":72492}}
+{"ts":1789636858182,"event":"CHECKPOINT","data":{"completedBytes":33554432,"peakHeapBytes":2368240,"peakPssKb":72516}}
+{"ts":1789636858399,"event":"CHECKPOINT","data":{"completedBytes":41943040,"peakHeapBytes":2421520,"peakPssKb":72540}}
+{"ts":1789636858622,"event":"CHECKPOINT","data":{"completedBytes":50331648,"peakHeapBytes":2474800,"peakPssKb":72564}}
+{"ts":1789636858831,"event":"CHECKPOINT","data":{"completedBytes":58720256,"peakHeapBytes":2495312,"peakPssKb":72588}}
+{"ts":1789636859054,"event":"FAULT_ENOSPC","data":{"kind":"injected","completedBytes":67108864}}

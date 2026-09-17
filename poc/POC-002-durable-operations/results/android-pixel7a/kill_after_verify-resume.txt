@@ -1,0 +1,1 @@
+{"ts":1789636844254,"event":"COMPLETE","data":{"atomicFinalize":true,"destinationBytes":134217728,"sourceExistsAtComplete":true}}

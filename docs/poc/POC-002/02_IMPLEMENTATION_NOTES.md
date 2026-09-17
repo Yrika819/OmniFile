@@ -1,45 +1,40 @@
 # POC-002 — Implementation Notes
 
-Status: EXECUTED
+Status: COMPLETE
 
-## Disposable design
+## Two disposable harnesses
 
-`engine.py` is deliberately a disposable host implementation. It uses an atomically replaced JSON state file, a uniquely named `.partial` destination, bounded streaming buffers, fsync at checkpoints, SHA-256 verification, and same-filesystem `os.replace` finalization.
-
-This is **POC-ONLY — NOT PRODUCTION AUTHORITY**. JSON persistence, Python, checkpoint sizes, hash policy, naming, and finalization calls are not production selections.
+The existing Python harness remains the host reference for controlled checkpoint-cadence and durable-state experiments. The Android supplement uses Java/D8 with the same conceptual state machine. Both are **POC-ONLY — NOT PRODUCTION AUTHORITY**.
 
 ## Durable truth versus executor
 
-`campaign.py` launches the engine in child processes. Fault cases terminate the child with `os._exit(91)` so in-memory state disappears. Recovery starts a new process that reads only durable state plus filesystem facts.
+The Android state is atomically replaced in `state.properties`; event history is fsync'd JSONL; transfer bytes live in `destination.partial`. The executor may die and be replaced. Resume reloads only durable state and filesystem facts.
 
-The recovery path reconciles `completed_bytes` against the actual `.partial` length because a process may die after writing bytes but before persisting the next checkpoint.
+## Reconciliation
 
-## Source identity/mutation guard
+Process-kill injection deliberately occurs after writing bytes but before the next checkpoint. On restart, actual partial length is compared to durable `completedBytes`; divergence emits `RECOVER_RECONCILE` and the actual partial length becomes the resume point.
 
-The PoC records size, nanosecond mtime, device, and inode at PLAN. A changed fingerprint blocks resume as `SOURCE_MUTATED` rather than blindly continuing.
+## Checkpoint and transfer memory
 
-This fingerprint is evidence for a reconciliation strategy, not a universal production identity contract.
+Android uses a fixed 256 KiB buffer and 8 MiB checkpoints. Peak Java heap and `Debug.getPss()` are sampled. Host cadence comparison remains 1/8/64 MiB. Exact intervals are evidence inputs, not production choices.
 
-## Verification and finalization
+## Verification
 
-Verification requires expected byte length plus SHA-256 equality between source and partial. Verification cost is measured separately.
-
-Finalization uses same-filesystem `os.replace` and records device/inode before and after. The result is explicitly marked observational; it does not generalize atomic rename to SAF, cloud, network, or cross-filesystem moves.
-
-## MOVE ordering
-
-The engine first persists destination phase/status as `COMPLETE`. Only after that durable write succeeds does MOVE unlink the source and record `source_deleted_at_ns`.
-
-A crash injected after VERIFY confirms that source deletion has not yet occurred.
+Expected byte length plus SHA-256 equality is measured. Verification time is recorded separately. The PoC intentionally does not freeze universal full hashing as production policy.
 
 ## Fault injection
 
-- process kill: real child process termination at five lifecycle points;
-- cancellation: cooperative stop after a byte threshold, retaining the partial;
-- ENOSPC: synthetic `errno.ENOSPC` after a byte threshold to avoid filling real storage;
-- conflict: pre-existing final destination;
-- source mutation: same-size source content modification after a mid-transfer crash.
+- early/mid/near process kill uses real Android process termination (`Process.killProcess`) before checkpoint persistence;
+- after-transfer and after-verify kills exercise phase boundaries;
+- cancellation persists `CANCELLED` and keeps the partial;
+- ENOSPC is a controlled injected `BLOCKED` condition, not a real disk-fill test;
+- conflict creates a pre-existing final destination;
+- source mutation modifies the source after a process death and is rejected on resume.
 
-## Memory model
+## Finalization and MOVE
 
-Transfer buffer is 1 MiB. Peak RSS is read from `getrusage`; on Darwin `ru_maxrss` is treated as bytes. This is host-process memory evidence only.
+Same-filesystem finalization attempts `ATOMIC_MOVE`, recording whether it succeeded. For MOVE, the harness durably records `COMPLETE` first; only then may it delete the source. Events record that the source still existed at `COMPLETE`, followed by a separate `MOVE_SOURCE_DELETE`.
+
+## Production boundary
+
+No persistence library, Android background executor, retry policy, checkpoint interval, verification policy, package/module/SDK choice or provider abstraction is frozen.

@@ -1,0 +1,13 @@
+{"ts":1789636872017,"event":"SETUP","data":{"bytes":67108864,"type":"COPY","sourceMtime":1789636871999}}
+{"ts":1789636873460,"event":"CREATE_PARTIAL","data":{"path":"/data/local/tmp/filemanager-poc002/conflict/destination.partial"}}
+{"ts":1789636873643,"event":"CHECKPOINT","data":{"completedBytes":8388608,"peakHeapBytes":2265744,"peakPssKb":73952}}
+{"ts":1789636873856,"event":"CHECKPOINT","data":{"completedBytes":16777216,"peakHeapBytes":2286256,"peakPssKb":73976}}
+{"ts":1789636874143,"event":"CHECKPOINT","data":{"completedBytes":25165824,"peakHeapBytes":2347728,"peakPssKb":74004}}
+{"ts":1789636874374,"event":"CHECKPOINT","data":{"completedBytes":33554432,"peakHeapBytes":2368240,"peakPssKb":74028}}
+{"ts":1789636874612,"event":"CHECKPOINT","data":{"completedBytes":41943040,"peakHeapBytes":2429712,"peakPssKb":74052}}
+{"ts":1789636874822,"event":"CHECKPOINT","data":{"completedBytes":50331648,"peakHeapBytes":2450224,"peakPssKb":74076}}
+{"ts":1789636875014,"event":"CHECKPOINT","data":{"completedBytes":58720256,"peakHeapBytes":2511696,"peakPssKb":74100}}
+{"ts":1789636875211,"event":"CHECKPOINT","data":{"completedBytes":67108864,"peakHeapBytes":2532208,"peakPssKb":74124}}
+{"ts":1789636875211,"event":"TRANSFER_DONE","data":{"bytes":67108864,"transferMs":"1749.534424","peakHeapBytes":2532208,"peakPssKb":74124}}
+{"ts":1789636875351,"event":"VERIFY_DONE","data":{"verifyMs":"136.36674","sha256":"546b4f496c9874b254ee90e920000a3eb565896d4a4d722f294ddb247ce47388"}}
+{"ts":1789636875352,"event":"BLOCKED","data":{"error":"DESTINATION_CONFLICT","completedBytes":67108864,"partialBytes":67108864}}

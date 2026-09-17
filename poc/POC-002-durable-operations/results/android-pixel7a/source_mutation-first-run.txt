@@ -1,0 +1,6 @@
+{"ts":1789636879660,"event":"CREATE_PARTIAL","data":{"path":"/data/local/tmp/filemanager-poc002/source_mutation/destination.partial"}}
+{"ts":1789636879848,"event":"CHECKPOINT","data":{"completedBytes":8388608,"peakHeapBytes":2265744,"peakPssKb":73535}}
+{"ts":1789636880068,"event":"CHECKPOINT","data":{"completedBytes":16777216,"peakHeapBytes":2286256,"peakPssKb":73559}}
+{"ts":1789636880283,"event":"CHECKPOINT","data":{"completedBytes":25165824,"peakHeapBytes":2347728,"peakPssKb":73583}}
+{"ts":1789636880603,"event":"INJECT_PROCESS_KILL","data":{"fault":"kill_mid","actualBytes":33554432,"durableBytes":25165824}}
+Killed 

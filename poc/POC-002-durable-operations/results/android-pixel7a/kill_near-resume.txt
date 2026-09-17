@@ -1,0 +1,6 @@
+{"ts":1789636826017,"event":"RECOVER_RECONCILE","data":{"durableBytes":251658240,"actualPartialBytes":255066112}}
+{"ts":1789636826145,"event":"CHECKPOINT","data":{"completedBytes":260046848,"peakHeapBytes":2257552,"peakPssKb":72512}}
+{"ts":1789636826336,"event":"CHECKPOINT","data":{"completedBytes":268435456,"peakHeapBytes":2278064,"peakPssKb":72536}}
+{"ts":1789636826337,"event":"TRANSFER_DONE","data":{"bytes":268435456,"transferMs":"318.665121","peakHeapBytes":2278064,"peakPssKb":72536}}
+{"ts":1789636826803,"event":"VERIFY_DONE","data":{"verifyMs":"460.026286","sha256":"4e8dead8a0cbc96dc0cfaf017f2d5dae9fb9d22563da17f3a2313e81802bfcdf"}}
+{"ts":1789636826804,"event":"COMPLETE","data":{"atomicFinalize":true,"destinationBytes":268435456,"sourceExistsAtComplete":true}}

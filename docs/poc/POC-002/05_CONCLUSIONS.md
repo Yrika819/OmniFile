@@ -1,40 +1,39 @@
 # POC-002 — Conclusions
 
-Status: PARTIAL — MECHANICAL CORE EVIDENCE COMPLETE; ANDROID INTEGRATION UNTESTED
+Status: COMPLETE
 
 ## Proven by measurement
 
-1. Durable operation truth can survive executor-process death when source/destination/partial references, phase, completed bytes, and verification state are persisted independently of the executor.
-2. Recovery must reconcile persisted progress against the actual partial destination rather than blindly replaying from the last state value.
-3. The tested COPY implementation recovered from kills early, mid, near-end, after transfer, and after verification.
-4. Cancellation can preserve a resumable partial without producing a final destination.
-5. Conflict and source-mutation conditions can be converted into explicit durable blocked/error states instead of unsafe continuation.
-6. The tested MOVE ordering preserved the source through verification/finalization and deleted it only after destination `COMPLETE` had been durably recorded.
-7. Bounded streaming held peak host RSS around 27.3 MB while copying a 2 GiB logical source.
-8. Full SHA-256 verification was substantially more expensive than transfer for the 2 GiB sparse-source case, so universal mandatory hashing is not supported by this evidence.
-9. Checkpoint frequency created a measurable recovery-window/overhead tradeoff.
+1. Durable operation truth survives executor-process death on both the host harness and physical Android 16 when state and partial storage are independent of the executor.
+2. Recovery must reconcile persisted progress with actual partial length.
+3. COPY recovered from early/mid/near kills and kills after transfer and verification.
+4. Cancellation preserves a resumable partial without producing a final destination.
+5. Conflict, synthetic storage-full and source mutation become explicit durable blocked states.
+6. MOVE source deletion occurred only after destination COMPLETE was durably recorded.
+7. Bounded streaming remained far below file size; the Pixel 7a 2 GiB run peaked at ~12.6 MB Java heap and ~74.6 MiB PSS.
+8. Same-filesystem atomic finalization succeeded in the tested Android path.
+9. Checkpoint frequency has measurable persistence overhead.
+10. Verification cost varies substantially across environments; universal full SHA-256 should not be frozen from this PoC.
 
 ## Not proven
 
-- Android lifecycle/executor behavior;
-- WorkManager, UIDT, FGS, Service, Activity or coroutine mapping;
-- Android API 31/API 36 parity;
+- WorkManager/UIDT/FGS/Service/Activity/coroutine mapping;
+- API31 Android execution;
 - SAF/cloud/network recovery;
 - real ENOSPC;
-- cross-filesystem or provider finalization semantics;
+- cross-filesystem/provider atomicity;
 - power-loss durability;
 - production persistence choice.
 
 ## Exit assessment
 
-The requested durable-operation mechanics, fault matrix, MOVE ordering, bounded memory, large-file transfer, checkpoint tradeoff, verification cost, partial identification and reconciliation are evidenced on the host harness.
-
-POC-002 remains **PARTIAL** as an Android PoC because platform/runtime integration was intentionally not inferred from the unstable emulator environment.
+The requested durable discovery/reconciliation, bounded memory, identifiable partials, process-death recovery, cancellation/fault handling, finalization, MOVE ordering, checkpoint tradeoff, verification cost and multi-GB transfer are now evidenced, including physical Android 16. POC-002 is COMPLETE for P0 architecture-decision input.
 
 ## Artifact classification
 
-- `engine.py`, `campaign.py`: `DISPOSABLE`.
-- raw `results/*.json`: `REFERENCE_ONLY`.
-- documentation: `REFERENCE_ONLY`.
-- lifecycle/state ideas: `POTENTIALLY_REUSABLE_AFTER_REVIEW` as architecture concepts only, not source code.
+- Python harness and Android raw-DEX harness: `DISPOSABLE`;
+- raw results: `REFERENCE_ONLY`;
+- state-machine/lifecycle concepts: `POTENTIALLY_REUSABLE_AFTER_REVIEW` as design input only;
 - production-ready code: NONE.
+
+Production implementation remains unstarted.

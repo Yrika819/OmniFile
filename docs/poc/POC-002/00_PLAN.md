@@ -1,15 +1,13 @@
 # POC-002 — Durable Large Operation Recovery — Plan
 
-Status: MECHANICAL CORE EXECUTED; ANDROID PLATFORM INTEGRATION NOT TESTED
+Status: COMPLETE
 
 Architecture authority: `79fc0f18c7f5e1d8e0ae714808f89977ff178b62`
 Branch: `poc/durable-operations-v1`
 
 ## Purpose
 
-Validate the Architecture V1 operation lifecycle as evidence, without selecting production persistence, executor, package, module, or Android background-work architecture.
-
-Harness identifiers and implementation are **POC-ONLY — NOT PRODUCTION AUTHORITY**.
+Validate durable COPY/MOVE mechanics without selecting production persistence, package/module structure, or Android executor technology. All harness code is **POC-ONLY — NOT PRODUCTION AUTHORITY**.
 
 ## Lifecycle under test
 
@@ -19,42 +17,26 @@ For MOVE, source deletion is permitted only after destination `COMPLETE` has bee
 
 ## Durable state under test
 
-The disposable state record persists:
-- operation id and COPY/MOVE type;
-- source and destination references;
-- partial destination reference;
-- total/completed bytes;
-- current phase/status;
-- checkpoint size/count;
-- retry count;
-- source fingerprint;
-- verification result;
-- error state;
-- timestamps;
-- transfer/checkpoint/verification metrics.
+Persist source/destination/partial references, operation type, total/completed bytes, phase, retry/error state, timestamps, source identity/version observations and verification result independently of the executor process.
 
-## Failure/recovery matrix
+## Failure matrix
 
-Mechanically exercise:
-- process death early transfer;
-- process death mid transfer;
-- process death near end;
-- process death after transfer before verification;
-- process death after verification before finalization;
-- user cancellation;
-- controlled synthetic ENOSPC;
+- process death early/mid/near end;
+- death after transfer before verify;
+- death after verify before finalize;
+- cancellation;
+- controlled injected ENOSPC;
 - destination conflict;
-- source mutation between crash and resume;
-- MOVE ordering with process death after verification;
-- checkpoint cadence tradeoff;
-- small, hundreds-of-MiB, and 2 GiB logical transfers.
+- source mutation;
+- MOVE source-delete ordering;
+- small, hundreds-of-MiB and 2 GiB transfers;
+- checkpoint/verification cost and bounded memory.
+
+## Environments
+
+1. host Python harness for deterministic checkpoint-cadence and fault mechanics;
+2. physical Pixel 7a / Android 16 API 36 raw-DEX harness executed with `app_process`, deliberately avoiding a production Android app structure.
 
 ## Safety
 
-All destructive actions are confined to `poc/POC-002-durable-operations/work/` and generated destinations inside that directory. The campaign deletes only its own fixtures.
-
-The ENOSPC case is an injected write-limit failure, not a real disk-fill event.
-
-## Platform boundary
-
-Because the available Android emulators were resource-constrained and UI-unstable during POC-001, this phase first validates executor-independent durable mechanics on the macOS host. No Android executor, Activity, Service, WorkManager, UIDT, FGS, SAF, or provider behavior is inferred from this host evidence.
+Host destructive work stays under the PoC work directory. Android destructive work stays under `/data/local/tmp/filemanager-poc002`. Real primary storage was not filled; ENOSPC is explicitly synthetic.

@@ -1,36 +1,36 @@
 # POC-002 — Environment
 
-Status: RECORDED
+Status: COMPLETE
 
 ## Authority
 
-- Repository: `/Users/yuta/Desktop/File Manager`
-- Branch: `poc/durable-operations-v1`
-- Starting SHA: `79fc0f18c7f5e1d8e0ae714808f89977ff178b62`
-- Harness: `poc/POC-002-durable-operations/`
-- Runtime: host Python standard library only.
+- repository: `/Users/yuta/Desktop/File Manager`;
+- branch: `poc/durable-operations-v1`;
+- starting SHA: `79fc0f18c7f5e1d8e0ae714808f89977ff178b62`;
+- host harness: `poc/POC-002-durable-operations/engine.py` + `campaign.py`;
+- Android harness: `poc/POC-002-durable-operations/android/`.
 
-Exact `platform.platform()`, machine architecture, Python version, and executable are recorded in `results/campaign.json`.
+## Host reference
 
-## Android status
+Exact Python/platform details are retained in `results/campaign.json`. Host evidence includes fault recovery, checkpoint cadence at 1/8/64 MiB and a 2 GiB transfer.
 
-POC-001 established that the available API 31 emulator consumed roughly a full CPU core continuously and that the API 36 emulator repeatedly produced System UI/Launcher ANRs during SAF UI work. Per campaign safety/quality requirements, POC-002 did not claim Android runtime evidence from an unstable emulator session.
+## Physical Android primary
 
-Therefore the following are `NOT_TESTED` in POC-002:
-- Android process/lifecycle integration;
-- Activity/Service/WorkManager/UIDT/FGS executor behavior;
-- Android filesystem/provider-specific finalization;
-- Android storage-full behavior;
-- Android memory accounting;
-- API 31/API 36 runtime parity.
+Pixel 7a (`lynx`):
+- Android 16 / API 36;
+- fingerprint `google/lynx/lynx:16/BP4A.260205.001/14624666:user/release-keys`;
+- ABI `arm64-v8a`;
+- page size 4096 bytes;
+- about 24 GiB free on `/data` and emulated storage at measurement time.
 
-This does not invalidate the host mechanical evidence; it limits its scope to executor-independent operation-state semantics.
+Raw device environment is retained under `results/android-pixel7a/`.
 
-## Test input sizes
+## Android execution model
 
-- baseline: 4 MiB;
-- process-death/cancellation/fault cases: 64 MiB;
-- checkpoint cadence benchmark: 256 MiB per run;
-- large-file case: 2 GiB logical sparse source, copied through the normal bounded streaming loop.
+The disposable Java harness was compiled with `javac --release 17`, converted with D8 `--min-api 31`, pushed to `/data/local/tmp/filemanager-poc002`, and invoked via `app_process`. `app_process` is only an executor for the PoC; durable truth lives in state files plus partial/final files. No Activity, Service, WorkManager, UIDT, FGS, production manifest, applicationId or module architecture was selected.
 
-No tens-of-GB or 100-GB transfer was performed. Those remain `NOT_TESTED`.
+## Test sizes
+
+Host: 4 MiB baseline, 64 MiB fault cases, 256 MiB checkpoint benchmark, 2 GiB large case.
+
+Pixel 7a: 8 MiB baseline, 64/128/256 MiB fault cases, and a 2,147,483,648-byte real streamed destination. No tens/100 GiB test was performed.

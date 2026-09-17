@@ -1,0 +1,2 @@
+{"ts":1789636835748,"event":"VERIFY_DONE","data":{"verifyMs":"236.094726","sha256":"8e923610c297e15ffec40403757660a97205e3f6f7570583bc3749ca402931d1"}}
+{"ts":1789636835749,"event":"COMPLETE","data":{"atomicFinalize":true,"destinationBytes":134217728,"sourceExistsAtComplete":true}}

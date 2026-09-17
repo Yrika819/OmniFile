@@ -1,0 +1,982 @@
+{
+  "cancel_mid": {
+    "events": [
+      "SETUP",
+      "CREATE_PARTIAL",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CANCELLED",
+      "RETRY",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "TRANSFER_DONE",
+      "VERIFY_DONE",
+      "COMPLETE"
+    ],
+    "reconcile": [],
+    "complete": [
+      {
+        "ts": 1789636853490,
+        "event": "COMPLETE",
+        "data": {
+          "atomicFinalize": true,
+          "destinationBytes": 134217728,
+          "sourceExistsAtComplete": true
+        }
+      }
+    ],
+    "transfer": [
+      {
+        "ts": 1789636853234,
+        "event": "TRANSFER_DONE",
+        "data": {
+          "bytes": 134217728,
+          "transferMs": "1815.822104",
+          "peakHeapBytes": 2548592,
+          "peakPssKb": 72515
+        }
+      }
+    ],
+    "verify": [
+      {
+        "ts": 1789636853485,
+        "event": "VERIFY_DONE",
+        "data": {
+          "verifyMs": "246.443034",
+          "sha256": "8e923610c297e15ffec40403757660a97205e3f6f7570583bc3749ca402931d1"
+        }
+      }
+    ],
+    "blocked": []
+  },
+  "conflict": {
+    "events": [
+      "SETUP",
+      "CREATE_PARTIAL",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "TRANSFER_DONE",
+      "VERIFY_DONE",
+      "BLOCKED"
+    ],
+    "reconcile": [],
+    "complete": [],
+    "transfer": [
+      {
+        "ts": 1789636875211,
+        "event": "TRANSFER_DONE",
+        "data": {
+          "bytes": 67108864,
+          "transferMs": "1749.534424",
+          "peakHeapBytes": 2532208,
+          "peakPssKb": 74124
+        }
+      }
+    ],
+    "verify": [
+      {
+        "ts": 1789636875351,
+        "event": "VERIFY_DONE",
+        "data": {
+          "verifyMs": "136.36674",
+          "sha256": "546b4f496c9874b254ee90e920000a3eb565896d4a4d722f294ddb247ce47388"
+        }
+      }
+    ],
+    "blocked": [
+      {
+        "ts": 1789636875352,
+        "event": "BLOCKED",
+        "data": {
+          "error": "DESTINATION_CONFLICT",
+          "completedBytes": 67108864,
+          "partialBytes": 67108864
+        }
+      }
+    ]
+  },
+  "enospc_mid": {
+    "events": [
+      "SETUP",
+      "CREATE_PARTIAL",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "FAULT_ENOSPC",
+      "RETRY",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "TRANSFER_DONE",
+      "VERIFY_DONE",
+      "COMPLETE"
+    ],
+    "reconcile": [],
+    "complete": [
+      {
+        "ts": 1789636862804,
+        "event": "COMPLETE",
+        "data": {
+          "atomicFinalize": true,
+          "destinationBytes": 134217728,
+          "sourceExistsAtComplete": true
+        }
+      }
+    ],
+    "transfer": [
+      {
+        "ts": 1789636862553,
+        "event": "TRANSFER_DONE",
+        "data": {
+          "bytes": 134217728,
+          "transferMs": "2000.712769",
+          "peakHeapBytes": 2548592,
+          "peakPssKb": 72447
+        }
+      }
+    ],
+    "verify": [
+      {
+        "ts": 1789636862803,
+        "event": "VERIFY_DONE",
+        "data": {
+          "verifyMs": "246.174438",
+          "sha256": "8e923610c297e15ffec40403757660a97205e3f6f7570583bc3749ca402931d1"
+        }
+      }
+    ],
+    "blocked": []
+  },
+  "kill_after_transfer": {
+    "events": [
+      "SETUP",
+      "CREATE_PARTIAL",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "TRANSFER_DONE",
+      "INJECT_PROCESS_KILL",
+      "VERIFY_DONE",
+      "COMPLETE"
+    ],
+    "reconcile": [],
+    "complete": [
+      {
+        "ts": 1789636835749,
+        "event": "COMPLETE",
+        "data": {
+          "atomicFinalize": true,
+          "destinationBytes": 134217728,
+          "sourceExistsAtComplete": true
+        }
+      }
+    ],
+    "transfer": [
+      {
+        "ts": 1789636834977,
+        "event": "TRANSFER_DONE",
+        "data": {
+          "bytes": 134217728,
+          "transferMs": "3638.444867",
+          "peakHeapBytes": 2892912,
+          "peakPssKb": 72823
+        }
+      }
+    ],
+    "verify": [
+      {
+        "ts": 1789636835748,
+        "event": "VERIFY_DONE",
+        "data": {
+          "verifyMs": "236.094726",
+          "sha256": "8e923610c297e15ffec40403757660a97205e3f6f7570583bc3749ca402931d1"
+        }
+      }
+    ],
+    "blocked": []
+  },
+  "kill_after_verify": {
+    "events": [
+      "SETUP",
+      "CREATE_PARTIAL",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "TRANSFER_DONE",
+      "VERIFY_DONE",
+      "INJECT_PROCESS_KILL",
+      "COMPLETE"
+    ],
+    "reconcile": [],
+    "complete": [
+      {
+        "ts": 1789636844254,
+        "event": "COMPLETE",
+        "data": {
+          "atomicFinalize": true,
+          "destinationBytes": 134217728,
+          "sourceExistsAtComplete": true
+        }
+      }
+    ],
+    "transfer": [
+      {
+        "ts": 1789636843335,
+        "event": "TRANSFER_DONE",
+        "data": {
+          "bytes": 134217728,
+          "transferMs": "3673.915732",
+          "peakHeapBytes": 2892912,
+          "peakPssKb": 72680
+        }
+      }
+    ],
+    "verify": [
+      {
+        "ts": 1789636843580,
+        "event": "VERIFY_DONE",
+        "data": {
+          "verifyMs": "239.334757",
+          "sha256": "8e923610c297e15ffec40403757660a97205e3f6f7570583bc3749ca402931d1"
+        }
+      }
+    ],
+    "blocked": []
+  },
+  "kill_early": {
+    "events": [
+      "SETUP",
+      "CREATE_PARTIAL",
+      "CHECKPOINT",
+      "INJECT_PROCESS_KILL",
+      "RECOVER_RECONCILE",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "TRANSFER_DONE",
+      "VERIFY_DONE",
+      "COMPLETE"
+    ],
+    "reconcile": [
+      {
+        "ts": 1789636794551,
+        "event": "RECOVER_RECONCILE",
+        "data": {
+          "durableBytes": 8388608,
+          "actualPartialBytes": 13631488
+        }
+      }
+    ],
+    "complete": [
+      {
+        "ts": 1789636801761,
+        "event": "COMPLETE",
+        "data": {
+          "atomicFinalize": true,
+          "destinationBytes": 268435456,
+          "sourceExistsAtComplete": true
+        }
+      }
+    ],
+    "transfer": [
+      {
+        "ts": 1789636801312,
+        "event": "TRANSFER_DONE",
+        "data": {
+          "bytes": 268435456,
+          "transferMs": "6759.860599",
+          "peakHeapBytes": 3511888,
+          "peakPssKb": 73367
+        }
+      }
+    ],
+    "verify": [
+      {
+        "ts": 1789636801759,
+        "event": "VERIFY_DONE",
+        "data": {
+          "verifyMs": "443.172689",
+          "sha256": "4e8dead8a0cbc96dc0cfaf017f2d5dae9fb9d22563da17f3a2313e81802bfcdf"
+        }
+      }
+    ],
+    "blocked": []
+  },
+  "kill_mid": {
+    "events": [
+      "SETUP",
+      "CREATE_PARTIAL",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "INJECT_PROCESS_KILL",
+      "RECOVER_RECONCILE",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "TRANSFER_DONE",
+      "VERIFY_DONE",
+      "COMPLETE"
+    ],
+    "reconcile": [
+      {
+        "ts": 1789636810601,
+        "event": "RECOVER_RECONCILE",
+        "data": {
+          "durableBytes": 125829120,
+          "actualPartialBytes": 134217728
+        }
+      }
+    ],
+    "complete": [
+      {
+        "ts": 1789636814555,
+        "event": "COMPLETE",
+        "data": {
+          "atomicFinalize": true,
+          "destinationBytes": 268435456,
+          "sourceExistsAtComplete": true
+        }
+      }
+    ],
+    "transfer": [
+      {
+        "ts": 1789636814093,
+        "event": "TRANSFER_DONE",
+        "data": {
+          "bytes": 268435456,
+          "transferMs": "3491.254722",
+          "peakHeapBytes": 2851952,
+          "peakPssKb": 72989
+        }
+      }
+    ],
+    "verify": [
+      {
+        "ts": 1789636814554,
+        "event": "VERIFY_DONE",
+        "data": {
+          "verifyMs": "456.623413",
+          "sha256": "4e8dead8a0cbc96dc0cfaf017f2d5dae9fb9d22563da17f3a2313e81802bfcdf"
+        }
+      }
+    ],
+    "blocked": []
+  },
+  "kill_near": {
+    "events": [
+      "SETUP",
+      "CREATE_PARTIAL",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "INJECT_PROCESS_KILL",
+      "RECOVER_RECONCILE",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "TRANSFER_DONE",
+      "VERIFY_DONE",
+      "COMPLETE"
+    ],
+    "reconcile": [
+      {
+        "ts": 1789636826017,
+        "event": "RECOVER_RECONCILE",
+        "data": {
+          "durableBytes": 251658240,
+          "actualPartialBytes": 255066112
+        }
+      }
+    ],
+    "complete": [
+      {
+        "ts": 1789636826804,
+        "event": "COMPLETE",
+        "data": {
+          "atomicFinalize": true,
+          "destinationBytes": 268435456,
+          "sourceExistsAtComplete": true
+        }
+      }
+    ],
+    "transfer": [
+      {
+        "ts": 1789636826337,
+        "event": "TRANSFER_DONE",
+        "data": {
+          "bytes": 268435456,
+          "transferMs": "318.665121",
+          "peakHeapBytes": 2278064,
+          "peakPssKb": 72536
+        }
+      }
+    ],
+    "verify": [
+      {
+        "ts": 1789636826803,
+        "event": "VERIFY_DONE",
+        "data": {
+          "verifyMs": "460.026286",
+          "sha256": "4e8dead8a0cbc96dc0cfaf017f2d5dae9fb9d22563da17f3a2313e81802bfcdf"
+        }
+      }
+    ],
+    "blocked": []
+  },
+  "large_2g": {
+    "events": [
+      "SETUP",
+      "CREATE_PARTIAL",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "TRANSFER_DONE",
+      "VERIFY_DONE",
+      "COMPLETE"
+    ],
+    "reconcile": [],
+    "complete": [
+      {
+        "ts": 1789636941580,
+        "event": "COMPLETE",
+        "data": {
+          "atomicFinalize": true,
+          "destinationBytes": 2147483648,
+          "sourceExistsAtComplete": true
+        }
+      }
+    ],
+    "transfer": [
+      {
+        "ts": 1789636936983,
+        "event": "TRANSFER_DONE",
+        "data": {
+          "bytes": 2147483648,
+          "transferMs": "51262.542994",
+          "peakHeapBytes": 12595728,
+          "peakPssKb": 74579
+        }
+      }
+    ],
+    "verify": [
+      {
+        "ts": 1789636941579,
+        "event": "VERIFY_DONE",
+        "data": {
+          "verifyMs": "4592.618411",
+          "sha256": "fabe60f71de3bc856098a0f4351ee43f9ac94a3f727888e50fa2ce4d0d9f09d0"
+        }
+      }
+    ],
+    "blocked": []
+  },
+  "move": {
+    "events": [
+      "SETUP",
+      "CREATE_PARTIAL",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "TRANSFER_DONE",
+      "VERIFY_DONE",
+      "COMPLETE",
+      "MOVE_SOURCE_DELETE"
+    ],
+    "reconcile": [],
+    "complete": [
+      {
+        "ts": 1789636869169,
+        "event": "COMPLETE",
+        "data": {
+          "atomicFinalize": true,
+          "destinationBytes": 67108864,
+          "sourceExistsAtComplete": true
+        }
+      }
+    ],
+    "transfer": [
+      {
+        "ts": 1789636869027,
+        "event": "TRANSFER_DONE",
+        "data": {
+          "bytes": 67108864,
+          "transferMs": "1856.849569",
+          "peakHeapBytes": 2524016,
+          "peakPssKb": 74523
+        }
+      }
+    ],
+    "verify": [
+      {
+        "ts": 1789636869167,
+        "event": "VERIFY_DONE",
+        "data": {
+          "verifyMs": "133.313192",
+          "sha256": "546b4f496c9874b254ee90e920000a3eb565896d4a4d722f294ddb247ce47388"
+        }
+      }
+    ],
+    "blocked": []
+  },
+  "small": {
+    "events": [
+      "SETUP",
+      "CREATE_PARTIAL",
+      "CHECKPOINT",
+      "TRANSFER_DONE",
+      "VERIFY_DONE",
+      "COMPLETE"
+    ],
+    "reconcile": [],
+    "complete": [
+      {
+        "ts": 1789636789025,
+        "event": "COMPLETE",
+        "data": {
+          "atomicFinalize": true,
+          "destinationBytes": 8388608,
+          "sourceExistsAtComplete": true
+        }
+      }
+    ],
+    "transfer": [
+      {
+        "ts": 1789636788983,
+        "event": "TRANSFER_DONE",
+        "data": {
+          "bytes": 8388608,
+          "transferMs": "177.47583",
+          "peakHeapBytes": 2265744,
+          "peakPssKb": 72370
+        }
+      }
+    ],
+    "verify": [
+      {
+        "ts": 1789636789021,
+        "event": "VERIFY_DONE",
+        "data": {
+          "verifyMs": "32.28125",
+          "sha256": "4ae02f7bf5acd5faa4c055757cfaa9a903c7fade4654308a3940dfe4363184c7"
+        }
+      }
+    ],
+    "blocked": []
+  },
+  "source_mutation": {
+    "events": [
+      "SETUP",
+      "CREATE_PARTIAL",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "CHECKPOINT",
+      "INJECT_PROCESS_KILL",
+      "BLOCKED"
+    ],
+    "reconcile": [],
+    "complete": [],
+    "transfer": [],
+    "verify": [],
+    "blocked": [
+      {
+        "ts": 1789636881450,
+        "event": "BLOCKED",
+        "data": {
+          "error": "SOURCE_MUTATED",
+          "completedBytes": 25165824,
+          "partialBytes": 33554432
+        }
+      }
+    ]
+  }
+}

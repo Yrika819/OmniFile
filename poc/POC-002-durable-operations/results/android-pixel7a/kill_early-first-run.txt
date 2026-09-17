@@ -1,0 +1,4 @@
+{"ts":1789636793694,"event":"CREATE_PARTIAL","data":{"path":"/data/local/tmp/filemanager-poc002/kill_early/destination.partial"}}
+{"ts":1789636793878,"event":"CHECKPOINT","data":{"completedBytes":8388608,"peakHeapBytes":2265744,"peakPssKb":72504}}
+{"ts":1789636794012,"event":"INJECT_PROCESS_KILL","data":{"fault":"kill_early","actualBytes":13631488,"durableBytes":8388608}}
+Killed 

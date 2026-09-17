@@ -1,51 +1,48 @@
 # POC-002 — Failures and Edge Cases
 
-Status: RECORDED
+Status: COMPLETE
 
-## Observed failures that were expected and correctly contained
+## Expected measured faults
 
 ### Process termination
 
-Five child processes were deliberately terminated with exit code `91`. No case produced a final destination before verification/finalization. All resumed successfully from durable state plus partial-file facts.
+Real Android process termination was injected at early/mid/near transfer and after transfer/verify phase boundaries. Fresh processes recovered using durable state and partial-file facts.
 
-Classification: **measured fault behavior**.
+### Durable state lag
+
+The Android kill cases deliberately demonstrated that successfully written partial bytes can exceed persisted progress. Blind replay of durable byte count would be wrong; reconciliation is mandatory.
+
+### Cancellation
+
+`CANCELLED` retained a resumable partial. Retry completed without treating cancellation as final-destination success.
 
 ### Synthetic ENOSPC
 
-The engine recorded `FAILED` with `error.code=ENOSPC`, retained the partial, and later resumed when the injected limit was removed.
-
-Classification: **measured injected-fault behavior**, not a physical disk-full result.
+The fault is explicitly injected and does not represent physical disk-full/provider error translation. It demonstrates durable blocked/retry semantics only.
 
 ### Destination conflict
 
-A pre-existing destination produced `BLOCKED` / `DESTINATION_CONFLICT` and was not overwritten.
-
-Classification: **measured fault behavior**.
+A pre-existing final destination caused `BLOCKED / DESTINATION_CONFLICT`; no silent overwrite occurred.
 
 ### Source mutation
 
-A same-size source modification after a crash changed its stored fingerprint. Resume produced `BLOCKED` / `SOURCE_MUTATED` rather than appending to a potentially incompatible partial.
-
-Classification: **measured fault behavior**.
-
-## Edge cases and limitations
-
-### Durable state can lag the partial
-
-Because writes and state checkpoints are separate durability events, the actual partial length is treated as a reconciliation input. Blindly trusting the last `completed_bytes` value would unnecessarily rewrite data or risk inconsistent resume behavior.
+Mutation between crash and resume caused `BLOCKED / SOURCE_MUTATED`; no unsafe continuation occurred.
 
 ### Crash after VERIFY
 
-Verification may already be durable while finalization has not happened. Recovery therefore cannot equate `verified` with `complete`.
+A verified partial is still not COMPLETE. Restart finalized it without conflating verified and complete states.
 
 ### MOVE crash window
 
-The source-deletion operation is intentionally outside the destination-complete transition. If a future implementation crashes after persisting `COMPLETE` but before deleting the source, recovery should recognize the completed destination and finish source deletion idempotently after revalidation.
+The tested ordering writes COMPLETE before source deletion. A crash after COMPLETE but before source deletion would safely leave a duplicate source, not data loss; cleanup would need idempotent recovery in a production design.
 
-### Real storage full remains unmeasured
+## Remaining edge cases
 
-The campaign intentionally did not fill the Mac or emulator disk. Filesystem reserve behavior, provider-specific failures, and Android error translation remain unresolved.
+- power loss during fsync/state rename/final rename;
+- actual Android ENOSPC and provider-specific exceptions;
+- SAF/cloud/network partial object semantics;
+- cross-filesystem finalization;
+- executor policies under OS background restrictions;
+- API31 runtime parity.
 
-### Emulator limitation
-
-Android runtime evidence was not produced because the available emulator sessions were already shown to be resource-heavy/UI-unstable. No Android-specific conclusion is inferred from host timings.
+These remain unresolved rather than inferred.

@@ -2,26 +2,31 @@
 
 Status: READY FOR ARCHITECTURE REVIEW
 
+Architecture authority remains `79fc0f18c7f5e1d8e0ae714808f89977ff178b62`; this document does not amend it.
+
 ## CONFIRMED
 
-- Durable operation truth should be independent of the current executor instance.
-- COPY/MOVE should use an identifiable partial destination rather than writing directly to the final destination.
-- Recovery should be reconciliation, not blind replay.
-- VERIFY and FINALIZE are distinct phases.
-- MOVE source deletion must occur only after destination completion has been durably established.
-- Cancellation, conflicts, mutation and storage failures require explicit durable states.
-- Transfer memory should be bounded independently of file size.
+- durable operation truth must be independent of the current executor instance;
+- COPY/MOVE need an identifiable partial destination;
+- recovery is reconciliation, not blind replay;
+- VERIFY, FINALIZE and COMPLETE are distinct;
+- MOVE source deletion occurs only after destination completion is durably established;
+- cancellation, conflict, mutation and storage failures require explicit durable states;
+- transfer memory must be bounded independently of file size.
+
+These are now confirmed by both host and physical Android 16 evidence.
 
 ## REFINED
 
-- Durable progress must be reconciled with actual partial length because persisted byte count can lag successfully written bytes.
-- Source identity/version should be revalidated on resume; simple stable-path assumptions are insufficient.
-- Checkpoint cadence is a tunable tradeoff. On this host, 1 MiB checkpoints spent ~0.314 s in state persistence for 256 MiB, versus ~0.006 s at 64 MiB.
-- Verification policy should remain configurable. Full SHA-256 consumed ~15.56 s of a ~23.00 s 2 GiB operation in this test.
+- persisted progress can lag actual partial bytes by multiple MiB; resume must inspect the partial;
+- source identity/version assumptions must be revalidated before resume;
+- checkpoint cadence is tunable; host measurements show materially different persistence overhead at 1/8/64 MiB;
+- verification policy is device/storage dependent: host and Pixel 7a produced very different transfer/hash ratios;
+- same-filesystem atomic finalize can be exploited when actually available, but capability must be measured rather than assumed.
 
 ## CHALLENGED
 
-No accepted Architecture V1 principle was contradicted. The measurements challenge any future attempt to make universal full-file hashing or extremely fine-grained checkpoints mandatory without provider/device evidence.
+No accepted V1 principle was contradicted. The evidence challenges any future design that mandates universal full hashing, fixed tiny checkpoints, or equates executor liveness with operation truth.
 
 ## CONTRADICTED
 
@@ -29,18 +34,18 @@ None.
 
 ## UNAFFECTED / STILL OPEN
 
-- selection of SQLite/Room/files/other durable persistence;
-- executor selection and Android background-work mapping;
-- WorkManager/UIDT/FGS policies;
-- SAF/cloud/network partial/finalization semantics;
-- production retry policy;
-- production checkpoint interval;
-- production verification policy;
+- production persistence technology;
+- Android background executor mapping;
+- retry policy;
+- provider-specific SAF/cloud/network semantics;
 - cross-filesystem atomicity;
+- production checkpoint and verification policies;
 - package/module/applicationId/SDK/dependency choices.
 
-## Safe-to-carry-forward decision input
+## Safe to carry into later freeze discussion
 
-Architecture review can safely retain the phase ordering, durable truth separation, explicit partial, reconciliation requirement, source-delete ordering and bounded-memory requirements.
+Phase ordering, durable truth separation, explicit partials, reconciliation, source-delete ordering, and bounded-memory requirements.
 
-It is **unsafe to freeze** Android executor mapping, persistence library, checkpoint interval, hash policy, or provider-specific finalization based on this host-only PoC.
+## Unsafe to freeze
+
+Executor technology, persistence library, checkpoint interval, universal hash policy, and provider-specific finalization.

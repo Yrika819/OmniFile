@@ -1,0 +1,1 @@
+{"ts":1789636838249,"event":"SETUP","data":{"bytes":134217728,"type":"COPY","sourceMtime":1789636838227}}
