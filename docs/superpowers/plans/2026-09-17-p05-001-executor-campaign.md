@@ -26,18 +26,18 @@
 
 **Files:**
 - Create: `docs/poc/P05-001/00_PLAN.md`
-- Create: `docs/poc/P05-001/01_QUESTION_AND_HYPOTHESIS.md`
-- Create: `docs/poc/P05-001/02_FIXTURE_MODEL.md`
-- Create: `docs/poc/P05-001/03_EXECUTOR_MATRIX.md`
-- Create: `docs/poc/P05-001/04_TEST_PROTOCOL.md`
-- Create: `docs/poc/P05-001/05_RESULTS.md`
-- Create: `docs/poc/P05-001/06_LIMITATIONS_AND_BLOCKERS.md`
+- Create: `docs/poc/P05-001/01_ENVIRONMENT.md`
+- Create: `docs/poc/P05-001/02_HARNESS_DESIGN.md`
+- Create: `docs/poc/P05-001/03_TEST_MATRIX.md`
+- Create: `docs/poc/P05-001/04_RESULTS.md`
+- Create: `docs/poc/P05-001/05_FAILURES_AND_ANOMALIES.md`
+- Create: `docs/poc/P05-001/06_CONCLUSIONS.md`
 - Create: `docs/poc/P05-001/07_ARCHITECTURE_IMPACT.md`
 
-- [ ] Record the D022 question, hypotheses, scope, safety boundary, and explicit non-claims.
-- [ ] Record the executor-shaped matrix and required future Android measurements.
-- [ ] Record the host toolchain audit and exact Python reproduction commands.
-- [ ] Record only host fixture results as green; preserve Android runtime as blocked/not tested.
+- [x] Record the D022 question, hypotheses, scope, safety boundary, and explicit non-claims.
+- [x] Record the executor-shaped matrix and required future Android measurements.
+- [x] Record the host toolchain audit and exact Python reproduction commands.
+- [x] Record only host fixture results as green; preserve Android runtime as blocked/not tested.
 
 ### Task 2: Red TDD cycle for the fixture oracle
 

@@ -1,4 +1,4 @@
-# P05-001 — Results
+# P05-001 — Failures and Anomalies
 
 **Label:** `POC-ONLY — NOT PRODUCTION AUTHORITY`
 
@@ -40,3 +40,6 @@ behavior, timing, quota, lifecycle, notification, or provider results.
 The hypotheses are supported within the narrow host fixture model. The POC
 does not close the executor-mapping decision and does not authorize production
 implementation.
+
+JobScheduler has no executable fixture in this branch and remains `NOT_TESTED`;
+the six rows above must not be generalized to it.

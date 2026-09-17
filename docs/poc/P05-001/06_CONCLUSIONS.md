@@ -8,8 +8,8 @@ This worktree does not contain a Gradle wrapper or Android project, and no
 system Gradle or Kotlin compiler is available. Although Android platform jars
 and build-tools are installed locally, manually assembling an APK would not
 provide the repeatable Android test runner needed for executor evidence. The
-task also forbids physical-device/ADB interaction. Therefore this POC stops at
-the host-side planning/fixture harness.
+No physical-device/ADB interaction was performed in this branch. Therefore this
+POC stops at the host-side planning/fixture harness.
 
 ## Evidence limitations
 
