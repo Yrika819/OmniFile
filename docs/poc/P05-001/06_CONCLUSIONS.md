@@ -2,35 +2,40 @@
 
 **Label:** `POC-ONLY — NOT PRODUCTION AUTHORITY`
 
-## Primary blocker
+## Runtime conclusion
 
-This worktree does not contain a Gradle wrapper or Android project, and no
-system Gradle or Kotlin compiler is available. Although Android platform jars
-and build-tools are installed locally, manually assembling an APK would not
-provide the repeatable Android test runner needed for executor evidence. The
-No physical-device/ADB interaction was performed in this branch. Therefore this
-POC stops at the host-side planning/fixture harness.
+The raw disposable APK is sufficient for the scoped framework comparison. API36
+physical evidence and API31 emulator evidence show that foreground Activity,
+dataSync FGS, and JobScheduler can start, checkpoint, and reach durable
+completion in this harness; UIDT does the same on API36. API36
+restart/re-discovery reaches completion without making the executor instance
+the source of truth. API31 restart recovery is not proven by the preserved
+capture and remains gated on a final-artifact emulator rerun. The host
+classifier remains green and executor-independent.
 
 ## Evidence limitations
 
-- No Android process was started.
-- No emulator or physical device was used.
-- No ADB command was run.
-- No WorkManager, UIDT, foreground service, JobScheduler, or in-app executor
-  behavior was observed.
-- API 31/34/35/36 values in fixtures are labels, not compatibility results.
-- No provider, SAF, filesystem, notification, quota, thermal, or lifecycle
-  semantics were measured.
+- WorkManager was not run because the raw APK has no AndroidX WorkManager dependency.
+- Media-processing FGS was not run because the harness has no media workload or
+  media-processing service declaration.
+- Direct shell `kill -9` was blocked by Pixel device SELinux; `am force-stop` was
+  used and recorded as a distinct fallback.
+- API31/API36 evidence is scoped to the named emulator, Pixel, build, and APK;
+  it is not a general compatibility result.
+- Provider I/O, archive/media workload behavior, quota stress, thermal behavior,
+  notification interaction, and user acceptance were not measured here.
 - No SDK, dependency, namespace, application ID, or production version was
   selected.
 - The classifier does not model persistence, checksums, source-version tokens,
   provider reconnect, cancellation cleanup, or crash windows beyond the named
   destination-reality cases.
 
-## Follow-up gate
+## Follow-up gates
 
-A future Android POC must first add a separately authorized disposable Android
-project, freeze its test-only toolchain explicitly, define generated fixtures,
-and obtain permission for the runtime target. It must preserve this host oracle
-and add platform observations rather than replacing the executor-independent
-durable-state boundary.
+The evidence supports a workload/API router shape: foreground app for short
+interactive work, UIDT for supported explicit user transfers on API34+, and
+dataSync FGS or JobScheduler only where their policy and duration constraints
+fit. A separately authorized WorkManager harness and media-processing FGS
+campaign are still needed before those rows can be closed. This branch does not
+freeze a production dependency, namespace, application ID, persistence schema,
+or executor selection.

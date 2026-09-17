@@ -1,0 +1,4 @@
+STATUS=BLOCKED
+REASON=The poc_filemanager_api31 AVD exited during repeated final-artifact refresh attempts and did not remain connected to ADB.
+EVIDENCE=The API31 runtime rows in this directory are real emulator observations from the prior disposable APK capture; the final APK refresh was not claimed.
+ACTION=Re-run the API31 matrix after the AVD is repaired or replaced; do not treat this note as final-artifact equivalence.

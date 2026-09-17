@@ -4,8 +4,7 @@
 
 ## Environment audit
 
-The audit was read-only and did not invoke ADB, an emulator, or a physical
-device:
+The host audit and the disposable runtime campaign were kept separate.
 
 - Java/Javac: present (`java 26.0.1` / `javac 26.0.1`), not required by this host harness.
 - Android SDK: present at `/Users/yuta/Library/Android/sdk` with API 31, 36,
@@ -13,7 +12,43 @@ device:
 - Gradle: absent.
 - Worktree Gradle wrapper: absent.
 - Kotlin compiler: absent.
-- ADB availability is not required and no ADB command is used by this POC.
+- ADB was used only by the disposable runtime harness; no production package or
+  application was installed.
+
+Runtime authorities:
+
+| Target | Identity | Result |
+| --- | --- | --- |
+| Physical device | Pixel 7a, API 36, build `BP4A.251205.006`, `arm64-v8a`, 4096-byte page size | foreground app, dataSync FGS, JobScheduler, UIDT, restart/re-discovery complete |
+| Emulator | API 31 `sdk_gphone64_x86_64`, build `SE1A.220826.008`, `x86_64` | foreground app, dataSync FGS, JobScheduler complete; UIDT `NOT_APPLICABLE`; restart row was `ABSENT` rather than recovered; final-artifact refresh later blocked by AVD exit |
+
+Pixel evidence is in `runtime/results/`; API31 evidence is isolated in
+`runtime/results/api31/`. Each row includes device identity, PID, lifecycle,
+checkpoint events, and durable state. The runtime APK is explicitly POC-only.
+`runtime/results/api31/final-artifact-refresh.txt` records the later AVD
+blocker; it prevents claiming that the API31 rows are from the final APK hash.
+
+Observed Pixel lifecycle evidence includes `ACTIVITY_STOP` after Home,
+`mWakefulness=Dozing` during screen-off and `Awake` after wake, durable
+completion while backgrounded, and restart `REDISCOVER`. A Recents swipe was
+attempted; Android 16 removed the task and killed the process, but the
+foreground Activity has no `onTaskRemoved` callback, so that callback is not
+claimed. The FGS callback remains implemented but was not used as a task-swipe
+authority in this run. The screen-state captures are
+`lifecycle-screen-off.txt` and `lifecycle-screen-on.txt`.
+
+The rerunnable Pixel command requires explicit target selection:
+
+```text
+ADB_SERIAL=<verified Pixel serial> ./runtime/run-pixel7a.sh
+ADB_SERIAL=<verified Pixel serial> ./runtime/run-lifecycle-pixel7a.sh
+```
+
+The runner stores a hashed serial and APK SHA-256 in `campaign-metadata.json`
+and only the required build/API/model/ABI fields in `device-identity.txt`.
+
+WorkManager is `NOT_APPLICABLE` in this raw framework-only harness because no
+AndroidX WorkManager dependency is present. Media-processing FGS is `NOT_TESTED`.
 
 ## TDD record
 

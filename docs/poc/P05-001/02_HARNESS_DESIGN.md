@@ -2,8 +2,10 @@
 
 **Label:** `POC-ONLY — NOT PRODUCTION AUTHORITY`
 
-The fixture model represents evidence inputs as immutable metadata. It does not
-open files, start Android work, delete sources, or emulate an Android scheduler.
+The fixture model represents evidence inputs as immutable metadata. A separate
+disposable raw-APK runtime harness starts actual Activity, foreground-service,
+JobScheduler, and UIDT components and persists checkpoint state. It does not
+open user files, delete sources, or select a production scheduler.
 
 ## Fixture fields
 
@@ -28,10 +30,27 @@ open files, start Android work, delete sources, or emulate an Android scheduler.
 The classifier is deliberately smaller than a production Operation Manager. It
 only encodes the safety boundary needed by this POC.
 
+## Runtime harness
+
+`runtime/build.sh` assembles and signs the POC APK with installed Android
+platform/build tools. `runtime/run-pixel7a.sh` captures API36 Pixel evidence
+and requires an explicit `ADB_SERIAL`; `runtime/run-lifecycle-pixel7a.sh`
+captures background, screen, and Recents behavior;
+the API31 capture is isolated under `runtime/results/api31/`. The report and
+state are written atomically in app-scoped storage. API36 uses the shell-readable
+external app-files directory because this ROM rejects `run-as` for the manually
+signed package; API31 uses app-private storage and is collected through
+`run-as` because its emulator external-storage provider was unavailable during
+the first boot.
+
+Observed mechanisms are foreground Activity, foreground `dataSync` service
+with notification, JobScheduler, and UIDT on API36 only. WorkManager is
+recorded `NOT_APPLICABLE` because this framework-only APK has no AndroidX
+WorkManager dependency; JobScheduler is not substituted for it.
+
 ## Default scenarios
 
 `default_fixtures()` supplies six generated metadata records spanning API-label
-31/34/35/36 and six executor-shaped candidates. They are not observations from
-an Android device or emulator. The report sets `platform_runtime_observed` and
-`adb_used` to `false` so downstream readers cannot mistake them for platform
-evidence.
+31/34/35/36 and six executor-shaped candidates. They remain synthetic fixture
+rows. The runtime report is separate and adds device identity, API, PID,
+lifecycle, scheduler return, and durable checkpoint/completion fields.

@@ -1,0 +1,12 @@
+# Build outputs remain local disposable artifacts.
+out/
+
+# Raw device inventories/logcat can contain serials, account identifiers, or
+# unrelated system diagnostics. Keep only the minimized POC evidence files.
+results/*.txt
+results/api31/*.txt
+!results/device-identity.txt
+!results/lifecycle-screen-off.txt
+!results/lifecycle-screen-on.txt
+!results/lifecycle-after-home.txt
+!results/api31/final-artifact-refresh.txt
