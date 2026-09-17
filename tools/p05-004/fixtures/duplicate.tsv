@@ -1,0 +1,3 @@
+candidate	gate	status	note
+Commons Compress 1.28.0	functional-fixtures	PASS	first
+Commons Compress 1.28.0	functional-fixtures	PASS	duplicate
