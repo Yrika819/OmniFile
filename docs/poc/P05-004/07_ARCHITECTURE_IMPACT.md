@@ -35,8 +35,13 @@ The branch-local P0 readiness assessment specifically calls for archive producti
 
 ## Final disposition
 
-`P05-004 ARCHITECTURE REVIEW INPUT: READY`
+`P05-004 ARCHITECTURE REVIEW INPUT: READY_WITH_EXPLICIT_GATES`
 
 `P05-004 PRODUCTION CANDIDATE CLOSURE: NOT CLOSED`
 
-The evidence package supports a reviewable Java-first direction, but it does not authorize Technology Freeze or production implementation. The disposable harness confirms this state from the machine-readable manifest.
+The evidence package supports a reviewable Java-first direction with explicit
+security, provider-access, artifact/provenance, and scale gates. It does not
+authorize Technology Freeze or production implementation. zstd-jni remains an
+optional conditional native path; libarchive is `NOT_JUSTIFIED_FOR_CORE_V1`.
+The disposable harness conservatively remains `OVERALL=NOT_CLOSED` until the
+recorded gates are supplied.

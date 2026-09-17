@@ -63,6 +63,7 @@ zstd-jni Android AAR	native-16k	NOT_TESTED	16 KiB compatibility is explicitly un
 zstd-jni Android AAR	native-provenance	UNKNOWN	Exact source/AAR provenance is not closed.
 zstd-jni Android AAR	native-abi	UNKNOWN	ABI inventory is not closed.
 zstd-jni Android AAR	native-reproducible-build	UNKNOWN	Reproducible native build evidence is not closed.
+zstd-jni Android AAR	native-android-compat	NOT_TESTED	Android API 31-36 compatibility matrix is not closed for the current AAR.
 zstd-jni Android AAR	native-crash	UNKNOWN	Native malformed-input/crash evidence is not closed.
 zstd-jni Android AAR	native-size	UNKNOWN	Packaged native size evidence is not closed.
 zstd-jni Android AAR	native-symbols	UNKNOWN	Symbol/diagnostic policy is not closed.
@@ -87,6 +88,7 @@ libarchive 3.8.9	native-16k	NOT_TESTED	ABI and 16 KiB validation are explicitly 
 libarchive 3.8.9	native-provenance	UNKNOWN	Exact source/build provenance is not closed.
 libarchive 3.8.9	native-abi	UNKNOWN	ABI inventory is not closed.
 libarchive 3.8.9	native-reproducible-build	UNKNOWN	Reproducible native build evidence is not closed.
+libarchive 3.8.9	native-android-compat	NOT_TESTED	Android API 31-36 compatibility is not tested.
 libarchive 3.8.9	native-crash	UNKNOWN	Native malformed-input/crash evidence is not closed.
 libarchive 3.8.9	native-size	UNKNOWN	Packaged native size evidence is not closed.
 libarchive 3.8.9	native-symbols	UNKNOWN	Symbol/diagnostic policy is not closed.

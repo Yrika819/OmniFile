@@ -136,6 +136,7 @@ public final class ArchiveEvidenceMatrixHarness {
                         "native-provenance",
                         "native-abi",
                         "native-reproducible-build",
+                        "native-android-compat",
                         "native-16k",
                         "native-crash",
                         "native-size",
