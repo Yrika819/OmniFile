@@ -2,7 +2,7 @@
 
 `POC-ONLY — NOT PRODUCTION AUTHORITY`
 
-## Model boundary
+## Host model boundary
 
 The harness models a provider, not Android. `InMemorySafProvider` stores documents under opaque locators and exposes only the facts needed by reconciliation: source bytes/version, partial bytes, final bytes, grant availability, and provider availability. The locator is deliberately not convertible to a host path.
 
@@ -51,6 +51,22 @@ The disposable `InMemorySafProvider` only creates opaque `content://p05/<id>`
 locators, stores byte/version fixtures in memory, and returns immutable
 `ProviderSnapshot` values. It has no filesystem-path conversion, Android API
 dependency, automatic retry, or source-deletion method.
+
+## Android recorder boundary
+
+The sibling raw APK is intentionally separate from the Python model. Its
+activity uses real `ACTION_OPEN_DOCUMENT_TREE` selection and
+`takePersistableUriPermission`, re-queries persisted grants, creates bounded
+local/SAF fixtures, and streams the three requested directions. It persists
+JSONL events and a current JSON record under app-private storage so a parent
+restart can re-query source/partial/final state and record a classification.
+It records the URI returned by `renameDocument` and never treats a move-shaped
+copy as permission to delete the source.
+
+The Android recorder is evidence-producing scaffolding only. It does not select
+an executor, define production schemas, automate process killing or grant
+revocation, or claim runtime behavior before a separately authorized parent
+run.
 
 ## Decision order
 

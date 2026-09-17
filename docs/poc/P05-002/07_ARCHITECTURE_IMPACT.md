@@ -4,13 +4,12 @@
 
 ## Disposition
 
-`PARTIALLY_RESOLVED — HOST POLICY PLUS BOUNDED REAL SAF CAPABILITY`
+`PARTIALLY_RESOLVED — HOST POLICY PLUS BUILDABLE ANDROID RECORDER`
 
 The host harness supports the accepted architectural direction that operation
 recovery is reconciliation over durable metadata plus observed provider reality.
-The bounded Pixel probe adds provider-specific capability evidence, including
-mutable URI/document identity and cooperative cancellation, but does not change
-production architecture decisions.
+The isolated APK provides a disposable way for a parent to collect real SAF
+observations, but this build-only continuation changes no production decision.
 
 ## Supported implications
 

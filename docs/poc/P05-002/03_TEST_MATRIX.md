@@ -12,14 +12,14 @@
 | Host unit | Independent destination-grant loss | PASS | Same |
 | Host unit | Verified final copy without source reopen | PASS | Same |
 | Host unit | MOVE source revalidation before delete authorization | PASS | Same |
-| Physical Pixel 7a API36 | Persisted local `ACTION_OPEN_DOCUMENT_TREE` grant and tree re-query | PASS — capability only | Fresh P0-001 probe; `primary:Documents` |
-| Physical Pixel 7a API36 | Descriptor/stream/append/truncate/cancellation and sparse length | PASS — provider-specific capability only | Fresh P0-001 probe |
-| Physical Pixel 7a API36 | Local→SAF, SAF→Local, SAF→SAF durable transfers | NOT_TESTED | No P05 transfer/recovery APK |
-| Android API31 | ACTION_OPEN_DOCUMENT_TREE, persisted grant, and provider mutation | NOT_TESTED | No final API31 SAF run |
-| Provider fault | Rename/documentId mutation and filename sanitization | PASS — one provider only | Fresh probe observed replacement URI/document ID and sanitized names |
-| Lifecycle | Process death before verify/finalize | NOT_TESTED | Host model only |
+| Host contract | Isolated package, real SAF calls, directions, faults, durable identity fields | PASS | `harness/test_android_contract.py` |
+| Host build | Raw SDK compile, link, dex, sign, and APK verification | PASS | `android/build.sh`; signed APK metadata |
+| Parent Android runtime | Persisted `ACTION_OPEN_DOCUMENT_TREE` grant and tree re-query | NOT_TESTED | Parent-only run; no runtime run in this branch |
+| Parent Android runtime | Local→SAF, SAF→Local, SAF→SAF durable transfers | NOT_TESTED | Parent-only run |
+| Parent Android runtime | Interruption/restart/reconciliation, cancellation, conflict, mutation, finalize, identity | NOT_TESTED | Parent-only run |
+| Parent Android runtime | API31/API36/provider-specific behavior and lifecycle faults | NOT_TESTED | Parent-only run |
+| Lifecycle | Process death before verify/finalize | NOT_TESTED | Requires parent-controlled lifecycle action |
 | Security | Real destination containment and provider enforcement | NOT_TESTED | Application security boundary not implemented |
 
-The eight host `PASS` rows are policy-model results only. The two Pixel
-capability rows are real but provider-specific and do not establish physical
-device transfer recovery, source-deletion safety, or API31 compatibility.
+The host `PASS` rows are policy/build-contract results only. Parent Android
+runtime rows remain untested here; no device result is claimed.

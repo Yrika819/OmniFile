@@ -10,10 +10,10 @@ Command:
 PYTHONPATH=docs/poc/P05-002/harness python3 -m unittest discover -s docs/poc/P05-002/harness -p 'test_*.py' -v
 ```
 
-Fresh post-remediation result on 2026-09-17:
+Fresh result on 2026-09-17:
 
 ```text
-Ran 16 tests
+Ran 22 tests
 OK
 ```
 
@@ -28,29 +28,34 @@ preservation, and opaque locators.
 `HOST_POLICY_PASS` — the selected in-memory policy classified the tested fault
 cases deterministically and never set `delete_source` true.
 
-## Fresh real SAF capability probe
+## Android contract and APK build
 
-On 2026-09-17, the existing disposable P0-001 raw APK was run on the connected
-Pixel 7a (API 36, build `BP4A.251205.006`) using the already persisted local
-DocumentsProvider grant `primary:Documents`. The probe recorded:
+The new host contract command was included in the full command above and
+passed 6/6. It checks the isolated package, required SAF calls, all evidence
+labels/fields, raw SDK tools, parent instructions, and absence of production
+package/device automation.
 
-- persisted-grant re-query: `PASS`;
-- tree identity and metadata: `PASS`;
-- create/list/read and 64 MiB direct SAF fixture: `PASS`;
-- regular descriptor, sequential read, random read, append, truncate: `PASS`;
-- rename and cross-directory move: `PASS`, with a replacement URI and changed
-  document ID observed rather than assumed stable;
-- >4 GiB sparse document length: `PASS` (`4,831,838,208` bytes reported);
-- cooperative `CancellationSignal`: `PASS` before full transfer;
-- delete after the probe: `PASS`.
+Command:
 
-This is real provider capability evidence, not P05 transfer/recovery closure.
-The probe did not implement or measure Local→SAF, SAF→Local, SAF→SAF durable
-operation phases, process-death reconciliation, source mutation, destination
-conflict, grant revocation, or provider disconnect. Those rows remain open.
+```text
+docs/poc/P05-002/android/build.sh
+```
+
+Fresh build result: exit 0. `aapt2 dump badging` identified package
+`dev.poc.safoperations`, version `0.1-poc`, min SDK 31, target SDK 36, and
+launcher activity `dev.poc.safoperations.MainActivity`. `apksigner verify`
+reported one v3 signer. The APK is
+`docs/poc/P05-002/android/build/p05-saf-operations.apk`; `android/build/` is
+ignored and is not a commit artifact.
+
+## Runtime boundary
+
+No Android runtime, emulator, physical device, provider account, or user file
+was used for this continuation. The new APK is an evidence recorder for the
+parent procedure in `android/README.md`; all runtime rows remain `NOT_TESTED`.
 
 ## TDD evidence
 
-The remediation tests were first run against the pre-remediation model and
-failed with missing-field and incorrect-policy failures. After the minimal model
-changes, the same command passed 16/16.
+The Android contract test was first run before Android artifacts existed and
+failed with missing-file/expected-content failures. After the minimal APK
+artifacts were added, the same full command passed 22/22.

@@ -4,19 +4,17 @@
 
 ## Status
 
-`PARTIALLY_RESOLVED — HOST POLICY PLUS BOUNDED REAL SAF CAPABILITY`
+`PARTIALLY_RESOLVED — HOST POLICY PLUS BUILDABLE ANDROID RECORDER`
 
 The disposable host model supports the architecture’s reconciliation direction,
-and the separate Pixel capability probe confirms that a real persisted local
-DocumentsProvider can be queried and mutated with observable identity changes:
-durable checkpoints are not storage truth, finalization is distinct from
-verification, provider authority is explicit, and MOVE source deletion remains
-outside reconciliation. The campaign still does not establish actual
-Local↔SAF, SAF↔Local, or SAF↔SAF durable transfer behavior.
+and the raw APK is buildable with an isolated package and contains the real SAF
+grant, fixture, transfer, durable-record, and reconciliation paths. It is ready
+for a separately authorized parent run, but this branch does not establish
+actual Local↔SAF, SAF↔Local, or SAF↔SAF runtime behavior.
 
 ## Explicit non-claims
 
-No claim is made about API31, process-death reconciliation, provider
-revocation/disconnect, or provider-specific atomicity. The bounded API36 probe
-does provide the limited ACTION_OPEN_DOCUMENT_TREE grant, rename/documentId,
-descriptor, and cancellation observations recorded in `04_RESULTS.md`.
+No device/runtime claim is made about API31/API36, process-death
+reconciliation, provider revocation/disconnect, provider-specific atomicity,
+or human acceptance. Parent-run instructions and the exact JSONL evidence
+fields are in `android/README.md`.

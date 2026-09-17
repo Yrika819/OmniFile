@@ -2,25 +2,25 @@
 
 > **For agentic workers:** This plan is executed inline in the requested P05-002 worktree. The harness is disposable evidence only and must not be promoted into production code.
 
-**Goal:** Preserve the deterministic host recovery harness and add bounded real-DocumentsProvider evidence without asserting transfer/recovery behavior that was not exercised.
+**Goal:** Preserve the deterministic host recovery model and add a disposable raw-SDK Android SAF harness for a separately authorized parent run.
 
-**Architecture:** Use a host-side in-memory provider model with opaque `content://`-like locators, durable JSON-shaped operation state, and a pure reconciliation function. Inject checkpoint lag, provider disconnect/revocation, partial-output mismatch, and ambiguous finalization; assert that recovery reconciles observed provider reality, preserves the source for move operations, and blocks when authority is unavailable.
+**Architecture:** Keep the host-side in-memory policy model, and add a separate isolated one-activity Java APK that uses real `ACTION_OPEN_DOCUMENT_TREE` grants, disposable fixtures, bounded stream transfers, JSONL checkpoints, and startup reconciliation. The APK records evidence but does not become production authority or delete move sources.
 
-**Tech Stack:** Python 3 standard library for the policy harness; a separate existing disposable P0-001 raw APK supplied the bounded Pixel SAF capability probe. No production Android module or dependency was added.
+**Tech Stack:** Python 3 standard library for the policy harness; Android SDK API 36 `android.jar`, Java 8, `aapt2`, `d8`, and `apksigner` for the disposable APK. No Gradle, AndroidX, production module, or external dependency was added.
 
 **Spec:** `docs/architecture/12_POC_BACKLOG.md` — POC-002 durable large operation and reconciliation requirements, interpreted with `docs/architecture/03_OPERATION_MODEL.md` and `docs/research/09_BACKGROUND_OPERATIONS.md`.
 
 ## Global Constraints
 
 - Every harness artifact is labeled exactly `POC-ONLY — NOT PRODUCTION AUTHORITY`.
-- The harness is host-side fault injection, not an Android SAF implementation and not Android provider evidence.
+- The Python model is host-side fault injection; the raw APK is a disposable Android SAF recorder, not production authority or device evidence until a parent runs it.
 - No production app, production dependency/version choice, persistence schema, executor mapping, or Android API contract may be initialized or frozen.
-- This branch adds no Android code and does not claim that its host harness used a device. The separate P0-001 runtime probe used only the already authorized Pixel 7a and existing persisted DocumentsProvider grant; no credential or user file was introduced.
+- This continuation performs no ADB, emulator, physical-device, provider-account, or user-file operation. Any historical P0-001 evidence remains historical and is not a result of this commit.
 - Test data is generated in memory; no user data or destructive filesystem operation is permitted.
 - Recovery is reconciliation, not blind replay; durable checkpoints are observations and are not storage truth.
 - For a move-shaped operation, source deletion is never performed by reconciliation and is only eligible after independently observed finalized destination state.
 - Hand-written recovery logic follows RED -> GREEN -> REFACTOR TDD; generated/configuration-only files are exempt.
-- The final commit must contain only the P05-002 docs and disposable host harness files in this worktree.
+- The final commit must contain only the P05-002 docs and disposable host/Android harness files in this worktree.
 
 ## File Map
 
@@ -32,8 +32,12 @@
 - `docs/poc/P05-002/05_FAILURES_AND_ANOMALIES.md` — resolved issues and remaining blockers.
 - `docs/poc/P05-002/06_CONCLUSIONS.md` — bounded conclusions.
 - `docs/poc/P05-002/07_ARCHITECTURE_IMPACT.md` — bounded consequences for the existing architecture decisions.
+- `docs/poc/P05-002/08_ANDROID_HARNESS_DESIGN.md` — isolated raw-SDK Android recorder design.
+- `docs/poc/P05-002/09_ANDROID_HARNESS_PLAN.md` — TDD implementation plan and verification gates.
 - `docs/poc/P05-002/harness/saf_recovery.py` — disposable recovery model and in-memory provider.
 - `docs/poc/P05-002/harness/test_saf_recovery.py` — standard-library tests for the hand-written model.
+- `docs/poc/P05-002/harness/test_android_contract.py` — host contract for the raw Android harness.
+- `docs/poc/P05-002/android/` — disposable raw-SDK APK source, build script, and parent-run instructions.
 
 ## Execution Tasks
 
@@ -67,11 +71,10 @@
 
 ## Expected Evidence Boundary
 
-The result supports two bounded statements: the host-side policy model
-deterministically classifies selected SAF-shaped recovery faults, and the
-separate Pixel probe observed one real persisted local DocumentsProvider tree
-with streaming, descriptor, rename, move, sparse-size, cancellation, and
-delete behavior. It still cannot support Local→SAF, SAF→Local, SAF→SAF
-transfer recovery, process-death reconciliation, source-mutation handling,
-grant revocation, provider disconnect, or final-artifact identity across those
-directions.
+The result supports three bounded statements: the host-side policy model
+deterministically classifies selected SAF-shaped recovery faults; the isolated
+APK is buildable and statically contains the required real SAF/grant and
+durable-record paths; and a separately authorized parent can record the three
+transfer directions plus interruption/restart/reconciliation, cancellation,
+conflict, mutation, finalization, and identity observations. This branch does
+not claim any device/runtime result.

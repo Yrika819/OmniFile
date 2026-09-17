@@ -17,16 +17,16 @@
 
 ## Remaining anomalies and blockers
 
-- The harness is synthetic and does not reproduce Android `ContentResolver`,
-  `DocumentsProvider`, URI mutation, provider sanitization, or grant semantics.
+- The Python policy model is synthetic. The raw APK contains real
+  `ContentResolver`/`DocumentsContract` paths, but those paths have not been
+  executed in this continuation and therefore supply no provider result.
 - The initial TDD RED evidence is recorded in this document/result summary but
   no external raw log artifact was retained.
-- A bounded Pixel 7a/API36 capability probe now exists, but it is the existing
-  P0-001 harness rather than a P05 operation-transfer app. Its successful
-  rename/move result proves that returned URI/document identity can change on
-  this provider; it does not authorize source deletion without a P05
-  reconciliation record.
-- Android API31, transfer-direction, and process-death recovery rows remain
-  `NOT_TESTED`.
+- The raw APK build is verified, but Android API31/API36 runtime,
+  transfer-direction, process-death, and provider-grant rows remain
+  `NOT_TESTED` until the parent run.
 - The model has no real bounded-stream transfer, checksum-cost, memory, or
   cancellation-latency measurements.
+- The raw app deliberately does not automate force-stop/reboot, grant
+  revocation, provider disconnect, storage-full, or visual acceptance; those
+  actions could destroy or alter parent fixtures and require explicit control.

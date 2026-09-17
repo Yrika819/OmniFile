@@ -5,8 +5,8 @@
 ## Scope and checkout
 
 This branch is `poc/core-readiness-saf-operations-v1`, based exactly on
-`6ec9e1037d0fd86afebdec6bd1a5be67b008ccbb`. The harness is host-only and all
-Android/provider/device rows remain `NOT_TESTED`.
+`0b75b19502217d59e2a8332c2af4c83c0497d3e1`. It contains the existing host
+policy harness plus a new isolated raw-SDK APK under `android/`.
 
 ## Inspection performed
 
@@ -18,14 +18,14 @@ Observed locally:
 - Android SDK root: `/Users/yuta/Library/Android/sdk`.
 - Installed platform directories include `android-31`, `android-36`, `android-36.1`, `android-37.0`, and `android-37.1`.
 - Installed build-tool artifacts include `d8` and `aapt2` under build-tools 35.0.0, 36.0.0, 36.1.0, and 37.0.0.
-- No `gradle`, `gradlew`, or `kotlinc` executable was found in the inspected SDK/worktree paths.
-- The repository has no existing Android module or build files for a SAF harness.
+- No `gradle`, `gradlew`, or `kotlinc` executable was found; the new harness therefore uses the SDK tools directly.
+- The raw harness uses package `dev.poc.safoperations`, API 31 minimum/API 36 target, and framework APIs only.
 
 ## Gate result
 
-The available artifacts are not a complete, reproducible Android application/instrumentation toolchain for this repository. An Android SAF harness would require an app/module build setup and Android runtime execution; creating a production-shaped app or selecting versions would violate the request, and device/ADB execution is explicitly prohibited.
+The available artifacts are sufficient for a disposable raw APK build, but not for runtime execution in this task. No production-shaped app or dependency selection was introduced.
 
-**Result: HOST-SIDE FALLBACK.** The committed harness is an in-memory fault-injection model. It does not call Android APIs and must not be described as Android SAF evidence.
+**Result: BUILDABLE HOST + ANDROID POC.** The Python model is host-only; the APK calls Android SAF APIs when later run by the parent, but this branch contains no runtime/device result.
 
 ## Physical-device blocker
 
@@ -42,7 +42,7 @@ These require a separately authorized disposable Android test project plus contr
 
 ## Evidence boundary
 
-The only executable evidence in this branch is the standard-library host
-reconciliation harness. No ADB command, emulator command, physical device,
-provider account, production module, production dependency, or SDK choice was
-created or used.
+The executable evidence in this branch is the standard-library host suite and
+the raw SDK compile/package/sign/verify pipeline. No ADB command, emulator
+command, physical device, provider account, production module, or user file
+was created or used.
