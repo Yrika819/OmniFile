@@ -1,4 +1,4 @@
-# P05-001 — Fixture Model
+# P05-001 — Harness Design
 
 **Label:** `POC-ONLY — NOT PRODUCTION AUTHORITY`
 
