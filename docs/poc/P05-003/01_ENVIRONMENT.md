@@ -7,7 +7,8 @@ This campaign ran only in:
 ```text
 Path:   /Users/yuta/Desktop/File Manager/.worktrees/p05-media3
 Branch: poc/core-readiness-media3-v1
-HEAD:   6ec9e1037d0fd86afebdec6bd1a5be67b008ccbb
+BASE:   6ec9e1037d0fd86afebdec6bd1a5be67b008ccbb
+Evidence commit before review remediation: acd518672f1428f9236f11788ac717dff3464525
 ```
 
 The worktree was a linked worktree and was clean before the P05-003 files were added. No other File Manager worktree was edited.
@@ -17,7 +18,7 @@ The worktree was a linked worktree and was clean before the P05-003 files were a
 | Tool | Observed state | P05-003 use |
 |---|---|---|
 | Python | `Python 3.9.6` | Used for disposable standard-library harness. |
-| `unittest` | Available through Python 3.9 | Used for the 7 host contract tests. |
+| `unittest` | Available through Python 3.9 | Used for the 10 host contract tests. |
 | Java | `/usr/bin/java` present | Not used; no Android build was attempted. |
 | Kotlin compiler | Not found | Android/Kotlin harness not feasible in this checkout. |
 | Gradle wrapper/project | Not present in this worktree | Media3 compilation not feasible. |

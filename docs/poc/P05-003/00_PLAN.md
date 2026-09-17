@@ -4,7 +4,7 @@
 
 **Scope:** The eight documents in `docs/poc/P05-003/` plus a disposable Python 3.9 standard-library harness under `tools/p05_003_harness/`.
 
-**Architecture:** The harness models the boundary before Media3: a provider-scoped identity advertises explicit sequential, seekable, random/range, and native-descriptor capabilities; a resolver selects the weakest source mode sufficient for a requested playback operation; cache identity is derived from provider identity and source version, never a tokenized locator. It does not import AndroidX, ExoPlayer, Media3, ADB, or device APIs.
+**Architecture:** The harness models the boundary before Media3: a provider-scoped identity advertises explicit sequential, seekable, random/range, and readable-native-descriptor capabilities; a resolver selects the weakest source mode sufficient for a requested playback operation; cache identity is derived from provider identity and source version using length-delimited fields, never a tokenized locator. It does not import AndroidX, ExoPlayer, Media3, ADB, or device APIs.
 
 **Verification policy:** Tests must be written before the harness implementation and observed failing. Host tests may be marked PASS only from fresh command output. Android/Media3/device/ADB runs are `NOT_TESTED` because this worktree has no Android project/toolchain and the user prohibited ADB.
 
@@ -35,7 +35,7 @@
 The harness will expose:
 
 ```text
-ReadCapabilities(sequential, seekable, random_range, native_descriptor)
+ReadCapabilities(sequential, seekable, random_range, native_descriptor, descriptor_readable)
 MediaIdentity(provider_id, object_id, source_version, locator)
 PlaybackRequest(requires_seek, prefers_random_range)
 SourceMode = DIRECT_DESCRIPTOR | SEEKABLE_SOURCE | RANDOM_RANGE_SOURCE |

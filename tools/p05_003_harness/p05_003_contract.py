@@ -22,6 +22,7 @@ class ReadCapabilities:
     seekable: bool = False
     random_range: bool = False
     native_descriptor: bool = False
+    descriptor_readable: bool = False
 
 
 @dataclass(frozen=True)
@@ -57,10 +58,14 @@ def resolve_source(
     del identity
 
     if request.requires_seek:
-        if capabilities.native_descriptor and capabilities.seekable:
-            return Resolution(SourceMode.DIRECT_DESCRIPTOR)
         if capabilities.random_range and request.prefers_random_range:
             return Resolution(SourceMode.RANDOM_RANGE_SOURCE)
+        if (
+            capabilities.native_descriptor
+            and capabilities.descriptor_readable
+            and capabilities.seekable
+        ):
+            return Resolution(SourceMode.DIRECT_DESCRIPTOR)
         if capabilities.seekable:
             return Resolution(SourceMode.SEEKABLE_SOURCE)
         if capabilities.random_range:
@@ -72,7 +77,7 @@ def resolve_source(
 
     if capabilities.sequential:
         return Resolution(SourceMode.SEQUENTIAL_CACHED_SOURCE, cache_required=True)
-    if capabilities.native_descriptor:
+    if capabilities.native_descriptor and capabilities.descriptor_readable:
         return Resolution(SourceMode.DIRECT_DESCRIPTOR)
     if capabilities.seekable:
         return Resolution(SourceMode.SEEKABLE_SOURCE)
@@ -84,8 +89,6 @@ def resolve_source(
 def cache_key(identity: MediaIdentity) -> str:
     """Build a durable cache identity without using the transport locator."""
 
-    return "p05-003|{}|{}|{}".format(
-        identity.provider_id,
-        identity.object_id,
-        identity.source_version,
-    )
+    fields = (identity.provider_id, identity.object_id, identity.source_version)
+    encoded = "|".join(f"{len(field)}:{field}" for field in fields)
+    return f"p05-003|{encoded}"

@@ -9,7 +9,7 @@
 `p05_003_contract.py` defines:
 
 - `MediaIdentity(provider_id, object_id, source_version, locator)` — durable identity fields plus a transport-only locator;
-- `ReadCapabilities(sequential, seekable, random_range, native_descriptor)` — explicit read guarantees;
+- `ReadCapabilities(sequential, seekable, random_range, native_descriptor, descriptor_readable)` — explicit read guarantees; descriptor presence alone is insufficient;
 - `PlaybackRequest(requires_seek, prefers_random_range)` — the minimum playback requirement;
 - `SourceMode` — direct descriptor, seekable source, random/range source, sequential cached source, or unsupported;
 - `Resolution` — selected source mode, whether caching is required, and a bounded reason;
@@ -18,7 +18,7 @@
 
 ## Selection rules exercised
 
-1. A seekable native descriptor can satisfy a seek request as `DIRECT_DESCRIPTOR`.
+1. A seekable, explicitly readable native descriptor can satisfy a seek request as `DIRECT_DESCRIPTOR`.
 2. A requested random/range capability is selected when available.
 3. A seekable source is selected when random/range access is unavailable.
 4. Sequential-only non-seek playback is represented as `SEQUENTIAL_CACHED_SOURCE` with `cache_required=True`.

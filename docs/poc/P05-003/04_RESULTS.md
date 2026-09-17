@@ -11,11 +11,11 @@ PYTHONPATH=tools/p05_003_harness python3 -m unittest discover -s tools/p05_003_h
 Fresh result:
 
 ```text
-Ran 7 tests in 0.003s
+Ran 10 tests in 0.003s
 OK
 ```
 
-The tests cover source-mode selection for native descriptors, random/range reads, seekable reads, sequential cached fallback, unsupported seek, empty capabilities, and version-aware locator-free cache identity.
+The tests cover source-mode selection for explicitly readable native descriptors, random/range reads, seekable reads, sequential cached fallback, unsupported seek, empty capabilities, descriptor-presence rejection, collision-safe version-aware locator-free cache identity, and requested random-range precedence.
 
 ## TDD evidence
 
@@ -25,7 +25,7 @@ Before implementation, the focused command failed during test discovery with:
 ModuleNotFoundError: No module named 'p05_003_contract'
 ```
 
-After the minimal implementation was added, the same command completed with 7 passing tests.
+After the minimal implementation was added, the same command completed with 10 passing tests.
 
 ## Untested execution
 

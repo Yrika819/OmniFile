@@ -19,7 +19,8 @@ Status vocabulary: `PASS` means fresh evidence supports only the stated row; `FA
 | Remote POC | SMB FLAC | Startup, beginning/middle/end seek, bytes, cache, reconnect, version change | NOT_TESTED | POC-004 remains separately authorized work |
 | Remote POC | SFTP/WebDAV/cloud range | Same provider-specific range/reconnect evidence | NOT_TESTED | No provider harness or credentials |
 | Lifecycle | Process death and session reconnect | Active session survives UI recreation and state reconnects | NOT_TESTED | No MediaSession implementation |
-| Security | Token/path redaction | Durable identity and logs exclude transient credentials | PASS | Cache-key unit test covers identity exclusion only; log audit not run |
+| Security | Cache identity excludes locator/token | Provider/object/version cache key excludes transient locator | PASS | `tools/p05_003_harness/test_p05_003_contract.py` |
+| Security | Token/path redaction in logs | Durable identity and logs exclude transient credentials | NOT_TESTED | No log audit was run |
 | Fidelity | Human audio acceptance | Listening on exact installed artifact | NOT_TESTED | No artifact/device run |
 
 The seven `PASS` rows are contract-model results only and must not be promoted to playback claims.

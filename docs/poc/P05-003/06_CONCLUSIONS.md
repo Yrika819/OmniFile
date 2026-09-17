@@ -6,7 +6,7 @@
 2. Sequential, seekable, random/range, and native-descriptor access must be represented separately; sequential access cannot imply seek support.
 3. Cache identity must be based on provider identity, object identity, and source version. A locator, signed URL, bearer token, or other transient transport value must not be durable identity.
 4. A sequential-only origin can be represented as a cached fallback for non-seek playback, but the product must not claim seek support for it.
-5. The disposable contract model is internally verified by 7 passing host tests.
+5. The disposable contract model is internally verified by 10 passing host tests.
 
 ## Claims explicitly not supported
 
