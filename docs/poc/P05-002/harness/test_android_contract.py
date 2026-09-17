@@ -39,6 +39,15 @@ class AndroidSafHarnessContractTests(unittest.TestCase):
         ):
             self.assertIn(required, source)
 
+    def test_generation_operations_normalize_tree_to_parent_document(self) -> None:
+        source = SOURCE.read_text(encoding="utf-8")
+        self.assertIn("getTreeDocumentId(treeUri)", source)
+        self.assertIn("buildDocumentUriUsingTree(treeUri, treeDocumentId)", source)
+        self.assertIn("parentDocumentUri(sourceTree)", source)
+        self.assertIn("parentDocumentUri(destinationTree)", source)
+        self.assertNotIn("createDocument(getContentResolver(), sourceTree", source)
+        self.assertNotIn("createDocument(getContentResolver(), destinationTree", source)
+
     def test_activity_records_directions_faults_and_durable_identity(self) -> None:
         source = SOURCE.read_text(encoding="utf-8")
         for required in (

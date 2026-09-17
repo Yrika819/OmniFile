@@ -235,7 +235,8 @@ public final class MainActivity extends Activity {
             return;
         }
         try {
-            Uri uri = DocumentsContract.createDocument(getContentResolver(), sourceTree,
+            Uri sourceParent = parentDocumentUri(sourceTree);
+            Uri uri = DocumentsContract.createDocument(getContentResolver(), sourceParent,
                     "application/octet-stream", "p05-saf-source.bin");
             if (uri == null) throw new IOException("provider returned null fixture URI");
             writeUri(uri, fixtureBytes("saf"));
@@ -337,9 +338,10 @@ public final class MainActivity extends Activity {
                 throw new IOException("destination tree is not selected");
             }
             if (conflict && (LOCAL_TO_SAF.equals(direction) || SAF_TO_SAF.equals(direction))) {
+                Uri destinationParent = parentDocumentUri(destinationTree);
                 Uri existing = findChild(destinationTree, finalName);
                 if (existing == null) {
-                    existing = DocumentsContract.createDocument(getContentResolver(), destinationTree,
+                    existing = DocumentsContract.createDocument(getContentResolver(), destinationParent,
                             "application/octet-stream", finalName);
                     if (existing == null) throw new IOException("provider returned null conflict URI");
                     writeUri(existing, fixtureBytes("wrong-final"));
@@ -352,7 +354,8 @@ public final class MainActivity extends Activity {
                 return;
             }
             if (LOCAL_TO_SAF.equals(direction) || SAF_TO_SAF.equals(direction)) {
-                partialUri = DocumentsContract.createDocument(getContentResolver(), destinationTree,
+                Uri destinationParent = parentDocumentUri(destinationTree);
+                partialUri = DocumentsContract.createDocument(getContentResolver(), destinationParent,
                         "application/octet-stream", partialName);
                 if (partialUri == null) throw new IOException("provider returned null partial URI");
                 put(record, "partialUri", partialUri.toString());
@@ -639,8 +642,9 @@ public final class MainActivity extends Activity {
     }
 
     private Uri findChild(Uri tree, String displayName) throws Exception {
-        String treeId = DocumentsContract.getTreeDocumentId(tree);
-        Uri children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, treeId);
+        Uri parent = parentDocumentUri(tree);
+        String parentId = DocumentsContract.getDocumentId(parent);
+        Uri children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, parentId);
         String[] columns = {DocumentsContract.Document.COLUMN_DOCUMENT_ID,
                 DocumentsContract.Document.COLUMN_DISPLAY_NAME};
         try (Cursor cursor = getContentResolver().query(children, columns, null, null, null)) {
@@ -654,6 +658,11 @@ public final class MainActivity extends Activity {
             }
             return null;
         }
+    }
+
+    private Uri parentDocumentUri(Uri treeUri) throws Exception {
+        String treeDocumentId = DocumentsContract.getTreeDocumentId(treeUri);
+        return DocumentsContract.buildDocumentUriUsingTree(treeUri, treeDocumentId);
     }
 
     private JSONObject identity(Uri uri) {
