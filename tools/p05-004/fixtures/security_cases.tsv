@@ -4,6 +4,7 @@ absolute-posix	PATH	/escape.txt	REJECT
 dotdot-parent	PATH	../escape.txt	REJECT
 mixed-separators	PATH	docs\\..\\..\\escape.txt	REJECT
 drive-like	PATH	C:\\escape.txt	REJECT
+drive-relative	PATH	C:relative.txt	REJECT
 symlink-entry	SYMLINK	link-outside-root	REJECT
 expanded-byte-limit	EXPANSION	4097/4096	REJECT
 duplicate-destination	DUPLICATE	docs/readme.txt	REJECT

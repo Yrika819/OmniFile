@@ -54,6 +54,33 @@ security_output=$(java -cp "$BUILD_DIR" ArchiveSecurityFixtureHarness \
 printf '%s\n' "$security_output"
 printf '%s\n' "$security_output" | grep -F 'SECURITY_FIXTURES=PASS'
 
+awk -F '\t' '$1 != "missing-multipart"' \
+  "$ROOT/tools/p05-004/fixtures/security_cases.tsv" > "$BUILD_DIR/security-missing.tsv"
+if java -cp "$BUILD_DIR" ArchiveSecurityFixtureHarness \
+  "$BUILD_DIR/security-missing.tsv" >"$BUILD_DIR/security-missing.out" 2>&1; then
+  echo 'missing security fixture unexpectedly accepted' >&2
+  exit 1
+fi
+grep -F 'missing required case: missing-multipart' "$BUILD_DIR/security-missing.out"
+
+awk -F '\t' 'BEGIN { OFS="\t" } { print } NR == 2 { print }' \
+  "$ROOT/tools/p05-004/fixtures/security_cases.tsv" > "$BUILD_DIR/security-duplicate.tsv"
+if java -cp "$BUILD_DIR" ArchiveSecurityFixtureHarness \
+  "$BUILD_DIR/security-duplicate.tsv" >"$BUILD_DIR/security-duplicate.out" 2>&1; then
+  echo 'duplicate security fixture unexpectedly accepted' >&2
+  exit 1
+fi
+grep -F 'duplicate case id: safe-relative' "$BUILD_DIR/security-duplicate.out"
+
+awk -F '\t' 'BEGIN { OFS="\t" } NR == 2 { $2 = "UNKNOWN" } { print }' \
+  "$ROOT/tools/p05-004/fixtures/security_cases.tsv" > "$BUILD_DIR/security-invalid.tsv"
+if java -cp "$BUILD_DIR" ArchiveSecurityFixtureHarness \
+  "$BUILD_DIR/security-invalid.tsv" >"$BUILD_DIR/security-invalid.out" 2>&1; then
+  echo 'invalid security fixture unexpectedly accepted' >&2
+  exit 1
+fi
+grep -F 'invalid case type: UNKNOWN' "$BUILD_DIR/security-invalid.out"
+
 awk -F '\t' 'BEGIN { OFS="\t" } NR == 2 { $4 = "REJECT" } { print }' \
   "$ROOT/tools/p05-004/fixtures/security_cases.tsv" > "$BUILD_DIR/security-bad.tsv"
 if java -cp "$BUILD_DIR" ArchiveSecurityFixtureHarness \
@@ -81,11 +108,16 @@ printf '%s\n' "$capability_output" | grep -F 'OPTIONAL_CAPABILITIES=PASS'
 junrar_output=$(java -cp "$BUILD_DIR" JunrarLocalInspectionHarness "$ROOT")
 printf '%s\n' "$junrar_output"
 printf '%s\n' "$junrar_output" | grep -F 'JUNRAR_CLASSIFICATION=LICENSE_REVIEW_REQUIRED'
+printf '%s\n' "$junrar_output" | grep -F 'JUNRAR_LOCAL_REPOSITORY=ABSENT'
+printf '%s\n' "$junrar_output" | grep -F 'JUNRAR_LOCAL_LICENSE=ABSENT'
+printf '%s\n' "$junrar_output" | grep -F 'JUNRAR_LOCAL_SOURCE=ABSENT'
 
 native_output=$(java -cp "$BUILD_DIR" NativePackagingEvidenceHarness \
   "$ROOT" "$ROOT/tools/p05-004/fixtures/native_packaging.tsv")
 printf '%s\n' "$native_output"
 printf '%s\n' "$native_output" | grep -F 'NATIVE_PACKAGING=NO_LOCAL_ARTIFACT'
 printf '%s\n' "$native_output" | grep -F 'NATIVE_16K=UNRESOLVED_4K_ONLY'
+printf '%s\n' "$native_output" | grep -F 'NATIVE_LOCAL_AAR_COUNT=0'
+printf '%s\n' "$native_output" | grep -F 'NATIVE_LOCAL_ELF_COUNT=0'
 
 echo 'PASS: archive evidence matrix harness'

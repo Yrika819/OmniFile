@@ -5,7 +5,7 @@ Commons Compress 1.28.0	scale-10k	CONDITIONAL	Synthetic 10k entry-index fixture 
 Commons Compress 1.28.0	security-corpus	UNKNOWN	Larger malformed and adversarial corpus remains open.
 Commons Compress 1.28.0	scale-100k	CONDITIONAL	Synthetic 100k entry-index fixture passed; Commons parser scale remains open.
 Commons Compress 1.28.0	license-provenance	CONDITIONAL	Exact release/transitives and NOTICE inventory must be frozen before dependency addition.
-Commons Compress 1.28.0	security-fixture-policy	PASS	13 controlled application-policy fixtures passed; parser/extraction integration remains separate.
+Commons Compress 1.28.0	security-fixture-policy	PASS	14 controlled application-policy fixtures passed; parser/extraction integration remains separate.
 Commons Compress 1.28.0	optional-capability-wrapper	PASS	Host declaration harness passed; no production wrapper is selected.
 Commons Compress 1.28.0	security-traversal	UNKNOWN	Traversal rejection corpus not run in this host-only campaign.
 Commons Compress 1.28.0	security-symlink	UNKNOWN	Symlink/TOCTOU policy evidence remains open.
@@ -23,7 +23,7 @@ Zip4j 2.11.6	scale-10k	CONDITIONAL	Synthetic 10k entry-index fixture passed; Zip
 Zip4j 2.11.6	security-corpus	UNKNOWN	Malformed and extraction-policy corpus remains open.
 Zip4j 2.11.6	scale-100k	CONDITIONAL	Synthetic 100k entry-index fixture passed; Zip4j parser scale remains open.
 Zip4j 2.11.6	license-provenance	CONDITIONAL	Exact release/transitives and notices must be recorded.
-Zip4j 2.11.6	security-fixture-policy	PASS	13 controlled application-policy fixtures passed; parser/extraction integration remains separate.
+Zip4j 2.11.6	security-fixture-policy	PASS	14 controlled application-policy fixtures passed; parser/extraction integration remains separate.
 Zip4j 2.11.6	optional-capability-wrapper	PASS	Host declaration harness passed; no production wrapper is selected.
 Zip4j 2.11.6	security-traversal	UNKNOWN	Traversal rejection corpus not run in this host-only campaign.
 Zip4j 2.11.6	security-symlink	UNKNOWN	Symlink/TOCTOU policy evidence remains open.
@@ -41,7 +41,7 @@ Junrar 8.1.x	scale-10k	CONDITIONAL	Synthetic 10k entry-index fixture passed; Jun
 Junrar 8.1.x	security-corpus	UNKNOWN	Larger malformed RAR corpus remains open.
 Junrar 8.1.x	scale-100k	CONDITIONAL	Synthetic 100k entry-index fixture passed; solid archive/parser scale remains open.
 Junrar 8.1.x	license-provenance	CONDITIONAL	Local Junrar repository/source/license is absent; UnRAR-derived terms remain review-required.
-Junrar 8.1.x	security-fixture-policy	PASS	13 controlled application-policy fixtures passed; parser/extraction integration remains separate.
+Junrar 8.1.x	security-fixture-policy	PASS	14 controlled application-policy fixtures passed; parser/extraction integration remains separate.
 Junrar 8.1.x	optional-capability-wrapper	PASS	Host declaration harness passed; RAR creation remains absent.
 Junrar 8.1.x	security-traversal	UNKNOWN	Traversal rejection corpus not run in this host-only campaign.
 Junrar 8.1.x	security-symlink	UNKNOWN	Symlink/TOCTOU policy evidence remains open.
@@ -59,7 +59,7 @@ zstd-jni Android AAR	scale-10k	NOT_TESTED	Codec path is not an archive index eng
 zstd-jni Android AAR	security-corpus	UNKNOWN	Native malformed-input and crash behavior is unmeasured.
 zstd-jni Android AAR	scale-100k	NOT_TESTED	Not an archive index engine; integration cost is not measured.
 zstd-jni Android AAR	license-provenance	UNKNOWN	No exact local AAR/source/notice inventory is present in the target worktree.
-zstd-jni Android AAR	security-fixture-policy	PASS	13 controlled application-policy fixtures passed; native/parser integration remains separate.
+zstd-jni Android AAR	security-fixture-policy	PASS	14 controlled application-policy fixtures passed; native/parser integration remains separate.
 zstd-jni Android AAR	optional-capability-wrapper	PASS	Host wrapper correctly leaves the unproven native capability absent.
 zstd-jni Android AAR	security-traversal	UNKNOWN	Traversal rejection corpus not run in this host-only campaign.
 zstd-jni Android AAR	security-symlink	UNKNOWN	Symlink/TOCTOU policy evidence remains open.
@@ -88,7 +88,7 @@ libarchive 3.8.9	scale-10k	NOT_TESTED	No libarchive parser/build is present; syn
 libarchive 3.8.9	security-corpus	UNKNOWN	Broad native parser update and fuzz evidence is not closed here.
 libarchive 3.8.9	scale-100k	NOT_TESTED	Android memory/performance is unmeasured.
 libarchive 3.8.9	license-provenance	CONDITIONAL	New BSD is documented; exact build/transitives still require inventory.
-libarchive 3.8.9	security-fixture-policy	PASS	13 controlled application-policy fixtures passed; native/parser integration remains separate.
+libarchive 3.8.9	security-fixture-policy	PASS	14 controlled application-policy fixtures passed; native/parser integration remains separate.
 libarchive 3.8.9	optional-capability-wrapper	PASS	Host wrapper correctly leaves the unproven native capability absent.
 libarchive 3.8.9	security-traversal	UNKNOWN	Traversal rejection corpus not run in this host-only campaign.
 libarchive 3.8.9	security-symlink	UNKNOWN	Symlink/TOCTOU policy evidence remains open.

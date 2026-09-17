@@ -39,5 +39,5 @@ The current disposable manifest compresses this to `candidate`, `gate`, `status`
 - Security closure requires individual negative-case gates for traversal, symlinks/TOCTOU, expansion, duplicates, truncation, malformed input, cancellation, nesting, password failures, and multipart failures.
 - Any missing, `NOT_TESTED`, or `UNKNOWN` material gate prevents closure.
 - A passing parser/codec fixture does not pass extraction containment, symlink, expansion, or cancellation policy.
-- The 13-case security fixture result is application-policy evidence only; it does not change the individual candidate parser/security rows.
+- The 14-case security fixture result is application-policy evidence only; it does not change the individual candidate parser/security rows.
 - `4096` page-size evidence is not `16384` page-size evidence. A native candidate without a local AAR/ELF and 16 KiB measurement remains open.

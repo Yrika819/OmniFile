@@ -44,7 +44,7 @@ negative-case gates (`security-traversal`, `security-symlink`,
 `security-malformed`, `security-cancellation`, `security-nesting`,
 `security-password`, and `security-multipart`), and eleven native gates for native
 candidates (`native-provenance`, `native-abi`, `native-reproducible-build`,
-`native-packaging`, `native-16k`, `native-crash`, `native-size`, `native-symbols`,
+`native-packaging`, `native-android-compat`, `native-16k`, `native-crash`, `native-size`, `native-symbols`,
 `native-update-ownership`, and `native-notices`). It reports
 `OVERALL=NOT_CLOSED` for this evidence set.
 
@@ -54,7 +54,7 @@ The continuation adds five dependency-free probes under `tools/p05-004`:
 
 | Probe | Evidence produced | Deliberate non-claim |
 |---|---|---|
-| `ArchiveSecurityFixtureHarness` | 13 controlled application-policy cases for path containment, symlink rejection, expansion, duplicates, truncation, cancellation, nesting, password, and multipart failures | Does not parse archives or certify Junrar/native parser behavior |
+| `ArchiveSecurityFixtureHarness` | 14 controlled application-policy cases for path containment, symlink rejection, expansion, duplicates, truncation, cancellation, nesting, password, and multipart failures | Does not parse archives or certify Junrar/native parser behavior |
 | `ArchiveScaleHarness` | Deterministic synthetic entry-index checks at 10,000 and 100,000 entries with elapsed/heap observations | Not archive-parser, UI, Android, or device performance evidence |
 | `ArchiveOptionalCapabilityHarness` | Truth-table check that only evidenced Java capabilities are declared; unproven zstd/libarchive and RAR creation remain absent | Not a production wrapper or dependency selection |
 | `JunrarLocalInspectionHarness` | Bounded inspection of local Junrar checkout/license/source presence and conservative `LICENSE_REVIEW_REQUIRED` classification | Does not infer legal approval from research prose or release pages |
