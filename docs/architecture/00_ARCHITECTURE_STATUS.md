@@ -1,16 +1,20 @@
 # Architecture V1 — Master Status
 
-Status: ARCHITECTURE V1 PRINCIPLE REVIEW COMPLETE
+Status: ARCHITECTURE V1 PRINCIPLE REVIEW COMPLETE — P0 EVIDENCE INCORPORATED
 
 Creation date: 2026-09-17
 
-Architecture branch: `architecture/v1-principle-freeze`
+Architecture branch: `architecture/p0-evidence-incorporation`
 
 Architecture synthesis parent SHA: `50febef2376ce7d48ce8d57effda3c233a7cd545`
 
 Source research branch: `research/preimplementation-v1`
 
 Source research SHA: `b03a2ea99f24206f847f513fa4106e90268f3fc4`
+
+P0 evidence sources: `2715f18c589723e8aa82d8907387646d51e36bfa`, `8db0fde4996fef34e2d1f4b56bef0b8b6afcab0a`, `f7e1e0a52309cc0be1d10e4086424bb7e85b295a`
+
+P0 synthesis input: `4016dea8a46d0ad993896fb49b3d8802a71c80d9` (reviewed against source artifacts; not treated as authority)
 
 Main baseline preserved at: `793d151f9608a684c1d0d4be2e58e5b49d26f823`
 
@@ -28,11 +32,13 @@ It does **not** freeze implementation technology unless explicitly stated otherw
 
 ## Decision-state counts
 
-The master table below contains 53 material architecture decisions:
+The master table below contains 57 material architecture decisions:
 
-- `ACCEPTED`: **26**
-- `REJECTED`: **8**
-- `POC_REQUIRED`: **10**
+- `ACCEPTED`: **27**
+- `REJECTED`: **11**
+- `PARTIALLY_RESOLVED`: **2**
+- `POC_REQUIRED`: **6**
+- `STILL_POC_REQUIRED`: **2**
 - `DEFERRED`: **9**
 
 These counts cover architecture decisions, not the separate product-scope categories in `11_FEATURE_SCOPE_V1.md`.
@@ -60,17 +66,17 @@ These counts cover architecture decisions, not the separate product-scope catego
 |D017|Universal atomic rename/move guarantee.|`REJECTED`|Very high|Research 01, 02, 07, 08|Atomicity is provider/filesystem specific and never inferred from method name.|
 |D018|Universal POSIX metadata/chmod/chown/symlink semantics.|`REJECTED`|Very high|Research 01, 02, 03|Unix metadata stays optional/direct/root/provider-specific.|
 |D019|Provider-native/server-side copy/move may be used when capability/guarantee is known.|`ACCEPTED`|High|Research 02, 07, 08|Operation planning may optimize same-provider work without making it universal.|
-|D020|Representative SAF/direct/SD/USB seek/write/rename/disconnect behavior.|`POC_REQUIRED`|High uncertainty in provider behavior|Research 01, 02, 15|POC-001 unlocks exact SAF capability vocabulary and removable semantics.|
+|D020|Representative SAF/direct/SD/USB seek/write/rename/disconnect behavior.|`PARTIALLY_RESOLVED`|Measured local/direct surfaces; removable/cloud/OEM behavior unresolved|POC-001; `14_P0_EVIDENCE_INCORPORATION.md`|Capability distinctions and tested local behavior are incorporated; SD/USB, cloud, OEM, revocation and universal atomicity remain open.|
 |D021|Use of `MANAGE_EXTERNAL_STORAGE` / exact standard-mode permission strategy.|`DEFERRED`|High policy evidence, product decision open|Research 01, 14, 15|Reopen before local-storage implementation/distribution review with current policy.|
-|D022|Exact WorkManager/UIDT/FGS/foreground executor mapping.|`POC_REQUIRED`|Very high principle confidence, mechanism unresolved|Research 09, 15|POC-002 and lifecycle measurements must precede mapping freeze.|
-|D023|Operation checkpoint cadence.|`POC_REQUIRED`|Medium|Research 09, 15|Measure write amplification vs lost-progress window in POC-002.|
+|D022|Exact WorkManager/UIDT/FGS/foreground executor mapping.|`STILL_POC_REQUIRED`|Very high principle confidence, mechanism unresolved|Research 09, 15; POC-002|POC-002 deliberately did not select a mapping; Android 12–16 lifecycle measurements must precede mapping freeze.|
+|D023|Operation checkpoint cadence.|`STILL_POC_REQUIRED`|Medium|Research 09, 15; POC-002|POC-002 measured overhead but did not establish a universal interval; measure workload/provider trade-offs before freezing cadence.|
 |D024|Media3 / MediaSession concepts as playback foundation.|`ACCEPTED`|High|Research 05, 15|Exact Media3 version/class structure remains unfrozen.|
 |D025|Wholesale reuse of FLACtify `PlayerViewModel` as File Manager architecture.|`REJECTED`|High|Research 05, 15|Reuse behavior/session concepts; separate responsibilities instead.|
 |D026|Product-quality remote media random access/seek over NAS/cloud.|`POC_REQUIRED`|Medium|Research 02, 05, 07, 08, 15|POC-004/005 and cloud range tests precede playback promise.|
 |D027|Stream cache, metadata cache, artwork/thumbnail cache, offline files, and operation partials are distinct categories.|`ACCEPTED`|High|Research 05, 11, 15|Generic cache clearing cannot destroy offline content or recovery data.|
 |D028|Archives are browsable virtual storage where format/engine permits.|`ACCEPTED`|High|Research 04, 15; `UI_DESIGN_V1.md`|Archive entries participate in provider-style list/read with honest limitations.|
 |D029|Archive extraction enforces containment, symlink policy, and expansion limits.|`ACCEPTED`|Very high|Research 04, 11, 15|Traversal/bombs/malformed input are baseline design concerns.|
-|D030|Exact archive engine combination and supported edge-case matrix.|`POC_REQUIRED`|Medium-high|Research 04, 14, 15|POC-003 decides Java/native stack and concrete format guarantees.|
+|D030|Exact archive engine combination and supported edge-case matrix.|`PARTIALLY_RESOLVED`|Direction validated; production matrix incomplete|POC-003; `14_P0_EVIDENCE_INCORPORATION.md`|Multi-engine Java-first is viable as a direction; exact engines, versions, native alternative, licensing and production coverage remain open.|
 |D031|RAR creation as an assumed V1 capability.|`REJECTED`|High|Research 04, 14|Do not promise unless future independent licensed encoder evidence exists.|
 |D032|Conversion/extraction/compression participate in durable Operation Manager semantics.|`ACCEPTED`|High|Research 06, 09, 15|Partial/verify/finalize/recovery apply beyond copy/upload.|
 |D033|Platform/Media3-first direction for mainstream media conversion.|`ACCEPTED`|Medium-high|Research 06, 14, 15|Lower native/license burden; exact capability promise waits for device evidence.|
@@ -94,22 +100,26 @@ These counts cover architecture decisions, not the separate product-scope catego
 |D051|applicationId, display name, namespace, modules, Gradle/SDK/toolchain and dependency versions.|`DEFERRED`|N/A by design|Research index and 15; task scope|Remain intentionally unfrozen until initial implementation/scaffold and relevant PoCs.|
 |D052|CI/CD, signing, release channel, Play publication, pricing/distribution.|`DEFERRED`|Premature|Research 14, 15|Reopen during release engineering/product distribution review.|
 |D053|Exact test frameworks, device farm, and coverage thresholds.|`DEFERRED`|High test-strategy confidence, tooling premature|Research 13|Reopen after implementation/module architecture exists.|
+|D054|Persisted operation progress/checkpoints are observations, not authoritative storage truth.|`ACCEPTED`|High on tested local/Pixel 7a recovery; provider/power-loss scope open|POC-002; `14_P0_EVIDENCE_INCORPORATION.md`|Recovery reconciles durable metadata with actual partial/final destination and source/version facts before resume or finalization.|
+|D055|SAF URI or `documentId` is a universally stable durable object locator.|`REJECTED`|Directly contradicted on the tested local SAF provider; not universalized|POC-001|Persisted identity must distinguish opaque provider identity from mutable provider locator and support re-resolution/conflict handling.|
+|D056|One archive engine can be the universal V1 implementation boundary.|`REJECTED`|Measured encrypted ZIP/RAR capability split|POC-003|Use a capability/matrix-based engine boundary; exact production engine set remains unfrozen.|
+|D057|Every operation must perform a complete SHA-256 verification.|`REJECTED`|Measured cost variance and provider/workload alternatives|POC-002|Verification is policy/capability/workload dependent; exact algorithm and thresholds remain unfrozen.|
 
 ## Accepted summary
 
-The accepted core is deliberately small in concept and broad in consequence: capability-based providers, provider-scoped identity, separate access semantics, durable/reconcilable operations, safe move finalization, bounded/64-bit data flow, reconstructible caches/indexes, provider-neutral playback, secure hostile-input handling, strict credential/trust boundaries, virtual archives, additive root, stable-first adaptive UI, and capability-aware actions.
+The accepted core is deliberately small in concept and broad in consequence: capability-based providers, provider-scoped identity with mutable-locator awareness, separate access semantics, durable/reconcilable operations, checkpoint reconciliation, safe move finalization, bounded/64-bit data flow, reconstructible caches/indexes, provider-neutral playback, secure hostile-input handling, strict credential/trust boundaries, virtual archives, additive root, stable-first adaptive UI, and capability-aware actions.
 
 ## Rejected summary
 
-Architecture V1 explicitly rejects false-uniformity assumptions: one universal local-filesystem model, universal append/atomic/POSIX guarantees, root shell-string transport as the normal path, wholesale FLACtify ViewModel reuse, RAR creation as an assumed capability, and abandoned opaque FFmpegKit binaries.
+Architecture V1 explicitly rejects false-uniformity assumptions: one universal local-filesystem model, universal append/atomic/POSIX guarantees, stable SAF URI/documentId as durable locator, one universal archive engine, universal full-file SHA-256 verification, root shell-string transport as the normal path, wholesale FLACtify ViewModel reuse, RAR creation as an assumed capability, and abandoned opaque FFmpegKit binaries.
 
 ## Highest-priority `POC_REQUIRED` items
 
-P0:
+P0 evidence is now incorporated; P0.5 readiness work has not started:
 
-1. `POC-001` — SAF/direct/SD/USB capability behavior on API 31 and API 36.
-2. `POC-002` — durable large operation + process death/reconciliation.
-3. `POC-003` — archive engine fixture/security matrix.
+1. `POC-001` — partially resolved; SD/USB, cloud, OEM, revocation and atomicity gaps remain.
+2. `POC-002` — principles confirmed; executor, provider recovery, cadence, real ENOSPC and finalization/power-loss gaps remain.
+3. `POC-003` — direction partially resolved; exact stack, licensing, native/16 KiB, complete security and production-scale gaps remain.
 
 P1/P2 items are defined in `12_POC_BACKLOG.md` and must not start during this phase.
 
@@ -164,4 +174,4 @@ Likewise, broad archive/player/root/network/cloud product intent is preserved as
 
 ## End-state statement
 
-**ARCHITECTURE V1 PRINCIPLES REVIEWED AND FROZEN; IMPLEMENTATION TECHNOLOGY AND POC-DEPENDENT DECISIONS REMAIN UNFROZEN.**
+**ARCHITECTURE V1 PRINCIPLES CONFIRMED/REFINED BY P0; IMPLEMENTATION TECHNOLOGY, P0.5 READINESS, AND POC-DEPENDENT DECISIONS REMAIN UNFROZEN.**

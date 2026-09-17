@@ -25,7 +25,7 @@ Every item below is intentionally **not** selected by the principle-freeze phase
 |Material3 Adaptive version|`DEFERRED`|Same; stable capability is the principle, not a version.|Adaptive UI implementation authorization.|
 |Navigation library/version|`DEFERRED`|Exact navigation stack depends on implementation/UI review.|UI shell/navigation design.|
 |Media3 version|`DEFERRED`|Media3 concept is accepted, exact artifact must be current and validated.|Playback implementation authorization.|
-|Archive libraries|`POC_REQUIRED`|Format/security/performance behavior cannot be settled from docs alone.|After POC-003 archive matrix.|
+|Archive libraries|`PARTIALLY_RESOLVED`|POC-003 validates a Java-first multi-engine direction, but exact engines/versions/wrappers, licensing, native alternatives and production coverage remain open.|Archive candidate closure after P0.5 evidence and licensing/packaging review.|
 |Root library/transport|`POC_REQUIRED`|Magisk/KernelSU/APatch, SELinux, mount namespace, streaming and FD behavior need evidence.|After POC-006 root matrix.|
 |SMB library|`POC_REQUIRED`|Interoperability/reconnect/security/server-operation behavior must be measured.|After POC-005 plus POC-004 if playback is required.|
 |SFTP library|`POC_REQUIRED`|Server extension/host-key/random-I/O behavior must be measured.|After POC-005.|
@@ -49,15 +49,15 @@ Every item below is intentionally **not** selected by the principle-freeze phase
 |FileProvider paths/configuration|`DEFERRED`|Share/open surface is not implemented yet.|Share/open feature implementation security review.|
 |Network Security Config|`DEFERRED`|Strict trust principles are frozen; exact domains/anchors do not exist yet.|Network provider implementation.|
 |Credential-store implementation|`DEFERRED`|Keystore-backed protected boundary is frozen; key/schema/library details are not.|First provider requiring persisted secrets.|
-|Operation durable-state schema|`DEFERRED`|Conceptual requirements are frozen; exact schema should follow POC-002.|After POC-002.|
-|Operation checkpoint cadence|`POC_REQUIRED`|Trade-off between lost work and write amplification requires measurement.|POC-002.|
-|Executor mapping: UIDT / WorkManager / FGS / foreground|`POC_REQUIRED`|Android 12–16 workload/policy behavior varies and very long local copy remains unresolved.|POC-002 plus dedicated executor lifecycle measurements.|
+|Operation durable-state schema|`DEFERRED`|Conceptual requirements and checkpoint-reconciliation invariant are accepted; exact schema/persistence technology remain unfrozen.|After CORE_V1 state design and provider recovery evidence.|
+|Operation checkpoint cadence|`STILL_POC_REQUIRED`|POC-002 measured overhead but did not establish a universal interval.|Dedicated workload/provider cadence campaign.|
+|Executor mapping: UIDT / WorkManager / FGS / foreground|`STILL_POC_REQUIRED`|POC-002 deliberately avoided selecting an executor; Android 12–16 workload/policy behavior and very long local copy remain unresolved.|Dedicated Android 12–16 executor lifecycle comparison.|
 |Exact retry/backoff timings|`DEFERRED`|Provider/server-specific and should honor current platform/provider guidance.|Per provider/workload implementation.|
 |Exact conflict UX/default overwrite policy|`DEFERRED`|Correctness boundary is frozen but product UX requires later review.|Operation UX implementation.|
 |Cache sizes/eviction/key strategy|`DEFERRED`|Needs actual playback/thumbnail/provider workloads.|After media/network/scale PoCs.|
 |Offline/pinned file storage policy|`DEFERRED`|Durability distinction is frozen; product storage UX is not.|Playback/offline feature planning.|
-|Archive creation format matrix|`DEFERRED`|Depends on POC-003 and product scope.|After POC-003 plus feature-scope review.|
-|7z creation support|`DEFERRED`|Engine capability/performance/product value not yet established.|After POC-003.|
+|Archive creation format matrix|`DEFERRED`|POC-003 did not establish production creation promises; Junrar RAR creation remains unsupported.|After archive candidate closure plus feature-scope review.|
+|7z creation support|`DEFERRED`|POC-003 covered read/list/open fixtures, not a production creation promise.|After archive candidate closure.|
 |RAR creation support|`DEFERRED` / currently unsupported|No proven legitimate maintainable encoder path; must not be implied from extraction support.|Only if future independent licensing/technology evidence identifies a credible encoder.|
 |Office -> PDF implementation|`DEFERRED` / uncommitted|No credible high-fidelity local Android rendering basis established.|Only after new technology evidence plus reference-corpus PoC.|
 |Playback format promise|`DEFERRED`|Should follow selected current Media3/platform capabilities and validation.|Playback implementation/test phase.|
@@ -87,6 +87,6 @@ At the close of Architecture V1 principle review, the following categories remai
 - durable-state schema and Android executor mapping;
 - OAuth scopes/registrations/credentials;
 - CI/CD/signing/release/publication/pricing;
-- all PoC-dependent behavioral guarantees such as remote seek, SAF seek, archive edge cases, root behavior, large-operation lifecycle, and scale budgets.
+- all remaining PoC-dependent behavioral guarantees such as remote seek, removable/cloud/OEM behavior, archive edge cases, root behavior, executor lifecycle, provider recovery, power-loss handling, large-operation cadence, and scale budgets.
 
 Principles may be frozen while all of the above remain intentionally open.

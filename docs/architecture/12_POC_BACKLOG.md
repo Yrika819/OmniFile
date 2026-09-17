@@ -1,6 +1,6 @@
 # Architecture V1 — Prototype Backlog
 
-Status: BACKLOG DEFINED — **NO POC EXECUTED IN THIS PHASE**
+Status: P0 COMPLETE / P0 EVIDENCE INCORPORATED — **P1/P2 POCS NOT EXECUTED**
 
 Source authority: the research pack at SHA `b03a2ea99f24206f847f513fa4106e90268f3fc4`.
 
@@ -14,9 +14,13 @@ Source authority: the research pack at SHA `b03a2ea99f24206f847f513fa4106e90268f
 - Results must record device/API/provider/library versions and failure cases, not only success screenshots.
 - A PoC may unlock an architecture decision; it does not authorize production implementation by itself.
 
+POC-001 through POC-003 were executed on their separate P0 branches and reviewed on this architecture branch. Their source code/results remain outside this branch; only evidence dispositions are incorporated.
+
 ## Priority P0 — blocks foundational implementation choices
 
 ### POC-001 — SAF / direct / SD / USB capability behavior
+
+**P0 disposition:** `PARTIALLY_RESOLVED`. Capability distinctions, descriptor-versus-seekability, tested local SAF behavior, mutable URI/documentId, sanitization, and sparse logical-size handling are incorporated. SD/USB, cloud, OEM, explicit revocation, ordinary scoped-storage, reconnect, and universal atomicity remain open.
 
 **Question / hypothesis:** Can the storage model reliably distinguish direct, SAF, removable, descriptor, seek, write, rename, and disconnect behavior without pretending provider semantics are uniform?
 
@@ -54,6 +58,8 @@ Source authority: the research pack at SHA `b03a2ea99f24206f847f513fa4106e90268f
 
 ### POC-002 — Durable large operation + process death/reconciliation
 
+**P0 disposition:** `PARTIALLY_RESOLVED` for the campaign question, with the durable/reconciliation principles accepted. Exact cadence, executor mapping, provider/SAF recovery, real ENOSPC, finalization crash window, power-loss semantics, and stronger source-version detection remain open.
+
 **Question / hypothesis:** Can a durable Operation Manager safely recover large copy/move-like workflows across process death without tying truth to WorkManager/UIDT/FGS/coroutine lifetime?
 
 **Why documentation is insufficient:** Android execution policies vary by API/workload; documentation cannot prove checkpoint cadence, ambiguous finalization handling, or real process-kill recovery for this product.
@@ -89,6 +95,8 @@ Source authority: the research pack at SHA `b03a2ea99f24206f847f513fa4106e90268f
 ---
 
 ### POC-003 — Archive engine fixture/security matrix
+
+**P0 disposition:** `PARTIALLY_RESOLVED`. Java-first multi-engine is a viable direction and the single-engine assumption is rejected. Exact stack/version/licensing/native choices and production archive/security coverage remain open.
 
 **Question / hypothesis:** Which engine combination can meet required browse/extract/create coverage while preserving bounded memory, Android compatibility, and hostile-input safety?
 
@@ -336,4 +344,4 @@ Source authority: the research pack at SHA `b03a2ea99f24206f847f513fa4106e90268f
 |P1|POC-004..007|Remote media/network/root/scale risks that unlock major V1_LATER choices.|
 |P2|POC-008..011|Cloud scope/resume, conversion breadth, and UI technology refinement.|
 
-No PoC in this backlog has been executed by the Architecture V1 principle-freeze phase.
+POC-001..003 are complete as P0 evidence inputs. POC-004..011 remain unexecuted and require separate authorization. P0 evidence does not authorize P0.5, P1/P2 PoCs, or production implementation.
