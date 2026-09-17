@@ -10,7 +10,7 @@
 
 ## Global constraints
 
-- Work only in `/Users/yuta/Desktop/File Manager/.worktrees/p05-media3` on `poc/core-readiness-media3-v1`.
+- Work only in `/Users/yuta/Desktop/File Manager-worktrees/p05-media3` on `poc/core-readiness-media3-v1`.
 - Inspect `/Users/yuta/Desktop/FLACtify` read-only; do not modify it.
 - Parent-controlled ADB use was outside the initial plan and was later explicitly authorized for the Pixel 7a runtime phase; no other worktree was touched.
 - Do not clean, reset, stash, rebase, amend, force-push, or delete user data; the disposable PoC build is explicitly in scope.

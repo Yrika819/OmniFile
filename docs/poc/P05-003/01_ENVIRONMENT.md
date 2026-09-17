@@ -23,7 +23,7 @@ The worktree was a linked worktree and was clean before the P05-003 files were a
 | Gradle | Gradle 9.6.0 distribution under `/Users/yuta/.gradle/wrapper/dists/` | Used directly because this repository has no existing wrapper. |
 | Android Gradle Plugin | Cached/managed `com.android.application` 9.4.0 | Used only by the disposable PoC. |
 | Android SDK | `/Users/yuta/Library/Android/sdk`, platforms API 31/36/37 | PoC compiles with API 36, min API 31. |
-| Android application source | Added only under `tools/p05_003_harness/media3-poc/` | Compile/package verified; no instrumentation/device run. |
+| Android application source | Added only under `tools/p05_003_harness/media3-poc/` | Compile/package verified; no automated instrumentation run; parent manual device run is documented below. |
 | ADB | Available at `/usr/local/bin/adb` | Used only by the explicitly authorized parent-controlled Pixel 7a runtime phase. |
 
 Cached Media3 1.3.1 AARs were resolved for the disposable build:
