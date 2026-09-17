@@ -156,6 +156,14 @@ printf '%s\n' "$native_output" | grep -F 'NATIVE_16K=UNRESOLVED_4K_ONLY'
 printf '%s\n' "$native_output" | grep -F 'NATIVE_LOCAL_AAR_COUNT=0'
 printf '%s\n' "$native_output" | grep -F 'NATIVE_LOCAL_ELF_COUNT=0'
 
+deep_root="$BUILD_DIR/native-deep-root"
+mkdir -p "$deep_root/a/b/c/d/e"
+: > "$deep_root/a/b/c/d/e/deep.aar"
+deep_native_output=$(java -cp "$BUILD_DIR" NativePackagingEvidenceHarness \
+  "$deep_root" "$ROOT/tools/p05-004/fixtures/native_packaging.tsv")
+printf '%s\n' "$deep_native_output" | grep -F 'NATIVE_LOCAL_AAR_COUNT=1'
+printf '%s\n' "$deep_native_output" | grep -F 'NATIVE_PACKAGING=ARTIFACT_PRESENT_REQUIRES_INSPECTION'
+
 awk -F '\t' 'BEGIN { OFS="\t" } $1 == "zstd-jni Android AAR" && $2 == "p0-page-size" { $1 = "libarchive 3.8.9" } { print }' \
   "$ROOT/tools/p05-004/fixtures/native_packaging.tsv" > "$BUILD_DIR/native-bad-candidate.tsv"
 if java -cp "$BUILD_DIR" NativePackagingEvidenceHarness \

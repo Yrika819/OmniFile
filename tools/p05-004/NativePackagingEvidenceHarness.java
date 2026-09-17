@@ -29,12 +29,12 @@ public final class NativePackagingEvidenceHarness {
         Path root = Path.of(args[0]).toAbsolutePath().normalize();
         long aarCount;
         long elfCount;
-        try (var paths = Files.walk(root, 4)) {
+        try (var paths = Files.walk(root)) {
             aarCount = paths.filter(Files::isRegularFile)
                     .filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".aar"))
                     .count();
         }
-        try (var paths = Files.walk(root, 4)) {
+        try (var paths = Files.walk(root)) {
             elfCount = paths.filter(Files::isRegularFile)
                     .filter(path -> path.getFileName().toString().equals("libzstd.so")
                             || path.getFileName().toString().equals("libarchive.so"))

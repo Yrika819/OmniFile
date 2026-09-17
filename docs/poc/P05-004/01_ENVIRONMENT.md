@@ -21,7 +21,9 @@ P0. The source review was performed on 2026-09-17 against
 and the [libarchive release page](https://github.com/libarchive/libarchive/releases/latest).
 No downloaded-byte checksum or signature was retained, and the bounded local
 inspection found no Junrar checkout/license/source, zstd-jni AAR/ELF, or
-libarchive source/build under this worktree. Artifact identity and legal review
+libarchive source/build under this worktree. The native packaging probe recursively
+walks every descendant of this worktree root for `.aar`, `libzstd.so`, and
+`libarchive.so`; it found none. Artifact identity and legal review
 therefore remain closure gates.
 
 The branch-local P0 reconciliation states that host and physical Pixel 7a archive records contained 54 records and `RUN_DONE=PASS`, while exact engine selection, libarchive/native alternatives, SAF/remote origins, fuzz coverage, cancellation, and production scale remain open ([`docs/architecture/14_P0_EVIDENCE_INCORPORATION.md:51-62`](../../architecture/14_P0_EVIDENCE_INCORPORATION.md)). Those facts are carried forward without reinterpretation.
