@@ -30,3 +30,41 @@ The P0 backlog specifically requires local direct and SAF seekable/non-seekable 
 ## Architecture consequence
 
 Archive entries remain virtual storage with provider-scoped identity. Random entry access must advertise cost rather than promise O(1), particularly for TAR and solid archives ([`docs/architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md:7-20`](../../architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md)). No candidate in this package closes the provider/access gate.
+
+## Continuation results - 2026-09-17
+
+Command:
+
+```text
+./tools/p05-004/test_archive_evidence_matrix.sh
+```
+
+The focused validator produced these bounded results:
+
+```text
+SECURITY_SCOPE=APPLICATION_POLICY_ONLY
+SECURITY_CASES=13
+SECURITY_FIXTURES=PASS
+SCALE_SCOPE=SYNTHETIC_ENTRY_INDEX_ONLY
+SCALE_10000=PASS
+SCALE_100000=PASS
+OPTIONAL_CAPABILITY_ROWS=9
+OPTIONAL_CAPABILITIES=PASS
+JUNRAR_LOCAL_REPOSITORY=ABSENT
+JUNRAR_LOCAL_LICENSE=ABSENT
+JUNRAR_LOCAL_SOURCE=ABSENT
+JUNRAR_RAR_CREATION=UNSUPPORTED
+JUNRAR_CLASSIFICATION=LICENSE_REVIEW_REQUIRED
+NATIVE_LOCAL_AAR_COUNT=0
+NATIVE_LOCAL_ELF_COUNT=0
+NATIVE_PACKAGING=NO_LOCAL_ARTIFACT
+NATIVE_16K=UNRESOLVED_4K_ONLY
+```
+
+The 10k/100k lines are synthetic host metadata-index measurements. They add
+bounded scale evidence to the package but do not close Commons Compress, Zip4j,
+Junrar, or libarchive parser-scale gates. The security pass similarly validates
+the wrapper policy fixture set, not the libraries. The local Junrar and native
+results are absence/classification evidence, not artifact acceptance. The same
+validator also rejected a deliberately incorrect security expectation and a
+100,001-entry request, confirming the new fixture and scale bounds fail closed.

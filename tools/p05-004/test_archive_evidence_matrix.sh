@@ -8,6 +8,15 @@ trap 'rm -rf "$BUILD_DIR"' EXIT HUP INT TERM
 
 javac -d "$BUILD_DIR" "$HARNESS"
 
+for source in \
+  ArchiveSecurityFixtureHarness.java \
+  ArchiveScaleHarness.java \
+  ArchiveOptionalCapabilityHarness.java \
+  JunrarLocalInspectionHarness.java \
+  NativePackagingEvidenceHarness.java; do
+  javac -cp "$BUILD_DIR" -d "$BUILD_DIR" "$ROOT/tools/p05-004/$source"
+done
+
 valid_output=$(java -cp "$BUILD_DIR" ArchiveEvidenceMatrixHarness \
   "$ROOT/tools/p05-004/fixtures/valid.tsv")
 printf '%s\n' "$valid_output"
@@ -39,5 +48,44 @@ if java -cp "$BUILD_DIR" ArchiveEvidenceMatrixHarness \
   exit 1
 fi
 grep -F 'security-traversal' "$BUILD_DIR/missing-security.out"
+
+security_output=$(java -cp "$BUILD_DIR" ArchiveSecurityFixtureHarness \
+  "$ROOT/tools/p05-004/fixtures/security_cases.tsv")
+printf '%s\n' "$security_output"
+printf '%s\n' "$security_output" | grep -F 'SECURITY_FIXTURES=PASS'
+
+awk -F '\t' 'BEGIN { OFS="\t" } NR == 2 { $4 = "REJECT" } { print }' \
+  "$ROOT/tools/p05-004/fixtures/security_cases.tsv" > "$BUILD_DIR/security-bad.tsv"
+if java -cp "$BUILD_DIR" ArchiveSecurityFixtureHarness \
+  "$BUILD_DIR/security-bad.tsv" >"$BUILD_DIR/security-bad.out" 2>&1; then
+  echo 'malformed security fixture unexpectedly accepted' >&2
+  exit 1
+fi
+grep -F 'expected REJECT but observed ALLOW' "$BUILD_DIR/security-bad.out"
+
+scale_output=$(java -cp "$BUILD_DIR" ArchiveScaleHarness 10000 100000)
+printf '%s\n' "$scale_output"
+printf '%s\n' "$scale_output" | grep -F 'SCALE_10000=PASS'
+printf '%s\n' "$scale_output" | grep -F 'SCALE_100000=PASS'
+if java -cp "$BUILD_DIR" ArchiveScaleHarness 100001 >"$BUILD_DIR/scale-bad.out" 2>&1; then
+  echo 'over-bound scale unexpectedly accepted' >&2
+  exit 1
+fi
+grep -F 'outside bounded range: 100001' "$BUILD_DIR/scale-bad.out"
+
+capability_output=$(java -cp "$BUILD_DIR" ArchiveOptionalCapabilityHarness \
+  "$ROOT/tools/p05-004/fixtures/optional_capabilities.tsv")
+printf '%s\n' "$capability_output"
+printf '%s\n' "$capability_output" | grep -F 'OPTIONAL_CAPABILITIES=PASS'
+
+junrar_output=$(java -cp "$BUILD_DIR" JunrarLocalInspectionHarness "$ROOT")
+printf '%s\n' "$junrar_output"
+printf '%s\n' "$junrar_output" | grep -F 'JUNRAR_CLASSIFICATION=LICENSE_REVIEW_REQUIRED'
+
+native_output=$(java -cp "$BUILD_DIR" NativePackagingEvidenceHarness \
+  "$ROOT" "$ROOT/tools/p05-004/fixtures/native_packaging.tsv")
+printf '%s\n' "$native_output"
+printf '%s\n' "$native_output" | grep -F 'NATIVE_PACKAGING=NO_LOCAL_ARTIFACT'
+printf '%s\n' "$native_output" | grep -F 'NATIVE_16K=UNRESOLVED_4K_ONLY'
 
 echo 'PASS: archive evidence matrix harness'

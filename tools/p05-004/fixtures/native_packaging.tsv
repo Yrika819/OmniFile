@@ -1,0 +1,7 @@
+candidate	evidence	observed	classification	note
+zstd-jni Android AAR	local-aar	ABSENT	NOT_TESTED	No exact AAR is present in the target worktree.
+zstd-jni Android AAR	local-elf	ABSENT	NOT_TESTED	No packaged native ELF is present in the target worktree.
+zstd-jni Android AAR	p0-page-size	4096	NOT_16K_EVIDENCE	The inherited P0 device record reports 4 KiB pages only.
+libarchive 3.8.9	local-source-build	ABSENT	NOT_TESTED	No libarchive source or build is present in the target worktree.
+libarchive 3.8.9	local-elf	ABSENT	NOT_TESTED	No packaged native ELF is present in the target worktree.
+libarchive 3.8.9	p0-page-size	ABSENT	NOT_TESTED	No libarchive Android runtime or page-size record exists.

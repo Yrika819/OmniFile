@@ -38,12 +38,30 @@ The research presents libarchive as a broad native C streaming alternative under
 
 `tools/p05-004/fixtures/valid.tsv` is the disposable evidence manifest consumed
 by `ArchiveEvidenceMatrixHarness.java`. The harness requires the five
-candidates, functional/provider/scale/license gates, ten individual security
+candidates, functional/provider/scale/license gates, two host-policy gates, ten individual security
 negative-case gates (`security-traversal`, `security-symlink`,
 `security-expansion`, `security-duplicates`, `security-truncated`,
 `security-malformed`, `security-cancellation`, `security-nesting`,
-`security-password`, and `security-multipart`), and nine native gates for native
+`security-password`, and `security-multipart`), and eleven native gates for native
 candidates (`native-provenance`, `native-abi`, `native-reproducible-build`,
-`native-16k`, `native-crash`, `native-size`, `native-symbols`,
+`native-packaging`, `native-16k`, `native-crash`, `native-size`, `native-symbols`,
 `native-update-ownership`, and `native-notices`). It reports
 `OVERALL=NOT_CLOSED` for this evidence set.
+
+## P05-004 continuation harnesses
+
+The continuation adds five dependency-free probes under `tools/p05-004`:
+
+| Probe | Evidence produced | Deliberate non-claim |
+|---|---|---|
+| `ArchiveSecurityFixtureHarness` | 13 controlled application-policy cases for path containment, symlink rejection, expansion, duplicates, truncation, cancellation, nesting, password, and multipart failures | Does not parse archives or certify Junrar/native parser behavior |
+| `ArchiveScaleHarness` | Deterministic synthetic entry-index checks at 10,000 and 100,000 entries with elapsed/heap observations | Not archive-parser, UI, Android, or device performance evidence |
+| `ArchiveOptionalCapabilityHarness` | Truth-table check that only evidenced Java capabilities are declared; unproven zstd/libarchive and RAR creation remain absent | Not a production wrapper or dependency selection |
+| `JunrarLocalInspectionHarness` | Bounded inspection of local Junrar checkout/license/source presence and conservative `LICENSE_REVIEW_REQUIRED` classification | Does not infer legal approval from research prose or release pages |
+| `NativePackagingEvidenceHarness` | Counts local AAR/known ELF artifacts and preserves the inherited 4 KiB observation as distinct from 16 KiB evidence | Does not build, execute, or validate native code/page alignment |
+
+The manifest adds `security-fixture-policy` and
+`optional-capability-wrapper` as explicit host-policy gates, `scale-10k` to
+separate the bounded size from the larger workload, and `native-packaging` for
+native candidates. Candidate parser, artifact, provider, and Android gates
+remain independently represented and open where the exact evidence is absent.

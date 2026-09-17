@@ -14,7 +14,7 @@ These principles are already accepted/frozen in the architecture boundary and br
 
 - no production dependency was selected;
 - no final version or wrapper API was frozen;
-- libarchive was neither adopted nor rejected;
+- libarchive was not adopted and is retained only as a second-stage alternative;
 - zstd-jni was not accepted as a distributable native dependency;
 - Junrar licensing was not finally approved;
 - native crash isolation and 16 KiB compatibility were not closed;
@@ -27,7 +27,7 @@ The unresolved list matches the branch-local P0 reconciliation and archive bound
 1. Freeze exact candidate artifacts and transitive manifests.
 2. Run the full licensed/generated format and adversarial corpus.
 3. Measure direct, SAF seekable/non-seekable, and remote/range access.
-4. Measure 10k/100k listing, first-entry latency, solid-entry latency, and memory.
+4. Measure candidate-specific 10k/100k listing, first-entry latency, solid-entry latency, and memory; the current synthetic host result is not a parser result.
 5. If native candidates remain justified, perform reproducible ABI/16 KiB/size/crash testing on Android 12–16.
 6. Revisit the candidate matrix and only then decide whether a dependency freeze is warranted.
 
@@ -42,6 +42,10 @@ The branch-local P0 readiness assessment specifically calls for archive producti
 The evidence package supports a reviewable Java-first direction with explicit
 security, provider-access, artifact/provenance, and scale gates. It does not
 authorize Technology Freeze or production implementation. zstd-jni remains an
-optional conditional native path; libarchive is `NOT_JUSTIFIED_FOR_CORE_V1`.
-The disposable harness conservatively remains `OVERALL=NOT_CLOSED` until the
-recorded gates are supplied.
+optional conditional native path and is not advertised by the host capability
+wrapper until exact packaging/ABI/16 KiB evidence exists. Junrar remains
+`LICENSE_REVIEW_REQUIRED`; RAR creation remains unsupported. libarchive is
+retained as a second-stage alternative but is `NOT_JUSTIFIED_FOR_CORE_V1`
+because no local build, Android/JNI, or measured benefit exists. The disposable
+harness conservatively remains `OVERALL=NOT_CLOSED` until the candidate-specific
+gates are supplied.

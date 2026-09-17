@@ -66,3 +66,22 @@
 - [x] Inspect the complete diff and verify only the approved files changed.
 - [x] Commit on `poc/core-readiness-archive-v1` after review remediation.
 - [x] Report the commit SHA, tests, changed files, and remaining `NOT_TESTED`/`UNKNOWN` findings in the closure report.
+
+## Continuation scope from the unresolved gates
+
+This focused continuation preserves the original no-production/no-device
+boundary and adds only disposable evidence tooling:
+
+- local Junrar checkout/license/source presence inspection with
+  `LICENSE_REVIEW_REQUIRED` when exact local evidence is absent;
+- native packaging presence checks that distinguish inherited 4 KiB page
+  observations from unmeasured 16 KiB compatibility;
+- bounded synthetic 10k and 100k entry-index checks;
+- controlled application-level security fixtures;
+- truthful optional-capability declaration checks;
+- explicit libarchive second-stage disposition.
+
+The continuation does not close candidate parser, provider, artifact, Android,
+native crash, or device gates without their exact evidence. It runs only
+`tools/p05-004/test_archive_evidence_matrix.sh` and retains
+`OVERALL=NOT_CLOSED`.

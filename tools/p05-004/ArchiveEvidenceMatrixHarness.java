@@ -29,8 +29,11 @@ public final class ArchiveEvidenceMatrixHarness {
     private static final Set<String> REQUIRED_GATES = Set.of(
             "functional-fixtures",
             "provider-access",
+            "scale-10k",
             "scale-100k",
             "license-provenance",
+            "security-fixture-policy",
+            "optional-capability-wrapper",
             "security-traversal",
             "security-symlink",
             "security-expansion",
@@ -135,6 +138,7 @@ public final class ArchiveEvidenceMatrixHarness {
                 missing.addAll(Set.of(
                         "native-provenance",
                         "native-abi",
+                        "native-packaging",
                         "native-reproducible-build",
                         "native-android-compat",
                         "native-16k",

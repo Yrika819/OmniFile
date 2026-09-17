@@ -8,7 +8,7 @@ Audit the P0 archive evidence and define a truthful closure package for five can
 
 - Apache Commons Compress 1.28.0;
 - Zip4j 2.11.6;
-- Junrar 8.1.1 (exact current release artifact reviewed);
+- Junrar 8.1.1 (current-source/release reference only; no local artifact is present);
 - zstd-jni 1.5.7-17 (current Central metadata; prior P0 AAR was 1.5.7-16);
 - libarchive 3.8.9 (current official release; no project-supplied Android/JNI artifact).
 
@@ -19,8 +19,10 @@ P0. The source review was performed on 2026-09-17 against
 [Junrar releases](https://github.com/junrar/junrar/releases),
 [zstd-jni Central metadata](https://central.sonatype.com/artifact/com.github.luben/zstd-jni),
 and the [libarchive release page](https://github.com/libarchive/libarchive/releases/latest).
-No downloaded-byte checksum or signature was retained, so artifact identity
-remains a closure gate.
+No downloaded-byte checksum or signature was retained, and the bounded local
+inspection found no Junrar checkout/license/source, zstd-jni AAR/ELF, or
+libarchive source/build under this worktree. Artifact identity and legal review
+therefore remain closure gates.
 
 The branch-local P0 reconciliation states that host and physical Pixel 7a archive records contained 54 records and `RUN_DONE=PASS`, while exact engine selection, libarchive/native alternatives, SAF/remote origins, fuzz coverage, cancellation, and production scale remain open ([`docs/architecture/14_P0_EVIDENCE_INCORPORATION.md:51-62`](../../architecture/14_P0_EVIDENCE_INCORPORATION.md)). Those facts are carried forward without reinterpretation.
 
@@ -32,7 +34,8 @@ The branch-local P0 reconciliation states that host and physical Pixel 7a archiv
 - extraction-security responsibilities outside parser libraries;
 - license, provenance, native ABI, 16 KiB, size, crash, and update gates;
 - architecture impact and explicit `NOT_TESTED` / `UNKNOWN` findings;
-- a disposable host/JVM manifest validator.
+- a disposable host/JVM manifest validator;
+- bounded host-only policy, scale, optional-capability, Junrar-local, and native-packaging probes.
 
 ## Out of scope
 
@@ -42,6 +45,7 @@ The branch-local P0 reconciliation states that host and physical Pixel 7a archiv
 - building libarchive, zstd-jni, or any archive library;
 - claiming RAR creation;
 - claiming that parser APIs provide extraction security;
+- treating synthetic metadata scale as parser, UI, Android, or device evidence;
 - Technology Freeze.
 
 ## Authority and decision boundary
@@ -56,3 +60,12 @@ P0 permits review of archive principles and boundaries, but not freezing exact e
 means the available documents do not establish the fact. Open states are not
 inferred closed by a passing neighboring test. Current-source version facts are
 maintenance inputs, not runtime compatibility or legal approval.
+
+## Continuation audit boundary
+
+The continuation ran only the P05-004 validator. It did not run archive-library
+parsers, download dependencies, build native code, invoke `readelf` on an
+artifact, use Android/ADB, or rerun the broad P0 format campaign. The local
+Junrar probe inspected only conventional `junrar` checkout locations under the
+target root; absence is evidence about this worktree, not proof that no copy
+exists elsewhere.

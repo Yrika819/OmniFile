@@ -1,9 +1,12 @@
 candidate	gate	status	note
 Commons Compress 1.28.0	functional-fixtures	PASS	Host and Pixel 7a broad ZIP/TAR/7z evidence is summarized in P0.
 Commons Compress 1.28.0	provider-access	UNKNOWN	SAF and remote seekability still need candidate-specific evidence.
+Commons Compress 1.28.0	scale-10k	CONDITIONAL	Synthetic 10k entry-index fixture passed; Commons parser scale was not executed.
 Commons Compress 1.28.0	security-corpus	UNKNOWN	Larger malformed and adversarial corpus remains open.
-Commons Compress 1.28.0	scale-100k	UNKNOWN	100k-entry memory and first-list measurements remain open.
+Commons Compress 1.28.0	scale-100k	CONDITIONAL	Synthetic 100k entry-index fixture passed; Commons parser scale remains open.
 Commons Compress 1.28.0	license-provenance	CONDITIONAL	Exact release/transitives and NOTICE inventory must be frozen before dependency addition.
+Commons Compress 1.28.0	security-fixture-policy	PASS	13 controlled application-policy fixtures passed; parser/extraction integration remains separate.
+Commons Compress 1.28.0	optional-capability-wrapper	PASS	Host declaration harness passed; no production wrapper is selected.
 Commons Compress 1.28.0	security-traversal	UNKNOWN	Traversal rejection corpus not run in this host-only campaign.
 Commons Compress 1.28.0	security-symlink	UNKNOWN	Symlink/TOCTOU policy evidence remains open.
 Commons Compress 1.28.0	security-expansion	UNKNOWN	Expanded-size limit evidence remains open.
@@ -16,9 +19,12 @@ Commons Compress 1.28.0	security-password	UNKNOWN	Password/error normalization e
 Commons Compress 1.28.0	security-multipart	UNKNOWN	Multipart archive policy evidence remains open.
 Zip4j 2.11.6	functional-fixtures	PASS	Encrypted and split ZIP evidence is summarized in P0.
 Zip4j 2.11.6	provider-access	UNKNOWN	Provider-backed seekable and non-seekable behavior remains open.
+Zip4j 2.11.6	scale-10k	CONDITIONAL	Synthetic 10k entry-index fixture passed; Zip4j parser scale was not executed.
 Zip4j 2.11.6	security-corpus	UNKNOWN	Malformed and extraction-policy corpus remains open.
-Zip4j 2.11.6	scale-100k	UNKNOWN	100k-entry behavior remains open.
+Zip4j 2.11.6	scale-100k	CONDITIONAL	Synthetic 100k entry-index fixture passed; Zip4j parser scale remains open.
 Zip4j 2.11.6	license-provenance	CONDITIONAL	Exact release/transitives and notices must be recorded.
+Zip4j 2.11.6	security-fixture-policy	PASS	13 controlled application-policy fixtures passed; parser/extraction integration remains separate.
+Zip4j 2.11.6	optional-capability-wrapper	PASS	Host declaration harness passed; no production wrapper is selected.
 Zip4j 2.11.6	security-traversal	UNKNOWN	Traversal rejection corpus not run in this host-only campaign.
 Zip4j 2.11.6	security-symlink	UNKNOWN	Symlink/TOCTOU policy evidence remains open.
 Zip4j 2.11.6	security-expansion	UNKNOWN	Expanded-size limit evidence remains open.
@@ -31,9 +37,12 @@ Zip4j 2.11.6	security-password	UNKNOWN	Password/error normalization evidence rem
 Zip4j 2.11.6	security-multipart	UNKNOWN	Multipart archive policy evidence remains open.
 Junrar 8.1.x	functional-fixtures	PASS	RAR read/extract survived technically in P0 for the documented 8.1.x line.
 Junrar 8.1.x	provider-access	UNKNOWN	Solid and provider-backed access costs remain open.
+Junrar 8.1.x	scale-10k	CONDITIONAL	Synthetic 10k entry-index fixture passed; Junrar parser scale was not executed.
 Junrar 8.1.x	security-corpus	UNKNOWN	Larger malformed RAR corpus remains open.
-Junrar 8.1.x	scale-100k	UNKNOWN	Solid archive scale remains open.
-Junrar 8.1.x	license-provenance	CONDITIONAL	Exact artifact and UnRAR terms require explicit review.
+Junrar 8.1.x	scale-100k	CONDITIONAL	Synthetic 100k entry-index fixture passed; solid archive/parser scale remains open.
+Junrar 8.1.x	license-provenance	CONDITIONAL	Local Junrar repository/source/license is absent; UnRAR-derived terms remain review-required.
+Junrar 8.1.x	security-fixture-policy	PASS	13 controlled application-policy fixtures passed; parser/extraction integration remains separate.
+Junrar 8.1.x	optional-capability-wrapper	PASS	Host declaration harness passed; RAR creation remains absent.
 Junrar 8.1.x	security-traversal	UNKNOWN	Traversal rejection corpus not run in this host-only campaign.
 Junrar 8.1.x	security-symlink	UNKNOWN	Symlink/TOCTOU policy evidence remains open.
 Junrar 8.1.x	security-expansion	UNKNOWN	Expanded-size limit evidence remains open.
@@ -46,9 +55,12 @@ Junrar 8.1.x	security-password	UNKNOWN	Password/error normalization evidence rem
 Junrar 8.1.x	security-multipart	UNKNOWN	Multipart archive policy evidence remains open.
 zstd-jni Android AAR	functional-fixtures	PASS	TAR.ZST worked on the tested arm64 Pixel 7a.
 zstd-jni Android AAR	provider-access	UNKNOWN	No candidate-specific provider matrix is documented.
+zstd-jni Android AAR	scale-10k	NOT_TESTED	Codec path is not an archive index engine; synthetic index result is not codec evidence.
 zstd-jni Android AAR	security-corpus	UNKNOWN	Native malformed-input and crash behavior is unmeasured.
 zstd-jni Android AAR	scale-100k	NOT_TESTED	Not an archive index engine; integration cost is not measured.
-zstd-jni Android AAR	license-provenance	UNKNOWN	Exact AAR version, native sources, and notices are not recorded.
+zstd-jni Android AAR	license-provenance	UNKNOWN	No exact local AAR/source/notice inventory is present in the target worktree.
+zstd-jni Android AAR	security-fixture-policy	PASS	13 controlled application-policy fixtures passed; native/parser integration remains separate.
+zstd-jni Android AAR	optional-capability-wrapper	PASS	Host wrapper correctly leaves the unproven native capability absent.
 zstd-jni Android AAR	security-traversal	UNKNOWN	Traversal rejection corpus not run in this host-only campaign.
 zstd-jni Android AAR	security-symlink	UNKNOWN	Symlink/TOCTOU policy evidence remains open.
 zstd-jni Android AAR	security-expansion	UNKNOWN	Expanded-size limit evidence remains open.
@@ -60,6 +72,7 @@ zstd-jni Android AAR	security-nesting	UNKNOWN	Nested-archive limit evidence rema
 zstd-jni Android AAR	security-password	UNKNOWN	Password/error normalization evidence remains open.
 zstd-jni Android AAR	security-multipart	UNKNOWN	Multipart archive policy evidence remains open.
 zstd-jni Android AAR	native-16k	NOT_TESTED	16 KiB compatibility is explicitly unmeasured.
+zstd-jni Android AAR	native-packaging	NOT_TESTED	No exact AAR or packaged ELF is present in the target worktree.
 zstd-jni Android AAR	native-provenance	UNKNOWN	Exact source/AAR provenance is not closed.
 zstd-jni Android AAR	native-abi	UNKNOWN	ABI inventory is not closed.
 zstd-jni Android AAR	native-reproducible-build	UNKNOWN	Reproducible native build evidence is not closed.
@@ -71,9 +84,12 @@ zstd-jni Android AAR	native-update-ownership	UNKNOWN	Native update ownership is 
 zstd-jni Android AAR	native-notices	UNKNOWN	Native notices/redistribution inventory is not closed.
 libarchive 3.8.9	functional-fixtures	NOT_TESTED	Android libarchive was not tested in P0.
 libarchive 3.8.9	provider-access	NOT_TESTED	JNI/provider integration was not tested.
+libarchive 3.8.9	scale-10k	NOT_TESTED	No libarchive parser/build is present; synthetic index result is not native-parser evidence.
 libarchive 3.8.9	security-corpus	UNKNOWN	Broad native parser update and fuzz evidence is not closed here.
 libarchive 3.8.9	scale-100k	NOT_TESTED	Android memory/performance is unmeasured.
 libarchive 3.8.9	license-provenance	CONDITIONAL	New BSD is documented; exact build/transitives still require inventory.
+libarchive 3.8.9	security-fixture-policy	PASS	13 controlled application-policy fixtures passed; native/parser integration remains separate.
+libarchive 3.8.9	optional-capability-wrapper	PASS	Host wrapper correctly leaves the unproven native capability absent.
 libarchive 3.8.9	security-traversal	UNKNOWN	Traversal rejection corpus not run in this host-only campaign.
 libarchive 3.8.9	security-symlink	UNKNOWN	Symlink/TOCTOU policy evidence remains open.
 libarchive 3.8.9	security-expansion	UNKNOWN	Expanded-size limit evidence remains open.
@@ -85,6 +101,7 @@ libarchive 3.8.9	security-nesting	UNKNOWN	Nested-archive limit evidence remains 
 libarchive 3.8.9	security-password	UNKNOWN	Password/error normalization evidence remains open.
 libarchive 3.8.9	security-multipart	UNKNOWN	Multipart archive policy evidence remains open.
 libarchive 3.8.9	native-16k	NOT_TESTED	ABI and 16 KiB validation are explicitly open.
+libarchive 3.8.9	native-packaging	NOT_TESTED	No libarchive source build, AAR, or packaged ELF is present in the target worktree.
 libarchive 3.8.9	native-provenance	UNKNOWN	Exact source/build provenance is not closed.
 libarchive 3.8.9	native-abi	UNKNOWN	ABI inventory is not closed.
 libarchive 3.8.9	native-reproducible-build	UNKNOWN	Reproducible native build evidence is not closed.

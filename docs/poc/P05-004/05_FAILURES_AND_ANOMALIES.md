@@ -25,4 +25,17 @@ The repository’s test strategy names ZIP/ZIP64/AES/split, encrypted/solid 7z, 
 
 ## Truthful status
 
-No new security runtime test was run in this implementation worker. The documents define gates and preserve the P0 conclusion that extraction security must be implemented above parser/codec APIs. `UNKNOWN` and `NOT_TESTED` entries therefore remain open rather than being inferred from the 54-record P0 summary.
+The continuation ran 13 controlled host-only application-policy fixtures. They
+passed for the modeled outcomes, but no archive parser, native library, Android
+runtime, symlink filesystem mutation, or device test was run. The fixtures
+therefore support the wrapper-policy gate only; the individual parser/security
+rows remain `UNKNOWN` or `NOT_TESTED` rather than being inferred from the
+fixture pass or the 54-record P0 summary.
+
+| Controlled result | Classification | Remaining limitation |
+|---|---|---|
+| 13 security cases | `PASS` for application-policy fixture harness | Candidate parser and real extraction integration open |
+| 10k and 100k synthetic entry indexes | `PASS` for bounded host harness | Not parser, UI, Android, or device scale |
+| Optional capability truth table | `PASS` for declaration model | No production wrapper exists; native capabilities remain absent |
+| Local Junrar inspection | `LICENSE_REVIEW_REQUIRED` | No local Junrar repository/license/source was available to inspect |
+| Native packaging probe | `NO_LOCAL_ARTIFACT` / `UNRESOLVED_4K_ONLY` | No AAR/ELF or 16 KiB measurement; inherited P0 was 4 KiB only |

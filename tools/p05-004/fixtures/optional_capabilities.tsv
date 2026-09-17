@@ -1,0 +1,10 @@
+candidate	capability	declared	expected
+Commons Compress 1.28.0	TAR_READ	true	true
+Commons Compress 1.28.0	ZIP_READ	true	true
+Zip4j 2.11.6	ENCRYPTED_ZIP_READ	true	true
+Junrar 8.1.x	RAR_READ_EXTRACT	true	true
+Junrar 8.1.x	RAR_CREATE	false	false
+zstd-jni Android AAR	TAR_ZST_DECODE	false	false
+zstd-jni Android AAR	RAR_READ_EXTRACT	false	false
+libarchive 3.8.9	BROAD_ARCHIVE_READ	false	false
+libarchive 3.8.9	TAR_READ	false	false
