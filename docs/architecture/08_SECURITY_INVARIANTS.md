@@ -119,6 +119,8 @@ No hidden automatic elevation. Root denial/revocation cannot break normal mode. 
 
 A generic cache-clear action must not delete operation checkpoints/partials needed for safe reconciliation or user-requested offline files.
 
+Persisted progress is not storage truth; checkpoint metadata must be reconciled with actual partial/final destination state before recovery or destructive finalization.
+
 ## 18. Search/index/cache data is not destructive authority — `ACCEPTED`
 
 Before mutation, the actual provider object/capability/version is revalidated as appropriate. Stale index rows or thumbnails cannot authorize delete/move/overwrite.
@@ -142,3 +144,5 @@ Opening/share/install flows use Android's explicit user-mediated mechanisms. The
 Each provider/parser/operation feature gains relevant tests for hostile names, permission denial, trust failure, malformed input, process death, provider disconnect/conflict, symlink/path containment, and log redaction.
 
 Security validation is continuous architecture work, not a pre-release-only pass.
+
+P0-003 specifically confirms that parser/codec library success and small fixture guards do not replace application-level extraction-security policy or broader adversarial coverage.

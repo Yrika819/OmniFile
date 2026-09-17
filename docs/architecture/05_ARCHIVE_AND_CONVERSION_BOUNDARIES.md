@@ -1,6 +1,6 @@
 # Architecture V1 — Archive and Conversion Boundaries
 
-Status: PRINCIPLES FROZEN / ENGINE STACKS UNFROZEN
+Status: PRINCIPLES FROZEN / ENGINE STACKS UNFROZEN / P0 DIRECTION PARTIALLY RESOLVED
 
 Source authority: `04_ARCHIVE_FORMATS.md`, `06_FILE_CONVERSION.md`, `11_SECURITY.md`, `14_LICENSES_DISTRIBUTION.md`, and the research synthesis at `b03a2ea99f24206f847f513fa4106e90268f3fc4`.
 
@@ -40,7 +40,7 @@ Mandatory architectural protections include:
 
 Extraction security is an architecture property, not late hardening.
 
-## Archive engine stack — `POC_REQUIRED`
+## Archive engine stack — `PARTIALLY_RESOLVED / POC_REQUIRED`
 
 Documentation alone is insufficient to choose the final archive stack.
 
@@ -55,7 +55,13 @@ The later engine PoC must compare at least:
 - SAF/remote seekable vs non-seekable origins;
 - Android 16 native/16 KB compatibility if native code is evaluated.
 
-Java-first candidates (Commons Compress, Zip4j, Junrar) and libarchive remain research candidates only. No dependency is selected here.
+P0-003 validates a Java-first multi-engine direction on host and a physical Pixel 7a: Commons Compress covered broad ZIP/TAR/7z fixtures, Zip4j covered encrypted/split ZIP fixtures, and Junrar covered selected RAR4/RAR5 read cases. This is direction evidence only. Exact libraries, versions, wrappers, libarchive/native alternatives, Junrar licensing, full-entry/multipart behavior, SAF/remote origins, fuzz coverage, cancellation, and production scale remain open. No dependency is selected here.
+
+The assumption that one archive engine can universally cover the required matrix is `REJECTED`. A format/feature capability matrix is required instead.
+
+## Parser boundary versus extraction-security boundary — `ACCEPTED`
+
+Parser/codec success is not proof of safe extraction. Application policy remains responsible for normalized/provider-native containment, no-follow/symlink handling, expanded-byte and entry/nesting limits, cancellation, conflict policy, malformed-input normalization, and recovery. P0-003's guards were fixture-specific harness evidence, not a universal parser security certification.
 
 ## Archive creation
 
@@ -156,3 +162,5 @@ Future parsers/engines require curated malformed/security regression corpora, up
 Native archive/media components are not prohibited, but adoption requires a stronger acceptance gate — `ACCEPTED`.
 
 Required later evidence includes maintained source provenance, reproducible build, license manifest, ABI inventory, Android 16/16 KB compatibility, parser security/update posture, and real-device testing.
+
+P0-003 measured TAR.ZST through zstd-jni on the tested arm64 Pixel 7a; the device report used 4 KiB pages, so 16 KiB compatibility and libarchive viability remain untested.
