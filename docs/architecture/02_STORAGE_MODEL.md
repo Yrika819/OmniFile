@@ -35,6 +35,8 @@ Identity is conceptually separate from:
 
 A display path may be useful and visible, particularly for power users, but it is not universal destructive-operation authority.
 
+An opaque provider identity and the provider's current locator are separate concepts. A provider locator such as a SAF URI or `documentId` may be mutable after rename/move; the architecture must re-resolve and classify ambiguity rather than treating the old locator as a durable object identity.
+
 The following are `REJECTED`:
 
 - path string as universal identity;
@@ -124,7 +126,7 @@ Native descriptor availability is an optional facet — `ACCEPTED`.
 
 Universal mmap compatibility — `REJECTED`.
 
-SAF/provider descriptor behavior and mmap value — `POC_REQUIRED`.
+P0 confirms the narrower invariant that descriptor availability does not imply seekability: a pipe-like descriptor can be sequentially readable while seek fails. SAF/provider descriptor behavior beyond the tested surfaces, mmap value, and production probe policy remain `POC_REQUIRED`.
 
 ## Write semantics
 
@@ -203,13 +205,15 @@ The matrix deliberately uses `P` rather than converting uncertainty into a fake 
 
 Richer real-filesystem semantics where Android access permits — `ACCEPTED`.
 
-Exact all-files permission strategy — `DEFERRED` pending product/distribution review and device evidence.
+The P0 direct-storage measurements used all-files access on the tested harness path. They do not establish ordinary scoped-storage behavior. Exact all-files permission strategy — `DEFERRED` pending product/distribution review and no-special-access device evidence.
 
 ### SAF
 
 First-class interoperability mechanism with opaque identity/capability flags — `ACCEPTED`.
 
-Representative seek/write/rename/removable behavior — `POC_REQUIRED`.
+The tested local SAF provider demonstrated seek/write/rename/move/delete and persisted process-restart access, while changing URI and `documentId` on rename/move and sanitizing some names. This is a provider-scoped observation, not universal SAF behavior. Removable/cloud/OEM lifecycle, explicit grant revocation, reconnect, and provider-neutral identity re-resolution remain `POC_REQUIRED`.
+
+Requested filename and resulting provider display name are not assumed equal; callers observe the created/renamed result.
 
 ### Root
 

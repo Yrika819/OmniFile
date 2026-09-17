@@ -93,6 +93,10 @@ The following are `REJECTED` as durable recovery state:
 
 Recovery is **reconciliation**, not blind replay.
 
+### Checkpoint truth invariant — `ACCEPTED`
+
+Persisted operation progress/checkpoint is a checkpoint, not authoritative storage truth. Recovery must reconcile durable metadata with the actual partial or finalized destination and, where relevant, source/version facts before resuming, finalizing, or deleting a source. P0-002 observed durable-byte lag behind actual partial bytes on the physical Pixel 7a; this invariant is accepted, while provider/power-loss generality remains open.
+
 After restart, an interrupted operation must be able to:
 
 1. find durable non-terminal operations;
@@ -173,6 +177,8 @@ Cross-provider move is a copy/finalize/delete plan. Source deletion occurs only 
 
 Where finalization is not atomic, reconciliation must represent and inspect ambiguous state rather than assuming success or deleting the source.
 
+P0-002 verified the required ordering on the tested local path, but did not exercise every crash point between final rename and durable `COMPLETE`. Recovery must therefore be idempotent for an already-finalized destination and must preserve the source until destination completion is independently established.
+
 ## Verification — `ACCEPTED`
 
 Verification is provider/workload dependent and may include:
@@ -185,6 +191,8 @@ Verification is provider/workload dependent and may include:
 - destination re-stat/reopen.
 
 A universal full-file hash requirement is not frozen; it may be too expensive or unavailable for some providers.
+
+P0-002 measured device/workload-dependent checksum cost. No universal SHA-256 mandate is accepted; exact verification policy remains implementation- and workload-dependent.
 
 ## Conversion/extraction/compression integration — `ACCEPTED`
 

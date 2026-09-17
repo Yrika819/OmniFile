@@ -19,3 +19,7 @@ Treating an executor object's lifecycle/state as the durable operation model is 
 - `docs/research/09_BACKGROUND_OPERATIONS.md`
 - `docs/research/13_TEST_STRATEGY.md`
 - `docs/research/15_ARCHITECTURE_RECOMMENDATIONS.md`
+
+## P0 evidence update
+
+POC-002 observed persisted progress lagging actual partial bytes after process death on the physical Pixel 7a. The decision is therefore explicit: checkpoint/progress metadata is not storage truth; recovery reconciles durable metadata with actual partial/final destination state and source/version facts. Exact persistence technology, checkpoint cadence, executor mapping, provider recovery, and power-loss behavior remain open.

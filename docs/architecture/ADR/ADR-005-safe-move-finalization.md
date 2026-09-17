@@ -20,3 +20,7 @@ Deleting the source merely because a destination write stream ended successfully
 - `docs/research/09_BACKGROUND_OPERATIONS.md`
 - `docs/research/11_SECURITY.md`
 - `docs/research/15_ARCHITECTURE_RECOMMENDATIONS.md`
+
+## P0 evidence update
+
+POC-002 observed `VERIFY_DONE` -> `COMPLETE` -> source deletion ordering on the tested local Android path. This confirms the required ordering direction, not universal provider atomicity or every crash window. Recovery must remain conservative when finalization is ambiguous and must handle an already-finalized destination idempotently.
