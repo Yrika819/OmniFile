@@ -4,7 +4,7 @@
 
 **Goal:** Add the smallest disposable raw-SDK Android harness that records real SAF grants, bounded transfers, and durable recovery evidence.
 
-**Architecture:** A single isolated Java activity owns explicit tree selection, deterministic fixtures, stream-copy operations, JSON-lines durability, and startup reconciliation. A standard-library host contract test protects the package/API/build/run boundary; no device automation is part of the repository change.
+**Architecture:** A single isolated Java activity owns explicit tree selection, deterministic fixtures, stream-copy operations, JSON-lines durability, and startup reconciliation. A standard-library host contract test protects the package/API/build/run boundary; any device run is a separately authorized parent operation, not repository automation.
 
 **Tech Stack:** Android SDK API 36 compile jar, Java 8 source, Android framework APIs only, `aapt2`, `d8`, `apksigner`, Python 3 `unittest`.
 
@@ -15,7 +15,7 @@
 - Every new artifact is labeled exactly `POC-ONLY — NOT PRODUCTION AUTHORITY`.
 - Package ID is exactly `dev.poc.safoperations`; `com.omnifile` must not occur in the harness.
 - Only `docs/poc/P05-002/**` may change.
-- No ADB, emulator, physical-device, user-file, credential, or provider-account operation is executed by this task.
+- The initial implementation task executed no ADB, emulator, physical-device, user-file, credential, or provider-account operation; the later Pixel 7a run was separately authorized and parent-controlled.
 - SAF selection uses real `ACTION_OPEN_DOCUMENT_TREE` with persistable read/write grants.
 - Durable state contains no live descriptors, streams, Android services, or executor objects.
 - Reconciliation never sets `deleteSource` true and never deletes a source.
@@ -62,8 +62,8 @@
 - Modify: `docs/poc/P05-002/06_CONCLUSIONS.md`
 - Modify: `docs/poc/P05-002/07_ARCHITECTURE_IMPACT.md`
 
-- [ ] Record host contract and raw APK build results separately from unrun parent/device evidence.
-- [ ] State exactly which runtime cases are recordable by the app and which remain untested until a parent run.
+- [ ] Record host contract and raw APK build results separately from parent/device evidence.
+- [ ] State exactly which runtime cases are recordable by the app and which remain untested after the parent run.
 
 ### Task 4: Self-review, full verification, and focused commit
 

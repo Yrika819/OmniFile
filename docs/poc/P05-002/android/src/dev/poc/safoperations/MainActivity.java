@@ -11,6 +11,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.DocumentsContract;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -27,6 +28,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
@@ -43,15 +45,21 @@ public final class MainActivity extends Activity {
     private static final int TREE_SOURCE = 41;
     private static final int TREE_DESTINATION = 42;
     private static final int BUFFER_SIZE = 32 * 1024;
+    private static final int MAX_UI_LOG_BYTES = 128 * 1024;
+    // Keep one Log.d payload below Android's single-entry logger limit.
+    private static final int MAX_LOGCAT_EVENT_BYTES = 3500;
 
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final Object logLock = new Object();
+    private final Object uiLock = new Object();
     private Uri sourceTree;
     private Uri destinationTree;
     private Uri safSource;
     private File eventsFile;
     private File currentFile;
     private TextView output;
+    private volatile boolean uiRefreshPending;
+    private volatile boolean uiRefreshAgain;
     private volatile boolean transferActive;
     private volatile boolean interruptRequested;
     private volatile boolean cancelRequested;
@@ -146,7 +154,7 @@ public final class MainActivity extends Activity {
 
         output = new TextView(this);
         output.setTextIsSelectable(true);
-        output.setText(readText(eventsFile));
+        output.setText(readTextForUi(eventsFile));
         root.addView(output);
         setContentView(scroll);
     }
@@ -708,7 +716,6 @@ public final class MainActivity extends Activity {
             if (permission.getUri().equals(uri)) return true;
             try {
                 if (DocumentsContract.isTreeUri(permission.getUri())
-                        && DocumentsContract.isTreeUri(uri)
                         && permission.getUri().getAuthority().equals(uri.getAuthority())
                         && DocumentsContract.getTreeDocumentId(permission.getUri())
                         .equals(DocumentsContract.getTreeDocumentId(uri))) return true;
@@ -813,9 +820,27 @@ public final class MainActivity extends Activity {
                 outputFile.getFD().sync();
             } catch (IOException ignored) { }
         }
+        String logcatText = truncateUtf8(line.toString(), MAX_LOGCAT_EVENT_BYTES);
+        Log.d("P05-SAF", logcatText);
         if (output != null) {
+            synchronized (uiLock) {
+                if (uiRefreshPending) {
+                    uiRefreshAgain = true;
+                    return;
+                }
+                uiRefreshPending = true;
+            }
             runOnUiThread(new Runnable() {
-                @Override public void run() { output.setText(readText(eventsFile)); }
+                @Override public void run() {
+                    output.setText(readTextForUi(eventsFile));
+                    boolean refreshAgain;
+                    synchronized (uiLock) {
+                        refreshAgain = uiRefreshAgain;
+                        uiRefreshAgain = false;
+                        if (!refreshAgain) uiRefreshPending = false;
+                    }
+                    if (refreshAgain) runOnUiThread(this);
+                }
             });
         }
     }
@@ -842,6 +867,37 @@ public final class MainActivity extends Activity {
         } catch (Exception ignored) {
             return "";
         }
+    }
+
+    private String readTextForUi(File file) {
+        return readTextTail(file, MAX_UI_LOG_BYTES);
+    }
+
+    private String readTextTail(File file, int maxBytes) {
+        if (!file.isFile()) return "";
+        try (RandomAccessFile input = new RandomAccessFile(file, "r")) {
+            long length = input.length();
+            long start = Math.max(0L, length - maxBytes);
+            input.seek(start);
+            byte[] bytes = new byte[(int) (length - start)];
+            input.readFully(bytes);
+            String text = new String(bytes, StandardCharsets.UTF_8);
+            return start == 0L ? text : "[UI tail; durable JSONL remains complete]\n" + text;
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
+    private static String truncateUtf8(String value, int maxBytes) {
+        byte[] encoded = value.getBytes(StandardCharsets.UTF_8);
+        if (encoded.length <= maxBytes) return value;
+        int suffixBytes = "…".getBytes(StandardCharsets.UTF_8).length;
+        int budget = Math.max(0, maxBytes - suffixBytes);
+        int end = value.length();
+        while (end > 0 && value.substring(0, end).getBytes(StandardCharsets.UTF_8).length > budget) {
+            end--;
+        }
+        return value.substring(0, end) + "…";
     }
 
     private static String hex(byte[] bytes) {

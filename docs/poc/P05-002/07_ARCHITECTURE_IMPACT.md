@@ -4,12 +4,13 @@
 
 ## Disposition
 
-`PARTIALLY_RESOLVED — HOST POLICY PLUS BUILDABLE ANDROID RECORDER`
+`PARTIALLY_RESOLVED — HOST POLICY PLUS PIXEL 7A SAF RUNTIME EVIDENCE`
 
 The host harness supports the accepted architectural direction that operation
 recovery is reconciliation over durable metadata plus observed provider reality.
 The isolated APK provides a disposable way for a parent to collect real SAF
-observations, but this build-only continuation changes no production decision.
+observations, and the parent run supplied a bounded Pixel 7a API 36 sample.
+This changes no production decision.
 
 ## Supported implications
 
@@ -22,13 +23,14 @@ observations, but this build-only continuation changes no production decision.
 ## Unchanged/open decisions
 
 - Exact Android SAF adapter interfaces and dependency versions remain deferred.
-- Persisted-grant revalidation, URI/document-ID mutation, descriptor/seek capability, atomicity, provider-native commit, and checkpoint cadence remain open.
+- Persisted-grant revocation, URI/document-ID mutation across providers,
+  descriptor/seek capability, atomicity, provider-native commit, and checkpoint
+  cadence remain open.
 - Executor selection, process-death semantics, storage-full handling, power-loss handling, and physical-device acceptance remain open.
 - No host harness type, function, or test is production authority or a candidate for direct reuse without a later design and review gate.
 
 ## Required next evidence
 
-A later POC must run against controlled Android providers on authorized API 31/API
-36 emulator or physical-device environments, inject lifecycle and provider
-faults, and record provider/version/device details. Its results must be reviewed
-independently before changing architecture or initializing production code.
+A later POC must add API 31, provider-fault, pre-finalization lifecycle, and
+reliable interrupt/cancel evidence. Results must be reviewed independently
+before changing architecture or initializing production code.

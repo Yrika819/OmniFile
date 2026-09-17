@@ -69,6 +69,24 @@ class AndroidSafHarnessContractTests(unittest.TestCase):
         ):
             self.assertIn(required, source)
 
+    def test_event_observability_is_bounded_for_device_ui_and_logcat(self) -> None:
+        source = SOURCE.read_text(encoding="utf-8")
+        self.assertIn("readTextForUi(eventsFile)", source)
+        self.assertIn('Log.d("P05-SAF"', source)
+        self.assertIn("MAX_UI_LOG_BYTES", source)
+        self.assertIn("MAX_LOGCAT_EVENT_BYTES = 3500", source)
+        self.assertIn("truncateUtf8", source)
+        self.assertIn("getBytes(StandardCharsets.UTF_8)", source)
+        self.assertIn("uiRefreshPending", source)
+        self.assertIn("uiRefreshAgain", source)
+        self.assertIn("readTextTail(file, MAX_UI_LOG_BYTES)", source)
+
+    def test_restart_accepts_child_documents_under_persisted_tree_grant(self) -> None:
+        source = SOURCE.read_text(encoding="utf-8")
+        self.assertIn("getTreeDocumentId(permission.getUri())", source)
+        self.assertIn("getTreeDocumentId(uri)", source)
+        self.assertNotIn("DocumentsContract.isTreeUri(uri)\n                        &&", source)
+
     def test_build_and_run_docs_are_raw_sdk_and_non_device_automated(self) -> None:
         build = BUILD.read_text(encoding="utf-8")
         readme = README.read_text(encoding="utf-8")

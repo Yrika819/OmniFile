@@ -10,7 +10,10 @@ policy harness plus a new isolated raw-SDK APK under `android/`.
 
 ## Inspection performed
 
-The inspection was read-only and stayed within the requested worktree plus the local toolchain paths. No ADB command, emulator command, physical device, or provider account was used.
+The initial inspection was read-only and stayed within the requested worktree
+plus local toolchain paths. A later explicitly authorized parent phase used
+only a connected Pixel 7a and disposable DocumentsUI trees; no production app
+or user file was used.
 
 Observed locally:
 
@@ -23,26 +26,33 @@ Observed locally:
 
 ## Gate result
 
-The available artifacts are sufficient for a disposable raw APK build, but not for runtime execution in this task. No production-shaped app or dependency selection was introduced.
+The available artifacts were sufficient for the disposable raw APK build and
+the parent phase subsequently supplied one Pixel 7a API 36 runtime. No
+production-shaped app or dependency selection was introduced.
 
-**Result: BUILDABLE HOST + ANDROID POC.** The Python model is host-only; the APK calls Android SAF APIs when later run by the parent, but this branch contains no runtime/device result.
+**Result: HOST + ANDROID POC WITH ONE API 36 DEVICE CAPTURE.** The Python
+model remains host-only; the APK result is limited to the exact parent run
+recorded in `04_RESULTS.md` and does not generalize across providers or API
+levels.
 
-## Physical-device blocker
+## Remaining physical-device blockers
 
-The following POC-002 evidence remains blocked and is intentionally not attempted here:
+The following POC-002 evidence remains blocked or partial and was not claimed:
 
-- actual `DocumentsProvider`/`ContentResolver` behavior;
-- persistable grant survival and revocation;
+- provider behavior beyond the one selected DocumentsUI tree and its
+  `ContentResolver` copy operations;
+- persistable grant revocation;
 - descriptor type and seekability;
-- API 31/API 36 provider behavior;
-- process death, force-stop, reboot, storage-full, power-loss, SD/USB removal, or OEM behavior;
+- API 31 behavior and provider-specific API 36 behavior beyond that tree;
+- pre-finalization process death, reboot, storage-full, power-loss, SD/USB removal, or OEM behavior;
 - user-visible recovery UX.
 
-These require a separately authorized disposable Android test project plus controlled emulator/physical-device execution. This branch does not create that authority.
+These require additional separately authorized disposable Android runs. This
+branch does not create that authority.
 
 ## Evidence boundary
 
-The executable evidence in this branch is the standard-library host suite and
-the raw SDK compile/package/sign/verify pipeline. No ADB command, emulator
-command, physical device, provider account, production module, or user file
-was created or used.
+The executable evidence in this branch is the standard-library host suite, the
+raw SDK compile/package/sign/verify pipeline, and the bounded Pixel 7a API 36
+capture summarized in `04_RESULTS.md`. No production module or user file was
+created or used.

@@ -15,7 +15,10 @@
 - Every harness artifact is labeled exactly `POC-ONLY — NOT PRODUCTION AUTHORITY`.
 - The Python model is host-side fault injection; the raw APK is a disposable Android SAF recorder, not production authority or device evidence until a parent runs it.
 - No production app, production dependency/version choice, persistence schema, executor mapping, or Android API contract may be initialized or frozen.
-- This continuation performs no ADB, emulator, physical-device, provider-account, or user-file operation. Any historical P0-001 evidence remains historical and is not a result of this commit.
+- The initial implementation phase performed no device operation. A later
+  explicitly authorized parent phase executed only the disposable package on
+  one connected Pixel 7a with disposable provider fixtures; those results are
+  recorded in `04_RESULTS.md` and do not alter the production boundary.
 - Test data is generated in memory; no user data or destructive filesystem operation is permitted.
 - Recovery is reconciliation, not blind replay; durable checkpoints are observations and are not storage truth.
 - For a move-shaped operation, source deletion is never performed by reconciliation and is only eligible after independently observed finalized destination state.
@@ -61,13 +64,16 @@
 - [x] Record Android/physical-device limitations in `05_FAILURES_AND_ANOMALIES.md` and `06_CONCLUSIONS.md`.
 - [x] Record accepted, unchanged, and still-open architecture consequences in `07_ARCHITECTURE_IMPACT.md`.
 
-### Task 4: Final verification and commit
+### Task 4: Final verification, parent runtime, and commit
 
 - [x] Check that every required document exists and contains the exact POC label.
 - [x] Check the diff and ensure no production module, device command, or unrelated file changed.
 - [x] Run the full host harness test command again from the worktree.
 - [x] Commit only the verified P05-002 files on `poc/core-readiness-saf-operations-v1`.
 - [x] Report changed files, commit SHA, tests, and blockers with no stronger claim than the evidence supports.
+- [x] Parent-controlled Pixel 7a runtime: grant re-query, three copy
+  directions, move-shaped boundary, and terminal restart/reconciliation.
+- [x] Record tree-URI normalization and bounded-observability fixes.
 
 ## Expected Evidence Boundary
 
@@ -76,5 +82,8 @@ deterministically classifies selected SAF-shaped recovery faults; the isolated
 APK is buildable and statically contains the required real SAF/grant and
 durable-record paths; and a separately authorized parent can record the three
 transfer directions plus interruption/restart/reconciliation, cancellation,
-conflict, mutation, finalization, and identity observations. This branch does
-not claim any device/runtime result.
+conflict, mutation, finalization, and identity observations. The runtime
+statements are parent-observed on one Pixel 7a/API 36 disposable run; raw
+logcat/JSONL and the installed APK are not retained in this branch, so they are
+not independently reproducible from a clean checkout. This branch does not
+claim cross-provider, API 31, or production behavior.

@@ -3,7 +3,7 @@
 `POC-ONLY — NOT PRODUCTION AUTHORITY`
 
 This is a one-activity, raw-SDK Android proof of concept. Its isolated package
-is `dev.poc.safoperations`; it is not an OMNIFILE app and must not be reused as
+is `dev.poc.safoperations`; it is not an OmniFile app and must not be reused as
 production code.
 
 ## Build
@@ -24,7 +24,9 @@ does not install or launch anything.
 
 The following is intentionally a manual parent run on an authorized Android
 12–16 environment. Install and launch the APK using the parent’s approved
-Android tooling. This branch performs no runtime run and makes no device claim.
+Android tooling. The recorded Pixel 7a API 36 result is summarized in
+`../04_RESULTS.md`; it does not close the remaining API/provider/lifecycle
+gates.
 
 1. Press **Select source tree** and **Select destination tree**. In the real
    `ACTION_OPEN_DOCUMENT_TREE` picker, grant read/write access and accept the
@@ -54,7 +56,7 @@ Android tooling. This branch performs no runtime run and makes no device claim.
    `CONFLICT_DESTINATION` without overwriting it.
 9. Press **Restart / reconcile** after any interruption or parent-controlled
    app restart. The current durable record is in the app-private files area;
-   the visible event panel is also a copy of the JSONL evidence.
+   the visible event panel shows only a bounded tail of the durable JSONL evidence.
 
 ## Evidence capture and limits
 
@@ -70,4 +72,7 @@ The app can record interruption/restart/reconciliation, cancellation, source
 mutation, destination conflict, verification, finalization, URI identity, and
 the three requested transfer directions. Process kill/reboot, actual grant
 revocation, provider disconnect, storage-full, OEM behavior, and human visual
-acceptance remain Parent-only cases and are not safely automated here.
+acceptance remain Parent-only cases and are not safely automated here. The
+visible panel is bounded to a recent tail so large transfers do not starve
+the UI; the durable JSONL remains complete and each event is also emitted to
+the `P05-SAF` logcat tag.
