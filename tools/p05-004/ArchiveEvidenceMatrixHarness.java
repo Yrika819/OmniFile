@@ -22,16 +22,25 @@ public final class ArchiveEvidenceMatrixHarness {
     private static final List<String> REQUIRED_CANDIDATES = List.of(
             "Commons Compress 1.28.0",
             "Zip4j 2.11.6",
-            "Junrar 8.1.1",
+            "Junrar 8.1.x",
             "zstd-jni Android AAR",
             "libarchive 3.8.9");
 
     private static final Set<String> REQUIRED_GATES = Set.of(
             "functional-fixtures",
             "provider-access",
-            "security-corpus",
             "scale-100k",
-            "license-provenance");
+            "license-provenance",
+            "security-traversal",
+            "security-symlink",
+            "security-expansion",
+            "security-duplicates",
+            "security-truncated",
+            "security-malformed",
+            "security-cancellation",
+            "security-nesting",
+            "security-password",
+            "security-multipart");
 
     private static final Set<String> NATIVE_CANDIDATES = Set.of(
             "zstd-jni Android AAR",
@@ -123,9 +132,17 @@ public final class ArchiveEvidenceMatrixHarness {
             Set<String> missing = new LinkedHashSet<>(REQUIRED_GATES);
             missing.removeAll(gates);
             if (NATIVE_CANDIDATES.contains(candidate)) {
-                if (!gates.contains("native-16k")) {
-                    missing.add("native-16k");
-                }
+                missing.addAll(Set.of(
+                        "native-provenance",
+                        "native-abi",
+                        "native-reproducible-build",
+                        "native-16k",
+                        "native-crash",
+                        "native-size",
+                        "native-symbols",
+                        "native-update-ownership",
+                        "native-notices"));
+                missing.removeAll(gates);
             }
             if (!missing.isEmpty()) {
                 fail("missing gates for " + candidate + ": " + missing);

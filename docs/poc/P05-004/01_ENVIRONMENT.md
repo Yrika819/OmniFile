@@ -8,7 +8,7 @@ Audit the P0 archive evidence and define a truthful closure package for five can
 
 - Apache Commons Compress 1.28.0;
 - Zip4j 2.11.6;
-- Junrar 8.1.1;
+- Junrar 8.1.x (exact patch artifact not established by repository evidence);
 - zstd-jni Android AAR;
 - libarchive 3.8.9.
 

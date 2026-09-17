@@ -6,7 +6,7 @@
 |---|---|---|---|
 | Commons Compress 1.28.0 | Apache-2.0; NOTICE obligations called out | exact artifact/transitives, license and NOTICE inventory | `CONDITIONAL` |
 | Zip4j 2.11.6 | Apache-2.0 | exact artifact/transitives and notices | `CONDITIONAL` |
-| Junrar 8.1.1 | UnRAR freeware / non-standard terms | exact artifact license review; explicitly exclude RAR creation | `CONDITIONAL` |
+| Junrar 8.1.x | UnRAR freeware / non-standard terms | exact artifact license review; explicitly exclude RAR creation | `CONDITIONAL` |
 | zstd-jni Android AAR | exact AAR/native license not recorded in P0/research docs | exact artifact, native sources, transitive notices | `UNKNOWN` |
 | libarchive 3.8.9 | New BSD-style license | exact source/build/transitive inventory and notices | `CONDITIONAL` |
 
@@ -27,7 +27,7 @@ For zstd-jni and libarchive, closure requires all of the following:
 - security patch/update ownership;
 - complete license and notice manifest.
 
-These requirements come directly from the architecture native boundary and license research ([`docs/architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md:154-158`](../../architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md), [`docs/research/14_LICENSES_DISTRIBUTION.md:301-308`](../../research/14_LICENSES_DISTRIBUTION.md)).
+These requirements come directly from the architecture native boundary and license research ([`docs/architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md:160-166`](../../architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md), [`docs/research/14_LICENSES_DISTRIBUTION.md:301-308`](../../research/14_LICENSES_DISTRIBUTION.md)).
 
 ## Current native findings
 

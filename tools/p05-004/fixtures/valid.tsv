@@ -4,25 +4,91 @@ Commons Compress 1.28.0	provider-access	UNKNOWN	SAF and remote seekability still
 Commons Compress 1.28.0	security-corpus	UNKNOWN	Larger malformed and adversarial corpus remains open.
 Commons Compress 1.28.0	scale-100k	UNKNOWN	100k-entry memory and first-list measurements remain open.
 Commons Compress 1.28.0	license-provenance	CONDITIONAL	Exact release/transitives and NOTICE inventory must be frozen before dependency addition.
+Commons Compress 1.28.0	security-traversal	UNKNOWN	Traversal rejection corpus not run in this host-only campaign.
+Commons Compress 1.28.0	security-symlink	UNKNOWN	Symlink/TOCTOU policy evidence remains open.
+Commons Compress 1.28.0	security-expansion	UNKNOWN	Expanded-size limit evidence remains open.
+Commons Compress 1.28.0	security-duplicates	UNKNOWN	Duplicate-entry policy evidence remains open.
+Commons Compress 1.28.0	security-truncated	UNKNOWN	Truncated-input evidence remains open.
+Commons Compress 1.28.0	security-malformed	UNKNOWN	Malformed header/size evidence remains open.
+Commons Compress 1.28.0	security-cancellation	UNKNOWN	Cancellation-boundary evidence remains open.
+Commons Compress 1.28.0	security-nesting	UNKNOWN	Nested-archive limit evidence remains open.
+Commons Compress 1.28.0	security-password	UNKNOWN	Password/error normalization evidence remains open.
+Commons Compress 1.28.0	security-multipart	UNKNOWN	Multipart archive policy evidence remains open.
 Zip4j 2.11.6	functional-fixtures	PASS	Encrypted and split ZIP evidence is summarized in P0.
 Zip4j 2.11.6	provider-access	UNKNOWN	Provider-backed seekable and non-seekable behavior remains open.
 Zip4j 2.11.6	security-corpus	UNKNOWN	Malformed and extraction-policy corpus remains open.
 Zip4j 2.11.6	scale-100k	UNKNOWN	100k-entry behavior remains open.
 Zip4j 2.11.6	license-provenance	CONDITIONAL	Exact release/transitives and notices must be recorded.
-Junrar 8.1.1	functional-fixtures	PASS	RAR read/extract survived technically in P0.
-Junrar 8.1.1	provider-access	UNKNOWN	Solid and provider-backed access costs remain open.
-Junrar 8.1.1	security-corpus	UNKNOWN	Larger malformed RAR corpus remains open.
-Junrar 8.1.1	scale-100k	UNKNOWN	Solid archive scale remains open.
-Junrar 8.1.1	license-provenance	CONDITIONAL	Exact artifact and UnRAR terms require explicit review.
+Zip4j 2.11.6	security-traversal	UNKNOWN	Traversal rejection corpus not run in this host-only campaign.
+Zip4j 2.11.6	security-symlink	UNKNOWN	Symlink/TOCTOU policy evidence remains open.
+Zip4j 2.11.6	security-expansion	UNKNOWN	Expanded-size limit evidence remains open.
+Zip4j 2.11.6	security-duplicates	UNKNOWN	Duplicate-entry policy evidence remains open.
+Zip4j 2.11.6	security-truncated	UNKNOWN	Truncated-input evidence remains open.
+Zip4j 2.11.6	security-malformed	UNKNOWN	Malformed header/size evidence remains open.
+Zip4j 2.11.6	security-cancellation	UNKNOWN	Cancellation-boundary evidence remains open.
+Zip4j 2.11.6	security-nesting	UNKNOWN	Nested-archive limit evidence remains open.
+Zip4j 2.11.6	security-password	UNKNOWN	Password/error normalization evidence remains open.
+Zip4j 2.11.6	security-multipart	UNKNOWN	Multipart archive policy evidence remains open.
+Junrar 8.1.x	functional-fixtures	PASS	RAR read/extract survived technically in P0 for the documented 8.1.x line.
+Junrar 8.1.x	provider-access	UNKNOWN	Solid and provider-backed access costs remain open.
+Junrar 8.1.x	security-corpus	UNKNOWN	Larger malformed RAR corpus remains open.
+Junrar 8.1.x	scale-100k	UNKNOWN	Solid archive scale remains open.
+Junrar 8.1.x	license-provenance	CONDITIONAL	Exact artifact and UnRAR terms require explicit review.
+Junrar 8.1.x	security-traversal	UNKNOWN	Traversal rejection corpus not run in this host-only campaign.
+Junrar 8.1.x	security-symlink	UNKNOWN	Symlink/TOCTOU policy evidence remains open.
+Junrar 8.1.x	security-expansion	UNKNOWN	Expanded-size limit evidence remains open.
+Junrar 8.1.x	security-duplicates	UNKNOWN	Duplicate-entry policy evidence remains open.
+Junrar 8.1.x	security-truncated	UNKNOWN	Truncated-input evidence remains open.
+Junrar 8.1.x	security-malformed	UNKNOWN	Malformed header/size evidence remains open.
+Junrar 8.1.x	security-cancellation	UNKNOWN	Cancellation-boundary evidence remains open.
+Junrar 8.1.x	security-nesting	UNKNOWN	Nested-archive limit evidence remains open.
+Junrar 8.1.x	security-password	UNKNOWN	Password/error normalization evidence remains open.
+Junrar 8.1.x	security-multipart	UNKNOWN	Multipart archive policy evidence remains open.
 zstd-jni Android AAR	functional-fixtures	PASS	TAR.ZST worked on the tested arm64 Pixel 7a.
 zstd-jni Android AAR	provider-access	UNKNOWN	No candidate-specific provider matrix is documented.
 zstd-jni Android AAR	security-corpus	UNKNOWN	Native malformed-input and crash behavior is unmeasured.
 zstd-jni Android AAR	scale-100k	NOT_TESTED	Not an archive index engine; integration cost is not measured.
 zstd-jni Android AAR	license-provenance	UNKNOWN	Exact AAR version, native sources, and notices are not recorded.
+zstd-jni Android AAR	security-traversal	UNKNOWN	Traversal rejection corpus not run in this host-only campaign.
+zstd-jni Android AAR	security-symlink	UNKNOWN	Symlink/TOCTOU policy evidence remains open.
+zstd-jni Android AAR	security-expansion	UNKNOWN	Expanded-size limit evidence remains open.
+zstd-jni Android AAR	security-duplicates	UNKNOWN	Duplicate-entry policy evidence remains open.
+zstd-jni Android AAR	security-truncated	UNKNOWN	Truncated-input evidence remains open.
+zstd-jni Android AAR	security-malformed	UNKNOWN	Malformed header/size evidence remains open.
+zstd-jni Android AAR	security-cancellation	UNKNOWN	Cancellation-boundary evidence remains open.
+zstd-jni Android AAR	security-nesting	UNKNOWN	Nested-archive limit evidence remains open.
+zstd-jni Android AAR	security-password	UNKNOWN	Password/error normalization evidence remains open.
+zstd-jni Android AAR	security-multipart	UNKNOWN	Multipart archive policy evidence remains open.
 zstd-jni Android AAR	native-16k	NOT_TESTED	16 KiB compatibility is explicitly unmeasured.
+zstd-jni Android AAR	native-provenance	UNKNOWN	Exact source/AAR provenance is not closed.
+zstd-jni Android AAR	native-abi	UNKNOWN	ABI inventory is not closed.
+zstd-jni Android AAR	native-reproducible-build	UNKNOWN	Reproducible native build evidence is not closed.
+zstd-jni Android AAR	native-crash	UNKNOWN	Native malformed-input/crash evidence is not closed.
+zstd-jni Android AAR	native-size	UNKNOWN	Packaged native size evidence is not closed.
+zstd-jni Android AAR	native-symbols	UNKNOWN	Symbol/diagnostic policy is not closed.
+zstd-jni Android AAR	native-update-ownership	UNKNOWN	Native update ownership is not closed.
+zstd-jni Android AAR	native-notices	UNKNOWN	Native notices/redistribution inventory is not closed.
 libarchive 3.8.9	functional-fixtures	NOT_TESTED	Android libarchive was not tested in P0.
 libarchive 3.8.9	provider-access	NOT_TESTED	JNI/provider integration was not tested.
 libarchive 3.8.9	security-corpus	UNKNOWN	Broad native parser update and fuzz evidence is not closed here.
 libarchive 3.8.9	scale-100k	NOT_TESTED	Android memory/performance is unmeasured.
 libarchive 3.8.9	license-provenance	CONDITIONAL	New BSD is documented; exact build/transitives still require inventory.
+libarchive 3.8.9	security-traversal	UNKNOWN	Traversal rejection corpus not run in this host-only campaign.
+libarchive 3.8.9	security-symlink	UNKNOWN	Symlink/TOCTOU policy evidence remains open.
+libarchive 3.8.9	security-expansion	UNKNOWN	Expanded-size limit evidence remains open.
+libarchive 3.8.9	security-duplicates	UNKNOWN	Duplicate-entry policy evidence remains open.
+libarchive 3.8.9	security-truncated	UNKNOWN	Truncated-input evidence remains open.
+libarchive 3.8.9	security-malformed	UNKNOWN	Malformed header/size evidence remains open.
+libarchive 3.8.9	security-cancellation	UNKNOWN	Cancellation-boundary evidence remains open.
+libarchive 3.8.9	security-nesting	UNKNOWN	Nested-archive limit evidence remains open.
+libarchive 3.8.9	security-password	UNKNOWN	Password/error normalization evidence remains open.
+libarchive 3.8.9	security-multipart	UNKNOWN	Multipart archive policy evidence remains open.
 libarchive 3.8.9	native-16k	NOT_TESTED	ABI and 16 KiB validation are explicitly open.
+libarchive 3.8.9	native-provenance	UNKNOWN	Exact source/build provenance is not closed.
+libarchive 3.8.9	native-abi	UNKNOWN	ABI inventory is not closed.
+libarchive 3.8.9	native-reproducible-build	UNKNOWN	Reproducible native build evidence is not closed.
+libarchive 3.8.9	native-crash	UNKNOWN	Native malformed-input/crash evidence is not closed.
+libarchive 3.8.9	native-size	UNKNOWN	Packaged native size evidence is not closed.
+libarchive 3.8.9	native-symbols	UNKNOWN	Symbol/diagnostic policy is not closed.
+libarchive 3.8.9	native-update-ownership	UNKNOWN	Native update ownership is not closed.
+libarchive 3.8.9	native-notices	UNKNOWN	Native notices/redistribution inventory is not closed.

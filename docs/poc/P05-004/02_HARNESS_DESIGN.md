@@ -6,7 +6,7 @@
 |---|---|---|---|---|
 | Commons Compress 1.28.0 | TAR/compressors/CPIO plus general ZIP/7z | Broad ZIP/TAR/7z host + Pixel evidence; pure Java | `CONDITIONAL` | provider behavior, malformed corpus, 10k/100k scale, exact artifact/transitives |
 | Zip4j 2.11.6 | encrypted/split ZIP | Encrypted/split ZIP host + Pixel evidence; pure Java | `CONDITIONAL` | provider behavior, malformed/security corpus, scale, exact artifact/transitives |
-| Junrar 8.1.1 | RAR4/RAR5 read/extract | Technically survived RAR read/extract | `CONDITIONAL` | exact UnRAR terms, encrypted/solid/multipart corpus, cancellation, security |
+| Junrar 8.1.x | RAR4/RAR5 read/extract | Technically survived the documented 8.1.x line | `CONDITIONAL` | exact artifact/UnRAR terms, encrypted/solid/multipart corpus, cancellation, security |
 | zstd-jni Android AAR | Zstandard codec path for TAR.ZST | TAR.ZST worked on tested arm64 Pixel 7a | `CONDITIONAL` | exact AAR/source provenance, ABI, 16 KiB, native crash/update/size evidence |
 | libarchive 3.8.9 | broad native alternative | Documentation-only candidate description | `UNRESOLVED` | Android runtime, JNI, ABI/16 KiB, crash isolation, size, performance, update ownership |
 

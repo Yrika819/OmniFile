@@ -4,7 +4,7 @@
 
 **Goal:** Create an auditable P05-004 archive-candidate closure package for Commons Compress, Zip4j, Junrar, zstd-jni, and libarchive without selecting production dependencies or overstating untested evidence.
 
-**Architecture:** The package separates measured P0 evidence from proposed closure gates. Eight focused documents cover scope, candidate disposition, format behavior, provider/access behavior, security, licensing/native concerns, and architecture impact. A dependency-free JVM harness validates a TSV evidence manifest and reports closure as `NOT_CLOSED` whenever any required gate is unresolved, unknown, or not tested.
+**Architecture:** The package separates measured P0 evidence from proposed closure gates. Eight focused documents cover environment, harness design, test matrix, results, failures, conclusions, and architecture impact. A dependency-free JVM harness validates a TSV evidence manifest and reports closure as `NOT_CLOSED` whenever any required gate is unresolved, unknown, or not tested.
 
 **Tech Stack:** Markdown; POSIX shell; Java standard library only; no Android SDK, Gradle project, archive-library dependency, ADB, or network fixture.
 
@@ -46,12 +46,12 @@
 
 **Files:**
 - Create: `docs/poc/P05-004/00_PLAN.md`
-- Create: `docs/poc/P05-004/01_SCOPE.md`
-- Create: `docs/poc/P05-004/02_CANDIDATE_CLOSURE.md`
-- Create: `docs/poc/P05-004/03_FORMAT_MATRIX.md`
-- Create: `docs/poc/P05-004/04_PROVIDER_ACCESS.md`
-- Create: `docs/poc/P05-004/05_SECURITY.md`
-- Create: `docs/poc/P05-004/06_LICENSE_NATIVE.md`
+- Create: `docs/poc/P05-004/01_ENVIRONMENT.md`
+- Create: `docs/poc/P05-004/02_HARNESS_DESIGN.md`
+- Create: `docs/poc/P05-004/03_TEST_MATRIX.md`
+- Create: `docs/poc/P05-004/04_RESULTS.md`
+- Create: `docs/poc/P05-004/05_FAILURES_AND_ANOMALIES.md`
+- Create: `docs/poc/P05-004/06_CONCLUSIONS.md`
 - Create: `docs/poc/P05-004/07_ARCHITECTURE_IMPACT.md`
 
 - [x] Record exact repository source-line references for every measured claim.
@@ -64,5 +64,5 @@
 - [x] Run the disposable harness test suite fresh.
 - [x] Run Markdown/reference consistency checks without building the application.
 - [x] Inspect the complete diff and verify only the approved files changed.
-- [ ] Commit on `poc/core-readiness-archive-v1`.
-- [ ] Report the commit SHA, tests, changed files, and remaining `NOT_TESTED`/`UNKNOWN` findings.
+- [x] Commit on `poc/core-readiness-archive-v1` after review remediation.
+- [x] Report the commit SHA, tests, changed files, and remaining `NOT_TESTED`/`UNKNOWN` findings in the closure report.
