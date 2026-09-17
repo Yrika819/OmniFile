@@ -36,4 +36,14 @@ The research presents libarchive as a broad native C streaming alternative under
 
 ## Machine-readable cross-check
 
-`tools/p05-004/fixtures/valid.tsv` is the disposable evidence manifest consumed by `ArchiveEvidenceMatrixHarness.java`. The harness requires the five candidates, functional/provider/security/scale/license gates, and `native-16k` for native candidates. It reports `OVERALL=NOT_CLOSED` for this evidence set.
+`tools/p05-004/fixtures/valid.tsv` is the disposable evidence manifest consumed
+by `ArchiveEvidenceMatrixHarness.java`. The harness requires the five
+candidates, functional/provider/scale/license gates, ten individual security
+negative-case gates (`security-traversal`, `security-symlink`,
+`security-expansion`, `security-duplicates`, `security-truncated`,
+`security-malformed`, `security-cancellation`, `security-nesting`,
+`security-password`, and `security-multipart`), and nine native gates for native
+candidates (`native-provenance`, `native-abi`, `native-reproducible-build`,
+`native-16k`, `native-crash`, `native-size`, `native-symbols`,
+`native-update-ownership`, and `native-notices`). It reports
+`OVERALL=NOT_CLOSED` for this evidence set.
