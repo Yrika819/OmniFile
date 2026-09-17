@@ -2,41 +2,53 @@
 
 Status: COMPLETE
 
-Architecture authority remains unchanged at `79fc0f18c7f5e1d8e0ae714808f89977ff178b62`.
+Architecture authority evaluated: `79fc0f18c7f5e1d8e0ae714808f89977ff178b62`.
+
+No Architecture V1 authority document was modified on this branch.
 
 ## CONFIRMED
 
-- Archive browsing should remain modeled as a virtual-storage layer rather than requiring full extraction first.
-- A single archive engine should not be assumed to cover every desired format/feature.
-- Extraction policy must be independent of parser success and must enforce destination containment, link handling, expansion limits, entry-count limits and nested-archive limits.
-- RAR creation must not be implied by RAR read/extract support.
+- Archive browsing should remain modeled as virtual storage rather than pretending every archive is a normal random-access filesystem.
+- Secure extraction requires an explicit policy layer independent from parser/codec libraries.
+- RAR creation must not be assumed merely because RAR reading works.
+- Native dependencies require a stronger acceptance gate than pure-Java libraries.
+- Large archive metadata sets require bounded/paged treatment rather than assuming negligible whole-index cost.
 
 ## REFINED
 
-- For the measured Java stack, Commons Compress + Zip4j + Junrar is a credible multi-engine direction for further review: Commons Compress covers broad archive/TAR/7z needs, Zip4j fills encrypted/split ZIP gaps, and Junrar covers tested RAR variants.
-- TAR.ZST introduces a native dependency when using zstd-jni on Android. That native boundary must be treated explicitly rather than hidden behind the Java archive API.
-- Large directory listing is feasible in the measured 10k/100k range, but the retained-memory differences between engines justify keeping lazy/indexed browsing as a design concern.
+- A measured multi-engine combination is viable: Commons Compress for broad ZIP/TAR/7z coverage, Zip4j for encrypted/split ZIP, and Junrar for RAR read/extract.
+- TAR.ZST is technically viable on the tested Pixel 7a when the Android zstd-jni AAR/native library is supplied; therefore Zstandard support is not inherently blocked, but remains subject to native packaging/page-size review.
+- Malformed-input signaling differs significantly by engine. The future archive abstraction should preserve engine diagnostics while normalizing the application-level failure category.
+- Virtual browsing for tested 10k-entry archives is practical on the Pixel 7a, while 100k ZIP metadata memory use is large enough to justify paging/lazy indexing design work.
 
 ## CHALLENGED
 
-- Any assumption that Commons Compress alone can provide encrypted ZIP support is challenged by the measured AES and ZipCrypto failures.
-- Any assumption that 'Java library' necessarily means 'no native packaging' is challenged by TAR.ZST through zstd-jni.
+- A single universal archive library is not supported by this evidence. Commons Compress did not read the encrypted ZIP fixtures, while Zip4j covered them; RAR required a separate engine.
+- Treating successful extraction APIs as security guarantees is challenged by traversal/link edge cases and the need for explicit streaming expansion limits.
 
 ## CONTRADICTED
 
-- None of the frozen Architecture V1 principles were contradicted.
+None of the frozen Architecture V1 principles were contradicted by the measured evidence.
 
 ## UNAFFECTED
 
-- Production module structure, package names, dependency injection, UI architecture, final dependency versions, minSdk/targetSdk/compileSdk and release packaging remain intentionally unfrozen.
+- production applicationId/package/namespace;
+- production module architecture;
+- minSdk/targetSdk/compileSdk freeze;
+- production executor architecture;
+- root provider architecture;
+- NAS/cloud provider selection;
+- release/signing architecture.
 
-## Still unsafe to freeze
+## Unsafe to freeze from this PoC
 
-- exact archive-engine API abstraction;
-- exact dependency versions;
-- exact native codec packaging;
-- libarchive inclusion/exclusion;
-- 16 KiB-page-size native policy;
-- final archive limits and cancellation thresholds.
+- exact archive dependency versions;
+- final archive abstraction interface;
+- libarchive adoption or rejection;
+- 16 KiB native compatibility;
+- production thresholds for byte expansion, entry count, nesting depth, timeout, memory or cancellation;
+- final RAR licensing decision.
 
-The appropriate next step is architecture review using this evidence, not automatic technology freeze.
+## Safe architecture-review input
+
+The next architecture review can safely treat the measured multi-engine approach as viable and keep explicit extraction safety as a non-negotiable boundary, while preserving the native/libarchive/licensing questions as unresolved gates.
