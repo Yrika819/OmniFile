@@ -19,13 +19,18 @@ The tests cover source-mode selection for explicitly readable native descriptors
 
 ## TDD evidence
 
-Before implementation, the focused command failed during test discovery with:
+Original implementation cycle: before implementation, the focused command failed
+during test discovery with:
 
 ```text
 ModuleNotFoundError: No module named 'p05_003_contract'
 ```
 
-After the minimal implementation was added, the same command completed with 10 passing tests.
+After the minimal implementation was added, the original seven-test contract
+completed with 7 passing tests. The review remediation then added three
+regression tests for descriptor readability, delimiter collisions, and
+random-range precedence; the final post-remediation command completed with 10
+passing tests.
 
 ## Untested execution
 

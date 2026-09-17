@@ -9,6 +9,7 @@ Path:   /Users/yuta/Desktop/File Manager/.worktrees/p05-media3
 Branch: poc/core-readiness-media3-v1
 BASE:   6ec9e1037d0fd86afebdec6bd1a5be67b008ccbb
 Evidence commit before review remediation: acd518672f1428f9236f11788ac717dff3464525
+Review remediation commit: 73d9fd2ac271ee45c1a4197e6a496dbebb045aef
 ```
 
 The worktree was a linked worktree and was clean before the P05-003 files were added. No other File Manager worktree was edited.

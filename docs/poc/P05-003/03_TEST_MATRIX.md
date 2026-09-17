@@ -23,4 +23,4 @@ Status vocabulary: `PASS` means fresh evidence supports only the stated row; `FA
 | Security | Token/path redaction in logs | Durable identity and logs exclude transient credentials | NOT_TESTED | No log audit was run |
 | Fidelity | Human audio acceptance | Listening on exact installed artifact | NOT_TESTED | No artifact/device run |
 
-The seven `PASS` rows are contract-model results only and must not be promoted to playback claims.
+The eight `PASS` rows are contract-model results only and must not be promoted to playback claims.

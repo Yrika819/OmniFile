@@ -17,5 +17,6 @@ The first test run intentionally preceded implementation and failed during impor
 - FLACtify's historical Media3 `1.3.1` dependency was not copied or frozen.
 - A source locator may contain credentials or expiration state; the harness deliberately excludes it from durable cache identity. A production implementation still needs explicit log redaction and provider-version semantics.
 - The host tests do not establish that a native descriptor is actually seekable. That guarantee must come from the provider capability contract and Android instrumentation.
+- The original seven-test TDD cycle did not cover the three review-regression cases; those were added and verified in remediation commit `73d9fd2ac271ee45c1a4197e6a496dbebb045aef`.
 
 No production failure was diagnosed because no production playback implementation exists in this worktree.
