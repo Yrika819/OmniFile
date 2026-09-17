@@ -53,6 +53,29 @@ ADB_SERIAL=<verified Pixel serial> ./runtime/run-lifecycle-pixel7a.sh
 The runner stores a hashed serial and APK SHA-256 in `campaign-metadata.json`
 and only the required build/API/model/ABI fields in `device-identity.txt`.
 
+## Latest-hardening fresh sanity (2026-09-17)
+
+The branch head before this continuation was
+`81f886ed6c0df40a066ad49c5186e6659626c5b3`; the behavior hardening under test
+is `c9fcf2d`. The parent rebuilt that exact head with `runtime/build.sh`,
+producing the PoC APK SHA-256
+`1daaedd0280b4841e26ae35959170acd3ccd9b234bd131f5d48a0c9633ace7c0`.
+
+The APK was freshly installed on the connected Pixel 7a and the focused
+`runtime/run-pixel7a.sh` sanity completed successfully. Fresh device identity
+was Pixel 7a / API 36 / `BP4A.251205.006` / `arm64-v8a`; the device reported a
+4096-byte page size. Foreground app, `dataSync` FGS, JobScheduler, and UIDT
+all emitted `START`, repeated `CHECKPOINT`, and `COMPLETE`. The controlled
+restart emitted `REDISCOVER` from `RUNNING` durable state and then `COMPLETE`.
+The install result was `Success`; the final persisted state was
+`phase=COMPLETE`, `completedUnits=20`, `executor=FOREGROUND_APP`.
+
+This fresh run validates latest-head startup, routing initialization, durable
+state discovery, and the Android 16 framework paths represented by this raw
+harness. It does not replace the preserved lifecycle, screen-state, and API31
+evidence described above, and it does not close WorkManager, media-processing
+FGS, or API31 final-artifact equivalence.
+
 WorkManager is `NOT_APPLICABLE` in this raw framework-only harness because no
 AndroidX WorkManager dependency is present. Media-processing FGS is `NOT_TESTED`.
 

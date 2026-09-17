@@ -82,3 +82,19 @@ implementation.
 The runtime evidence must not be generalized to arbitrary devices, workloads,
 quotas, notification settings, or providers. No executor is selected as a
 universal mechanism.
+
+## Latest-hardening evidence boundary
+
+The preserved Pixel/API36 and API31 rows were produced before the final
+cancellation/provenance hardening commit `c9fcf2d`; the documentation boundary
+was recorded at `81f886e`. They remain valid only for the exact earlier APK and
+are not retroactively attributed to the latest head.
+
+On 2026-09-17 the parent rebuilt `81f886ed` and freshly installed APK
+`1daaedd0280b4841e26ae35959170acd3ccd9b234bd131f5d48a0c9633ace7c0` on the
+Pixel 7a. The focused sanity passed for startup, all four available executor
+modes, durable-state discovery, and app restart/re-discovery. This is fresh
+latest-head evidence, but it is intentionally narrower than the preserved
+lifecycle campaign. The direct shell `kill -9` limitation reproduced again as
+`Operation not permitted`; the existing `am force-stop` fallback completed the
+restart scenario.
