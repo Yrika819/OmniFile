@@ -11,9 +11,12 @@ from typing import Dict, Optional
 
 
 class RecoveryClass(str, Enum):
+    INVALID_RECORD = "INVALID_RECORD"
     BLOCKED_PROVIDER = "BLOCKED_PROVIDER"
     BLOCKED_PERMISSION = "BLOCKED_PERMISSION"
     CONFLICT_SOURCE_CHANGED = "CONFLICT_SOURCE_CHANGED"
+    CONFLICT_DESTINATION = "CONFLICT_DESTINATION"
+    FINALIZATION_AMBIGUOUS = "FINALIZATION_AMBIGUOUS"
     FINAL_DESTINATION_OBSERVED = "FINAL_DESTINATION_OBSERVED"
     RESUME_FROM_PARTIAL = "RESUME_FROM_PARTIAL"
     RESTART_REQUIRED = "RESTART_REQUIRED"
@@ -30,6 +33,9 @@ class OperationRecord:
     expected_length: int
     checkpoint_bytes: int
     phase: str
+    finalization_acknowledged: bool = False
+    source_provider_id: str = "source"
+    destination_provider_id: str = "destination"
 
 
 @dataclass(frozen=True)
@@ -41,6 +47,12 @@ class ProviderSnapshot:
     source_bytes: Optional[bytes]
     partial_bytes: Optional[bytes]
     final_bytes: Optional[bytes]
+    source_provider_available: Optional[bool] = None
+    destination_provider_available: Optional[bool] = None
+    source_grant_available: Optional[bool] = None
+    destination_grant_available: Optional[bool] = None
+    source_provider_id: str = "source"
+    destination_provider_id: str = "destination"
 
 
 @dataclass(frozen=True)
@@ -101,33 +113,90 @@ def _sha256(content: Optional[bytes]) -> Optional[str]:
 def reconcile(record: OperationRecord, snapshot: ProviderSnapshot) -> RecoveryDecision:
     """Classify restart state without mutating provider or source state."""
 
-    if not snapshot.provider_available:
+    valid_phases = {"PLAN", "CREATE_PARTIAL", "TRANSFER", "CHECKPOINT", "VERIFY", "FINALIZE", "COMPLETE"}
+    if (
+        record.operation_kind not in {"copy", "move"}
+        or record.phase not in valid_phases
+        or record.expected_length < 0
+        or record.checkpoint_bytes < 0
+        or record.checkpoint_bytes > record.expected_length
+        or len(record.expected_sha256) != 64
+        or any(c not in "0123456789abcdef" for c in record.expected_sha256)
+        or (record.phase == "COMPLETE" and not record.finalization_acknowledged)
+    ):
+        return RecoveryDecision(
+            RecoveryClass.INVALID_RECORD,
+            "BLOCK_MALFORMED_OPERATION",
+            reason="durable operation record is inconsistent or terminal without finalization acknowledgement",
+        )
+
+    source_provider_available = (
+        snapshot.source_provider_available
+        if snapshot.source_provider_available is not None
+        else snapshot.provider_available
+    )
+    destination_provider_available = (
+        snapshot.destination_provider_available
+        if snapshot.destination_provider_available is not None
+        else snapshot.provider_available
+    )
+    source_grant_available = (
+        snapshot.source_grant_available
+        if snapshot.source_grant_available is not None
+        else snapshot.grant_available
+    )
+    destination_grant_available = (
+        snapshot.destination_grant_available
+        if snapshot.destination_grant_available is not None
+        else snapshot.grant_available
+    )
+
+    if (
+        not destination_provider_available
+        or snapshot.destination_provider_id != record.destination_provider_id
+    ):
         return RecoveryDecision(
             RecoveryClass.BLOCKED_PROVIDER,
             "WAIT_FOR_PROVIDER",
-            reason="provider authority is unavailable",
+            reason="destination provider authority is unavailable or rebound",
         )
 
-    if not snapshot.grant_available or not snapshot.source_available or snapshot.source_bytes is None:
+    if not destination_grant_available:
         return RecoveryDecision(
             RecoveryClass.BLOCKED_PERMISSION,
             "WAIT_FOR_AUTHORIZATION",
-            reason="source access or persisted grant is unavailable",
+            reason="destination access or persisted grant is unavailable",
         )
 
-    if snapshot.source_version != record.source_version or _sha256(snapshot.source_bytes) != record.expected_sha256:
-        return RecoveryDecision(
-            RecoveryClass.CONFLICT_SOURCE_CHANGED,
-            "REQUIRE_USER_REVIEW",
-            reason="source version or expected source content changed",
-        )
-
+    final_present = snapshot.final_bytes is not None
     final_matches = (
-        snapshot.final_bytes is not None
+        final_present
         and len(snapshot.final_bytes) == record.expected_length
         and _sha256(snapshot.final_bytes) == record.expected_sha256
     )
+    if final_present and not final_matches:
+        return RecoveryDecision(
+            RecoveryClass.CONFLICT_DESTINATION,
+            "REQUIRE_USER_REVIEW",
+            reason="final destination exists but does not match the expected content",
+        )
     if final_matches:
+        if not record.finalization_acknowledged:
+            return RecoveryDecision(
+                RecoveryClass.FINALIZATION_AMBIGUOUS,
+                "REQUIRE_USER_REVIEW",
+                reason="matching final bytes exist without a durable finalization acknowledgement",
+            )
+        if record.operation_kind == "move" and (
+            not source_provider_available
+            or not source_grant_available
+            or not snapshot.source_available
+        ):
+            return RecoveryDecision(
+                RecoveryClass.FINAL_DESTINATION_OBSERVED,
+                "WAIT_FOR_SOURCE_AUTHORIZATION",
+                reason="destination is verified but source authority is unavailable for the explicit move-delete step",
+            )
         action = (
             "REQUIRE_EXPLICIT_SOURCE_DELETE"
             if record.operation_kind == "move"
@@ -136,7 +205,27 @@ def reconcile(record: OperationRecord, snapshot: ProviderSnapshot) -> RecoveryDe
         return RecoveryDecision(
             RecoveryClass.FINAL_DESTINATION_OBSERVED,
             action,
-            reason="final destination is verified",
+            reason="final destination is verified and finalization was durably acknowledged",
+        )
+
+    if (
+        snapshot.source_provider_id != record.source_provider_id
+        or not source_provider_available
+        or not source_grant_available
+        or not snapshot.source_available
+        or snapshot.source_bytes is None
+    ):
+        return RecoveryDecision(
+            RecoveryClass.BLOCKED_PERMISSION,
+            "WAIT_FOR_AUTHORIZATION",
+            reason="source access or persisted grant is unavailable",
+        )
+
+    if snapshot.source_version != record.source_version or _sha256(snapshot.source_bytes) != record.expected_sha256 or len(snapshot.source_bytes) != record.expected_length:
+        return RecoveryDecision(
+            RecoveryClass.CONFLICT_SOURCE_CHANGED,
+            "REQUIRE_USER_REVIEW",
+            reason="source version or expected source content changed",
         )
 
     partial = snapshot.partial_bytes

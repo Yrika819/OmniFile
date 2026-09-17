@@ -15,7 +15,12 @@ from saf_recovery import (
 )
 
 
-def record_for(source: bytes = b"0123456789abcdef", kind: str = "copy") -> OperationRecord:
+def record_for(
+    source: bytes = b"0123456789abcdef",
+    kind: str = "copy",
+    phase: str = "TRANSFER",
+    finalization_acknowledged: bool = False,
+) -> OperationRecord:
     return OperationRecord(
         operation_kind=kind,
         source_uri="content://p05/source-1",
@@ -25,7 +30,8 @@ def record_for(source: bytes = b"0123456789abcdef", kind: str = "copy") -> Opera
         expected_sha256=hashlib.sha256(source).hexdigest(),
         expected_length=len(source),
         checkpoint_bytes=4,
-        phase="TRANSFER",
+        phase=phase,
+        finalization_acknowledged=finalization_acknowledged,
     )
 
 
@@ -123,7 +129,7 @@ class SafRecoveryTests(unittest.TestCase):
     def test_valid_final_destination_does_not_delete_move_source(self) -> None:
         source = b"0123456789abcdef"
         decision = reconcile(
-            record_for(source, kind="move"),
+            record_for(source, kind="move", finalization_acknowledged=True),
             ProviderSnapshot(
                 provider_available=True,
                 grant_available=True,
@@ -142,7 +148,7 @@ class SafRecoveryTests(unittest.TestCase):
     def test_valid_final_destination_completes_copy_without_source_delete(self) -> None:
         source = b"0123456789abcdef"
         decision = reconcile(
-            record_for(source, kind="copy"),
+            record_for(source, kind="copy", finalization_acknowledged=True),
             ProviderSnapshot(
                 provider_available=True,
                 grant_available=True,
@@ -173,8 +179,100 @@ class SafRecoveryTests(unittest.TestCase):
             ),
         )
 
-        self.assertEqual(decision.classification, RecoveryClass.RESTART_REQUIRED)
-        self.assertEqual(decision.action, "RECREATE_PARTIAL")
+        self.assertEqual(decision.classification, RecoveryClass.CONFLICT_DESTINATION)
+        self.assertEqual(decision.action, "REQUIRE_USER_REVIEW")
+
+    def test_wrong_final_destination_wins_over_valid_partial(self) -> None:
+        source = b"0123456789abcdef"
+        decision = reconcile(
+            record_for(source),
+            ProviderSnapshot(
+                provider_available=True,
+                grant_available=True,
+                source_available=True,
+                source_version="v1",
+                source_bytes=source,
+                partial_bytes=source[:8],
+                final_bytes=b"wrong-final",
+            ),
+        )
+
+        self.assertEqual(decision.classification, RecoveryClass.CONFLICT_DESTINATION)
+        self.assertEqual(decision.action, "REQUIRE_USER_REVIEW")
+
+    def test_matching_final_without_ack_is_ambiguous(self) -> None:
+        source = b"0123456789abcdef"
+        decision = reconcile(
+            record_for(source),
+            ProviderSnapshot(
+                provider_available=True,
+                grant_available=True,
+                source_available=True,
+                source_version="v1",
+                source_bytes=source,
+                partial_bytes=None,
+                final_bytes=source,
+            ),
+        )
+
+        self.assertEqual(decision.classification, RecoveryClass.FINALIZATION_AMBIGUOUS)
+        self.assertEqual(decision.action, "REQUIRE_USER_REVIEW")
+
+    def test_malformed_terminal_record_fails_closed(self) -> None:
+        source = b"0123456789abcdef"
+        decision = reconcile(
+            record_for(source, phase="COMPLETE"),
+            ProviderSnapshot(
+                provider_available=True,
+                grant_available=True,
+                source_available=True,
+                source_version="v1",
+                source_bytes=source,
+                partial_bytes=None,
+                final_bytes=None,
+            ),
+        )
+
+        self.assertEqual(decision.classification, RecoveryClass.INVALID_RECORD)
+        self.assertEqual(decision.action, "BLOCK_MALFORMED_OPERATION")
+
+    def test_destination_grant_loss_is_independent_from_source_grant(self) -> None:
+        source = b"0123456789abcdef"
+        decision = reconcile(
+            record_for(source),
+            ProviderSnapshot(
+                provider_available=True,
+                grant_available=True,
+                source_available=True,
+                source_version="v1",
+                source_bytes=source,
+                partial_bytes=None,
+                final_bytes=None,
+                destination_grant_available=False,
+            ),
+        )
+
+        self.assertEqual(decision.classification, RecoveryClass.BLOCKED_PERMISSION)
+        self.assertEqual(decision.action, "WAIT_FOR_AUTHORIZATION")
+
+    def test_verified_final_copy_completes_without_reopening_source(self) -> None:
+        source = b"0123456789abcdef"
+        decision = reconcile(
+            record_for(source, finalization_acknowledged=True),
+            ProviderSnapshot(
+                provider_available=True,
+                grant_available=False,
+                source_available=False,
+                source_version=None,
+                source_bytes=None,
+                partial_bytes=None,
+                final_bytes=source,
+                destination_grant_available=True,
+            ),
+        )
+
+        self.assertEqual(decision.classification, RecoveryClass.FINAL_DESTINATION_OBSERVED)
+        self.assertEqual(decision.action, "MARK_COMPLETE")
 
     def test_missing_outputs_restart_from_zero(self) -> None:
         decision = reconcile(

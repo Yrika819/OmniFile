@@ -21,6 +21,9 @@ OperationRecord(
     expected_length: int,
     checkpoint_bytes: int,
     phase: str,
+    finalization_acknowledged: bool,
+    source_provider_id: str,
+    destination_provider_id: str,
 )
 
 ProviderSnapshot(
@@ -31,6 +34,12 @@ ProviderSnapshot(
     source_bytes: bytes | None,
     partial_bytes: bytes | None,
     final_bytes: bytes | None,
+    source_provider_available: bool | None,
+    destination_provider_available: bool | None,
+    source_grant_available: bool | None,
+    destination_grant_available: bool | None,
+    source_provider_id: str,
+    destination_provider_id: str,
 )
 
 reconcile(record, snapshot) -> RecoveryDecision
@@ -45,13 +54,15 @@ dependency, automatic retry, or source-deletion method.
 
 ## Decision order
 
-1. If the provider is unavailable, return `BLOCKED_PROVIDER` with `WAIT_FOR_PROVIDER`.
-2. If the grant or source is unavailable, return `BLOCKED_PERMISSION` with `WAIT_FOR_AUTHORIZATION`.
-3. If the source version or source digest differs from the durable expectation, return `CONFLICT_SOURCE_CHANGED` with `REQUIRE_USER_REVIEW`.
-4. If the final bytes match the expected digest and length, return `FINAL_DESTINATION_OBSERVED`; for `move`, require `REQUIRE_EXPLICIT_SOURCE_DELETE`, while `copy` may use `MARK_COMPLETE`.
-5. If partial bytes are a valid source prefix, return `RESUME_FROM_PARTIAL` at the observed partial length, even when the durable checkpoint is smaller.
-6. If partial bytes exist but are not a valid prefix, return `RESTART_REQUIRED` with `RECREATE_PARTIAL`.
-7. Otherwise return `RESTART_REQUIRED` with offset zero.
+1. Reject malformed, unknown, or terminal-without-ack durable records as `INVALID_RECORD`.
+2. Check destination provider identity/grant/availability before using destination facts.
+3. A wrong final destination is `CONFLICT_DESTINATION` and wins over a valid partial.
+4. A matching final destination without a durable acknowledgement is `FINALIZATION_AMBIGUOUS`.
+5. A matching, acknowledged final destination may complete a copy without reopening the source; a move still requires an explicit source-delete step and source authority.
+6. Check source provider identity/grant/version/digest/length before resuming a non-finalized operation.
+7. If partial bytes are a valid source prefix, return `RESUME_FROM_PARTIAL` at the observed partial length, even when the durable checkpoint is smaller.
+8. If partial bytes exist but are not a valid prefix, return `RESTART_REQUIRED` with `RECREATE_PARTIAL`.
+9. Otherwise return `RESTART_REQUIRED` with offset zero.
 
 This ordering makes provider authority and final-destination reality stronger than stale progress metadata. It also makes source deletion impossible as a side effect of reconciliation.
 

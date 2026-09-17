@@ -25,12 +25,12 @@
 ## File Map
 
 - `docs/poc/P05-002/00_PLAN.md` — this execution plan and scope gate.
-- `docs/poc/P05-002/01_REQUIREMENTS_AND_SCOPE.md` — source requirements, evidence boundary, and non-goals.
-- `docs/poc/P05-002/02_TOOLCHAIN_GATE.md` — local toolchain inspection and the truthful Android/device blocker.
-- `docs/poc/P05-002/03_HARNESS_DESIGN.md` — host model, state machine, and exact interfaces.
-- `docs/poc/P05-002/04_FAULT_INJECTION_MATRIX.md` — deterministic fault cases and expected classifications.
-- `docs/poc/P05-002/05_RESULTS.md` — recorded host-test evidence and status.
-- `docs/poc/P05-002/06_LIMITATIONS_AND_BLOCKERS.md` — what this POC cannot establish and what remains open.
+- `docs/poc/P05-002/01_ENVIRONMENT.md` — checkout, toolchain, and device boundary.
+- `docs/poc/P05-002/02_HARNESS_DESIGN.md` — host model, state machine, and exact interfaces.
+- `docs/poc/P05-002/03_TEST_MATRIX.md` — deterministic test matrix and statuses.
+- `docs/poc/P05-002/04_RESULTS.md` — recorded host-test evidence and status.
+- `docs/poc/P05-002/05_FAILURES_AND_ANOMALIES.md` — resolved issues and remaining blockers.
+- `docs/poc/P05-002/06_CONCLUSIONS.md` — bounded conclusions.
 - `docs/poc/P05-002/07_ARCHITECTURE_IMPACT.md` — bounded consequences for the existing architecture decisions.
 - `docs/poc/P05-002/harness/saf_recovery.py` — disposable recovery model and in-memory provider.
 - `docs/poc/P05-002/harness/test_saf_recovery.py` — standard-library tests for the hand-written model.
@@ -41,7 +41,7 @@
 
 - [x] Inspect the requested branch/worktree and existing POC-002/storage-operation authorities.
 - [x] Check for an Android build toolchain without invoking ADB or any device operation.
-- [x] Record the result in `01_REQUIREMENTS_AND_SCOPE.md` and `02_TOOLCHAIN_GATE.md`.
+- [x] Record the result in `01_ENVIRONMENT.md`.
 
 ### Task 2: Define the disposable host model
 
@@ -53,8 +53,8 @@
 
 ### Task 3: Document evidence and impact
 
-- [x] Record the exact test command, result count, and evidence boundary in `05_RESULTS.md`.
-- [x] Record Android/physical-device limitations in `06_LIMITATIONS_AND_BLOCKERS.md`.
+- [x] Record the exact test command, result count, and evidence boundary in `04_RESULTS.md`.
+- [x] Record Android/physical-device limitations in `05_FAILURES_AND_ANOMALIES.md` and `06_CONCLUSIONS.md`.
 - [x] Record accepted, unchanged, and still-open architecture consequences in `07_ARCHITECTURE_IMPACT.md`.
 
 ### Task 4: Final verification and commit

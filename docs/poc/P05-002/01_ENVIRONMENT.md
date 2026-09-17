@@ -1,6 +1,12 @@
-# P05-002 Toolchain Gate
+# P05-002 Environment
 
 `POC-ONLY — NOT PRODUCTION AUTHORITY`
+
+## Scope and checkout
+
+This branch is `poc/core-readiness-saf-operations-v1`, based exactly on
+`6ec9e1037d0fd86afebdec6bd1a5be67b008ccbb`. The harness is host-only and all
+Android/provider/device rows remain `NOT_TESTED`.
 
 ## Inspection performed
 
@@ -33,3 +39,10 @@ The following POC-002 evidence remains blocked and is intentionally not attempte
 - user-visible recovery UX.
 
 These require a separately authorized disposable Android test project plus controlled emulator/physical-device execution. This branch does not create that authority.
+
+## Evidence boundary
+
+The only executable evidence in this branch is the standard-library host
+reconciliation harness. No ADB command, emulator command, physical device,
+provider account, production module, production dependency, or SDK choice was
+created or used.
