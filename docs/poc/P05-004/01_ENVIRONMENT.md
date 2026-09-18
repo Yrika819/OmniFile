@@ -1,6 +1,6 @@
 # P05-004 Archive Candidate Closure Scope
 
-Status: `EVIDENCE PACKAGE COMPLETE / READY_WITH_EXPLICIT_GATES / PRODUCTION CLOSURE NOT CLOSED`
+Status: `REAL EVIDENCE CONTINUATION COMPLETE / NOT_READY / PRODUCTION CLOSURE NOT CLOSED`
 
 ## Objective
 
@@ -8,25 +8,24 @@ Audit the P0 archive evidence and define a truthful closure package for five can
 
 - Apache Commons Compress 1.28.0;
 - Zip4j 2.11.6;
-- Junrar 8.1.1 (current-source/release reference only; no local artifact is present);
-- zstd-jni 1.5.7-17 (current Central metadata; prior P0 AAR was 1.5.7-16);
+- Junrar 8.1.1 (exact Maven artifact and v8.1.1 source/test resources resolved in disposable space);
+- zstd-jni 1.5.7-17 (exact JAR and AAR resolved; prior P0 AAR was not assumed equivalent);
 - libarchive 3.8.9 (current official release; no project-supplied Android/JNI artifact).
 
-The machine-readable manifest intentionally retains the tested/P0 labels
-`Junrar 8.1.x` and `zstd-jni Android AAR`; the current-source version facts
-above are not claims that those exact artifacts were the artifacts measured by
-P0. The source review was performed on 2026-09-17 against
+The machine-readable manifest retains the historical labels `Junrar 8.1.x`
+and `zstd-jni Android AAR`, while this continuation records exact `8.1.1` and
+`1.5.7-17` host/native evidence separately from the earlier P0 records. The
+source review was performed on 2026-09-17 against
 [Junrar releases](https://github.com/junrar/junrar/releases),
 [zstd-jni Central metadata](https://central.sonatype.com/artifact/com.github.luben/zstd-jni),
 and the [libarchive release page](https://github.com/libarchive/libarchive/releases/latest).
-No downloaded-byte checksum or signature was retained, and the bounded local
-inspection found no Junrar checkout/license/source, zstd-jni AAR/ELF, or
-libarchive source/build under this worktree. The native packaging probe recursively
-walks every descendant of this worktree root for `.aar`, `libzstd.so`, and
-`libarchive.so`; it found none. Artifact identity and legal review
-therefore remain closure gates.
+The exact artifact checksums and source/POM metadata acquired on 2026-09-18
+are recorded below. The worktree-local native packaging probe still finds no
+checked-in AAR/ELF, which is distinct from the disposable resolved AAR
+inspection. Artifact identity, notice inventory, and legal review therefore
+remain closure gates.
 
-The branch-local P0 reconciliation states that host and physical Pixel 7a archive records contained 54 records and `RUN_DONE=PASS`, while exact engine selection, libarchive/native alternatives, SAF/remote origins, fuzz coverage, cancellation, and production scale remain open ([`docs/architecture/14_P0_EVIDENCE_INCORPORATION.md:51-62`](../../architecture/14_P0_EVIDENCE_INCORPORATION.md)). Those facts are carried forward without reinterpretation.
+The branch-local P0 reconciliation states that host and physical Pixel 7a archive records contained 54 records and `RUN_DONE=PASS`, while exact engine selection, libarchive/native alternatives, SAF/remote origins, fuzz coverage, cancellation, and production scale remain open ([`docs/architecture/14_P0_EVIDENCE_INCORPORATION.md:51-62`](../../architecture/14_P0_EVIDENCE_INCORPORATION.md)). Those facts are carried forward without reinterpretation. This continuation adds independent host/JVM evidence against the exact resolved candidate artifacts below.
 
 ## In scope
 
@@ -43,7 +42,7 @@ The branch-local P0 reconciliation states that host and physical Pixel 7a archiv
 
 - selecting or adding production dependencies;
 - Android application or module creation;
-- ADB, emulator, physical-device, or Android runtime execution;
+- ADB, emulator, physical-device, or Android runtime execution in this continuation;
 - building libarchive, zstd-jni, or any archive library;
 - claiming RAR creation;
 - claiming that parser APIs provide extraction security;
@@ -65,9 +64,43 @@ maintenance inputs, not runtime compatibility or legal approval.
 
 ## Continuation audit boundary
 
-The continuation ran only the P05-004 validator. It did not run archive-library
-parsers, download dependencies, build native code, invoke `readelf` on an
-artifact, use Android/ADB, or rerun the broad P0 format campaign. The local
-Junrar probe inspected only conventional `junrar` checkout locations under the
-target root; absence is evidence about this worktree, not proof that no copy
-exists elsewhere.
+The 2026-09-18 continuation downloaded exact candidate artifacts into
+disposable temporary directories and ran actual host/JVM parser, provider,
+scale, hostile-input, and native-inspection probes. It did not create a
+production dependency declaration, Android app/module, final APK, or device
+runtime. The worktree-local Junrar/native absence probes remain facts about
+this checkout only; they do not contradict the separately resolved temporary
+artifacts.
+
+## Real evidence continuation environment — 2026-09-18
+
+Host: macOS x86_64, Java `26.0.2.1`, no Maven/Gradle executable on `PATH`,
+no connected ADB device (`adb devices -l` returned only the header), and
+52 GiB free on the data volume at the start of the continuation. Artifacts were
+resolved into disposable `/tmp` directories from Maven Central; no dependency
+declaration or production build was created.
+
+| Candidate | Coordinate and tested artifact SHA-256 | POM SHA-256 | Sources SHA-256 |
+|---|---|---|---|
+| Commons Compress | `org.apache.commons:commons-compress:1.28.0` — `e1522945218456f3649a39bc4afd70ce4bd466221519dba7d378f2141a4642ca` | `033f4c78d632da88d0eb8ead974fc14a264392cebf12ab6c68d6cea7adf0c64a` | `6de9de4559f12bba6d41789c72f6a2a424514f2d2a3f7f49e2a3c52414db9632` |
+| Zip4j | `net.lingala.zip4j:zip4j:2.11.6` — `5f1eb1e9d67cfee200a695e4079751b49e73a226b154193e13f7c602efbe72fb` | `9fe419f4b4bf26e8980c0cfcabdb24ff913a3a48b4f9d702ee9bf1fee9d6410b` | `c99829979f7d4a9e54ec954e95db63c6b7a601913adfdfdb636e80df49518910` |
+| Junrar | `com.github.junrar:junrar:8.1.1` — `2de9ef91a179b40138c1480d16cecc63bce86de5076f5136c4598ad78ff9200e` | `5c5434471c2b7f6aa4efdb69e5c6cfdfbe3125155cabf815fe495086952f961f` | `5ca67d9aca7e1c9ba8a14ddbd7213bb67d82baa5c8665b284bf2c75e039fbf60` |
+| zstd-jni | `com.github.luben:zstd-jni:1.5.7-17` JAR — `c9043e2da8a16c13b6cd7661a5cb56685a573c3546ef4bd0ead67b0b67c2e107`; AAR — `9528895e38141f4b547dd07a5a0a1f4b8de83fe96799782f45dc64d85ab94dd6` | `69386a1527d763b6e578afae22cf0ceb8aa71c4bab88c60746170004edf151ec` | `8928cc4bcedc57edafdb6eb78364a062ea417ddce41336d612d6573854579882` |
+
+The source tags resolved to Commons Compress `852d9c23b94127feafc1649d9c7f13d4df338845`, Zip4j `c60f552986eb90e6862572b4209444c5435e423f`, and Junrar `1de660e148790448591e1d4076b2c961a1bfbca5`. No `v1.5.7-17` zstd-jni source tag was found; `v1.5.7-16` at `b74bc508f89c677310a7d863ccb77e0b98284662` is not treated as equivalent.
+
+Required runtime transitives observed from the tested POMs were Commons Codec
+`1.19.0`, Commons IO `2.20.0`, and Commons Lang3 `3.18.0` for the Commons
+path; SLF4J API `2.0.17` for Junrar; and provided JetBrains annotations `24.1.0`
+for zstd-jni. Commons declares optional format dependencies XZ `1.10`, Brotli
+`0.1.2`, ASM `9.8`, and zstd-jni `1.5.7-4`; the optional zstd version does not
+equal the separately tested `1.5.7-17`. Zip4j has no runtime dependencies in
+its tested POM. Test-only dependencies are not treated as runtime transitives.
+
+Commons Compress embeds `META-INF/LICENSE.txt` and `META-INF/NOTICE.txt`.
+Commons IO, Commons Codec, Commons Lang3, and SLF4J API embed license material;
+Zip4j, Junrar, and zstd-jni main artifacts do not embed a complete license or
+NOTICE file. Junrar's POM names the `UnRar License`; its upstream license and
+source headers are therefore required distribution inputs. The absence of an
+embedded file is recorded as a notice/provenance gate, not as evidence of no
+license obligation.

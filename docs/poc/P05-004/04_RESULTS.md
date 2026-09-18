@@ -68,3 +68,89 @@ the wrapper policy fixture set, not the libraries. The local Junrar and native
 results are absence/classification evidence, not artifact acceptance. The same
 validator also rejected a deliberately incorrect security expectation and a
 100,001-entry request, confirming the new fixture and scale bounds fail closed.
+
+## Exact artifact and parser results — 2026-09-18
+
+The artifact table, POM/source hashes, transitives, and embedded license/NOTICE
+inventory are recorded in `01_ENVIRONMENT.md`. The following observations are
+from the exact JARs/AAR listed there.
+
+| Case | Observed result |
+|---|---|
+| Commons ZIP sequential | Four entries listed from an `InputStream`; `safe.txt`, `../escape.txt`, `/absolute.txt`, and `dir/../normalized.txt` were parser-visible. |
+| Commons ZIP seekable | Four entries listed through `ZipFile.Builder().setPath(...)`; a seekable ZIP API was exercised. |
+| Commons truncated ZIP | Rejected with `java.io.EOFException`. |
+| Commons TAR/TAR.GZ | Three entries listed and read sequentially for both TAR and TAR.GZ. |
+| Zip4j AES | AES-256 fixture read with the correct password; wrong password produced `net.lingala.zip4j.exception.ZipException: Wrong Password`. |
+| Zip4j truncated ZIP | Rejected with `ZipException: Zip headers not found. Probably not a zip file`. |
+| Junrar RAR4/RAR5 | Exact `8.1.1` listed two entries and extracted file entries for both formats from a local file. |
+| Junrar RAR4/RAR5 stream | Exact `8.1.1` listed two entries from sequential streams for both fixtures. Separate provider harness evidence found other stream-shaped fixtures that require file spooling; provider neutrality is not claimed. |
+| Junrar hostile/password | `parent-dir.rar` was accepted and extracted; `mkdir-escape.rar` rejected with `CorruptHeaderException`; missing/wrong passwords rejected with `InitDeciphererFailedException`, `WrongPasswordException`, or `CrcErrorException`; password `junrar` extracted the RAR4/RAR5 password fixtures. |
+| Junrar corrupted header | `corrupt-header.rar` was accepted with zero file entries, `hasBrokenHeaders=true`, and two header failures. This is controlled parser behavior requiring wrapper policy, not a security pass. |
+| zstd-jni valid/truncated | Matching `1.5.7-17` host JAR decoded valid data; empty, truncated, bad-magic, mutated-header, zero-filled, and random inputs ended in `ZstdIOException` under a 20-second watchdog. Truncated frames could emit up to 36 bytes before the exception. |
+
+## Provider-access results
+
+The provider harness used counting streams and pipes over the exact JARs.
+Commons Compress ZIP/TAR stream APIs worked sequentially; seekable `ZipFile`
+and `TarFile` paths observed 15 and 10 seeks respectively. Zip4j's
+`ZipInputStream` worked sequentially, while its full-feature `ZipFile` path was
+local-file based; an explicit spool is required for a non-path source in that
+mode. Junrar's `Archive(File)` succeeded for RAR4/RAR5, but the tested
+`Archive(InputStream)` consumed complete streams and returned zero headers for
+other RAR4/RAR5 fixtures; stream-to-temp-file spooling restored success.
+zstd-jni plus a TAR parser was sequential and did not provide random-entry
+access without replay/staging. Real Android `ContentResolver`,
+`ParcelFileDescriptor`, SAF, cloud, revocation, and remote/range behavior remain
+`NOT_TESTED`.
+
+## Scale results
+
+The real compressed ZIP run reached 10,000 entries: build `23,266 ms`, Commons
+listing `2,494 ms`, Zip4j open `1,175 ms`, archive size `1,227,802` bytes. The
+Zip64-forced stored ZIP run reached 100,000 entries: build `2,833 ms`, Commons
+listing `2,022 ms`, Zip4j open `2,437 ms`, archive size `15,777,878` bytes; both
+engines enumerated `100,000` entries. A separate compressed 100,000-entry
+attempt exceeded its 120-second watchdog and is not counted as a pass. First
+listing latency, single-entry latency, managed/native peak memory, cancellation
+latency, and spool disk footprint were not measured in this run and remain
+`NOT_TESTED`.
+
+## zstd-jni native inventory
+
+The exact AAR `1.5.7-17` contains four compressed native entries. All had
+`p_align=0x4000` for every PT_LOAD segment and congruent `p_offset/p_vaddr`
+pairs: arm64-v8a, 476,304 bytes, SHA-256
+`e30520c5ca997c9462751f453f674500ec2c4b20dc422a776d0e3da509df965e`; armeabi-v7a,
+363,308 bytes, `691823eaa1668b808a6371ffd3eb84fa4623e7e1b0469935d88ff71a2be44776`;
+x86, 552,328 bytes, `43ff557f9e6d5fb697e99c30a7f2ee0d0262512e914eb7be457bfbce473d885a`;
+x86_64, 547,360 bytes, `3cba491607edd9392911131000622454a42d534da40e022a0b4826943c223f27`.
+The AAR native entries were DEFLATED. `zipalign -c -P 16 -v 4` succeeded for
+the AAR's compressed entries, but no final APK existed, so APK packaging
+alignment remains `NOT_TESTED`.
+
+The connected-device check returned no devices. Therefore static native result
+is `16K_STATIC_COMPATIBILITY_VERIFIED`, Android runtime is
+`16K_STATIC_PASS_RUNTIME_PENDING`, and no Pixel page-size claim is made for
+this continuation. The earlier Pixel result remains 4 KiB only.
+
+## Fixture hashes and reproduction anchors
+
+The checked-in sources are `tools/p05-004/engine-evidence/*.java`; the exact
+compile/run commands are in its `README.md`. The generated fixtures from the
+fresh checked-in-source run were: `hostile.zip`
+`ae9e5bbc12647e531bb8ce56f69b024cf8d98b6321b6d5a4af06501b295f97eb`,
+`hostile.tar` `bbdb2d91e4cb86f1637e77418198ce25057954b0eb8ff0a7a5fc4da535f5b703`,
+`hostile.tar.gz`
+`eda103da614546da0cd818d44b88d03f409e5a0fe51c00ec63949cd03dcea9d6`,
+`encrypted.zip` `2cb8db90bd422be7b19339db8f2fefec9a6e9d5cc665692be20202f5c94cd20e`,
+`payload.zst` `de75753abbb4471db7836c6ee02510302d30645180b6fa9f67ad12e8174ffd2a`,
+and `scale-100k.zip`
+`ea7786960e046206e8615ef88fe587a86fd152c64a70acdfec0b574912a31e9d`.
+The Junrar `v8.1.1` resource hashes were RAR4
+`91e21f4126181790429f5e5ecdefedae6d6883ed6b4b396fc94d4ed6b32c065a`, RAR5
+`aaf1a7d974f302f181720280151053f15ef1119b13d2f7bf9fddf2163bbf1701`, corrupt
+header `52cb2d337569bded1bef57d484adcdabf28b15bce916d1a4cf6babb3e21fe2b8`,
+`parent-dir.rar` `9d3c14e766a9f08893c16a37a9c0ca837a1b3a19aca8ea84c7eb5209b7bbab72`,
+and `mkdir-escape.rar`
+`d1d09c89d32a555cae7fb4157ec4b16d8be6bac4b702727d14e4b68e7653a0cb`.

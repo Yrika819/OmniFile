@@ -8,9 +8,10 @@
 | Zip4j 2.11.6 | encrypted/split ZIP | Encrypted/split ZIP host + Pixel evidence; pure Java | `CONDITIONAL` | provider behavior, malformed/security corpus, scale, exact artifact/transitives |
 | Junrar 8.1.x | RAR4/RAR5 read/extract | Technically survived the documented 8.1.x line | `CONDITIONAL` | exact artifact/UnRAR terms, encrypted/solid/multipart corpus, cancellation, security |
 | zstd-jni Android AAR | Zstandard codec path for TAR.ZST | TAR.ZST worked on tested arm64 Pixel 7a | `CONDITIONAL` | exact AAR/source provenance, ABI, 16 KiB, native crash/update/size evidence |
-| libarchive 3.8.9 | broad native alternative | Documentation-only candidate description | `UNRESOLVED` | Android runtime, JNI, ABI/16 KiB, crash isolation, size, performance, update ownership |
+| libarchive 3.8.9 | broad native alternative | No build or JNI invocation; required Java-first format/provider matrix is not fully closed | `UNRESOLVED` | Native alternative disposition requires closure of the retained Java-first requirements |
 
-The first four dispositions reflect the branch-local P0 reconciliation and archive boundary record ([`docs/architecture/14_P0_EVIDENCE_INCORPORATION.md:51-62`](../../architecture/14_P0_EVIDENCE_INCORPORATION.md), [`docs/architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md:58-66`](../../architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md)). The libarchive status remains unresolved because exact native alternatives, SAF/remote origins, fuzz coverage, cancellation, and production scale remain open ([`docs/architecture/14_P0_EVIDENCE_INCORPORATION.md:55-62`](../../architecture/14_P0_EVIDENCE_INCORPORATION.md)).
+The first four dispositions reflect the branch-local P0 reconciliation and the
+actual-engine continuation ([`docs/architecture/14_P0_EVIDENCE_INCORPORATION.md:51-62`](../../architecture/14_P0_EVIDENCE_INCORPORATION.md), [`docs/architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md:58-66`](../../architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md)). Libarchive remains `UNRESOLVED`: it was not implemented, and the retained Java-first format/provider matrix is not fully closed. No native alternative is added by this assessment.
 
 ## Candidate-specific closure gates
 
@@ -28,7 +29,7 @@ Junrar is extraction-focused and must not be treated as a RAR creation path ([`d
 
 ### zstd-jni
 
-The repository-level P0 reconciliation states that zstd-jni worked for TAR.ZST on the tested arm64 Pixel 7a, that the device report used 4 KiB pages, and that 16 KiB compatibility and libarchive viability remain untested ([`docs/architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md:160-166`](../../architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md)). No exact AAR version, native source revision, license manifest, ABI inventory, or reproducible-build record is present in the branch-local research/P0 record. Its disposition cannot be stronger than conditional.
+The repository-level P0 reconciliation states that zstd-jni worked for TAR.ZST on the tested arm64 Pixel 7a, that the device report used 4 KiB pages, and that 16 KiB compatibility and libarchive viability remain untested ([`docs/architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md:160-166`](../../architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md)). This continuation resolves exact zstd-jni `1.5.7-17` JAR/AAR bytes and ABI/ELF facts, but source-tag, final APK, Android runtime, and reproducible-build gates remain open, so its disposition remains conditional.
 
 ### libarchive
 
@@ -65,3 +66,22 @@ The manifest adds `security-fixture-policy` and
 separate the bounded size from the larger workload, and `native-packaging` for
 native candidates. Candidate parser, artifact, provider, and Android gates
 remain independently represented and open where the exact evidence is absent.
+
+## Actual-engine continuation harness — 2026-09-18
+
+The disposable parent-controlled JVM harness resolved the exact artifacts in
+`01_ENVIRONMENT.md` and invoked their public APIs. It did not mock parser
+results and it did not modify the repository. The harness generated compact
+ZIP/TAR/TAR.GZ/AES-ZIP/Zstandard fixtures, sourced Junrar RAR4/RAR5 and
+hostile fixtures from the Junrar `v8.1.1` test-resource archive, and used a
+Zip64-forced stored-entry generator for real 100,000-entry scale.
+
+Evidence commands were run as bounded Java processes with `-Xmx768m` or
+`-Xmx512m`; the 100,000-entry compressed ZIP attempt exceeded the 120-second
+watchdog, so it is recorded as a bounded timeout rather than a pass. The
+Zip64/stored-entry generator completed the same 100,000-entry target in a
+separate run.
+
+The parser layer and application policy layer remain separate. Names such as
+`../escape.txt` and `/absolute.txt` were observed as parser-visible names;
+containment rejection remains the application wrapper's responsibility.

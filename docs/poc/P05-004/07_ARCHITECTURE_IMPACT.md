@@ -35,17 +35,27 @@ The branch-local P0 readiness assessment specifically calls for archive producti
 
 ## Final disposition
 
-`P05-004 ARCHITECTURE REVIEW INPUT: READY_WITH_EXPLICIT_GATES`
+`P05-004 ARCHITECTURE REVIEW INPUT: NOT_READY`
 
 `P05-004 PRODUCTION CANDIDATE CLOSURE: NOT CLOSED`
 
-The evidence package supports a reviewable Java-first direction with explicit
-security, provider-access, artifact/provenance, and scale gates. It does not
-authorize Technology Freeze or production implementation. zstd-jni remains an
-optional conditional native path and is not advertised by the host capability
-wrapper until exact packaging/ABI/16 KiB evidence exists. Junrar remains
-`LICENSE_REVIEW_REQUIRED`; RAR creation remains unsupported. libarchive is
-retained as a second-stage alternative but is `NOT_JUSTIFIED_FOR_CORE_V1`
-because no local build, Android/JNI, or measured benefit exists. The disposable
-harness conservatively remains `OVERALL=NOT_CLOSED` until the candidate-specific
-gates are supplied.
+The real-evidence continuation supports a Java-first evidence path with explicit
+gates, but not a freeze-ready technology family. Commons Compress, Zip4j, and Junrar 8.1.1 were actually invoked on host
+fixtures; provider evidence makes spooling/seek costs visible rather than
+claiming universal provider neutrality. zstd-jni 1.5.7-17 has static 16 KiB
+ELF alignment across all four AAR ABIs, but final APK packaging and Android
+runtime remain pending. Junrar remains `EXTERNAL_LICENSE_REVIEW_REQUIRED`, RAR
+creation remains unsupported, and the architecture does not authorize treating
+that license as optional. libarchive remains `UNRESOLVED` because the retained
+Java-first format/provider comparison is incomplete. The disposable manifest
+remains `OVERALL=NOT_CLOSED` because the remaining gates may still change the
+family selection.
+
+## Technology Freeze reassessment input
+
+`NO` at the CORE_V1 technology-family level: the required RAR license
+disposition, retained Zstandard/native acceptance, and full Java-first versus
+libarchive comparison remain capable of changing the selected family. This is
+a readiness assessment only; Technology Freeze itself was not executed, exact
+production dependency versions were not frozen, and no production OmniFile
+module was initialized.

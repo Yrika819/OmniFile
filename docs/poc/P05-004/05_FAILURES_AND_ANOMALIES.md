@@ -25,12 +25,10 @@ The repository’s test strategy names ZIP/ZIP64/AES/split, encrypted/solid 7z, 
 
 ## Truthful status
 
-The continuation ran 14 controlled host-only application-policy fixtures. They
-passed for the modeled outcomes, but no archive parser, native library, Android
-runtime, symlink filesystem mutation, or device test was run. The fixtures
-therefore support the wrapper-policy gate only; the individual parser/security
-rows remain `UNKNOWN` or `NOT_TESTED` rather than being inferred from the
-fixture pass or the 54-record P0 summary.
+The continuation ran 14 controlled host-only application-policy fixtures and
+then added actual JVM parser/native probes. It did not run Android runtime or
+symlink filesystem mutation. The fixture pass remains wrapper-policy evidence;
+actual parser rows are bounded to the cases recorded below.
 
 | Controlled result | Classification | Remaining limitation |
 |---|---|---|
@@ -69,9 +67,9 @@ direction with explicit gates while remaining `OVERALL=NOT_CLOSED`.
 | Static ELF evidence overclaimed? | No: local AAR/ELF counts are `0`/`0`; absence finding only, no `readelf` claim |
 | Fixture coverage called security proof? | No: wording is `tested corpus failed safely under the enforced application policy`; parser rows stay `UNKNOWN`/`NOT_TESTED` |
 | Scale extrapolated? | No: synthetic host metadata-index only; parser/UI/Android/device scale explicitly open; maximum actually tested scale is the synthetic 100k entry index |
-| Java-first preferred without evidence? | Acceptable as review input only: `READY_WITH_EXPLICIT_GATES`, no dependency selected, no freeze executed |
-| libarchive dismissed prematurely? | No: retained as second-stage alternative; `NOT_JUSTIFIED_FOR_CORE_V1` is scoped to CORE_V1 evidence, not a global rejection |
-| Freeze blocker mislabeled as release-only? | Consistent: zstd-jni native gates attach to the optional conditional path, not the Java-first family; Junrar license stays an explicit freeze gate for Junrar inclusion; no Technology Freeze is executed here |
+| Java-first preferred without evidence? | The actual host evidence supports a direction, but retained required-format and license/native gates keep the family `NOT_READY`; no dependency selected, no freeze executed |
+| libarchive dismissed prematurely? | Finding retained: libarchive remains `UNRESOLVED` until the retained Java-first matrix is closed; no native alternative was added |
+| Freeze blocker mislabeled as release-only? | Corrected: Junrar license, zstd source/build/runtime, and the incomplete retained matrix remain Technology Freeze blockers; no Technology Freeze is executed here |
 
 ### Code review (continuation diff)
 
@@ -80,3 +78,31 @@ Intent: extend closure evidence with bounded host-only probes while keeping
 standard-library-only harnesses; no production code, no secrets, no
 dependency declarations; `duplicate.tsv` preserved; negative testing intact;
 no P05-001/002/003 files touched. Verdict: Approve.
+
+## Real parser hostile-input findings — 2026-09-18
+
+| Engine/case | Actual behavior | Interpretation and gate |
+|---|---|---|
+| Commons ZIP traversal names | Parser returned `../escape.txt`, `/absolute.txt`, and a normalization edge name | Parser acceptance is not extraction permission; wrapper containment remains required. |
+| Commons/Zip4j truncated ZIP | Controlled `EOFException` / `ZipException` | Positive bounded behavior for the tested fixture; not corpus closure. |
+| Junrar `parent-dir.rar` | Listed/extracted the parent-directory fixture | Requires application containment and output-policy enforcement. |
+| Junrar `mkdir-escape.rar` | `CorruptHeaderException` during extraction | Controlled rejection for this fixture. |
+| Junrar corrupted header | Accepted archive with zero entries, `hasBrokenHeaders=true`, two header failures | Wrapper must treat broken-header state as an error/diagnostic, not successful empty archive. |
+| Junrar password fixtures | Missing/wrong password produced controlled Java exceptions; correct `junrar` password extracted | Error normalization is feasible for tested cases; broad encrypted/multipart corpus remains open. |
+| zstd-jni malformed inputs | Controlled `ZstdIOException`; truncated frames emitted partial output before failure | Caller must write to partial output and discard on failure; no host crash/hang observed. |
+
+The actual-engine harness never intentionally exhausted the host. The stalled
+first compressed 100,000-entry attempt was terminated by its 120-second
+watchdog; the optimized stored/Zip64 generator completed the 100,000-entry
+case. This is a measurement boundary, not a pass inferred from 10,000 entries.
+
+## 2026-09-18 process anomaly disposition
+
+The existing `test_archive_evidence_matrix.sh` was initially run through a
+30-second non-interactive command window and appeared hung. Reproduction with a
+single TTY process completed in approximately 65 seconds and exited `0`, after
+six `javac` invocations, negative-case runs, synthetic 100k validation, Junrar
+inspection, and native scan. Two overlapping parent-launched runs were
+terminated; no repository files were changed. Root cause was bounded command
+timeout plus overlapping expensive JVM invocations, not a harness correctness
+failure. The final verification uses a single serialized run.

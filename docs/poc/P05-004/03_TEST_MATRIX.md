@@ -41,3 +41,20 @@ The current disposable manifest compresses this to `candidate`, `gate`, `status`
 - A passing parser/codec fixture does not pass extraction containment, symlink, expansion, or cancellation policy.
 - The 14-case security fixture result is application-policy evidence only; it does not change the individual candidate parser/security rows.
 - `4096` page-size evidence is not `16384` page-size evidence. A native candidate without a local AAR/ELF and 16 KiB measurement remains open.
+
+## Actual-engine matrix update — 2026-09-18
+
+| Engine/path | Actual evidence | Result | Gate meaning |
+|---|---|---|---|
+| Commons Compress ZIP | `ZipArchiveInputStream` sequential listing/read, `ZipFile` seekable listing, traversal-name visibility, truncated ZIP | PASS for tested fixtures; truncation `EOFException` | broader malformed, symlink, cancellation, and provider corpus remains open |
+| Commons Compress TAR/TAR.GZ | sequential stream listing/read with three entries including hostile names | PASS for tested fixtures | TAR.BZ2/XZ/ZST and broader corpus remain open |
+| Zip4j ZIP | sequential ZIP, AES-256 correct password, wrong password, truncated ZIP, 10k/100k real stored-entry listing | PASS for tested fixtures; wrong password `ZipException` | split/multipart and full provider/security corpus remain open |
+| Junrar 8.1.1 | RAR4/RAR5 file and stream listing/extraction, password and hostile fixtures, corrupted-header observation | PASS/CONTROLLED for tested fixtures | solid/multipart/large corpus and policy integration remain open |
+| zstd-jni 1.5.7-17 | valid decode and truncated/bad-frame host probes; partial output observed before controlled `ZstdIOException` | PASS_WITH_PARTIAL_OUTPUT_CAVEAT | Android AAR runtime and final APK packaging remain open |
+| libarchive 3.8.9 | no build or JNI invocation | NOT_TESTED | retained Java-first comparison is incomplete; disposition remains `UNRESOLVED` |
+
+Real ZIP scale reached 10,000 entries with the standard compressed generator
+and 100,000 entries with a Zip64-forced stored-entry generator. The 100,000
+entry run produced a 15,777,878-byte archive and enumerated 100,000 entries in
+Commons Compress and Zip4j. This is format/engine evidence for ZIP, not a
+universal scale claim for TAR, RAR, SAF, Android, or all compressed modes.
