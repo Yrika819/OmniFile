@@ -52,6 +52,25 @@ cp "$JUNRAR_SRC/unpacked/junrar-8.1.1/src/test/resources/com/github/junrar/abnor
 java -Xmx512m -cp "$BUILD:$ART/*" JunrarRealHarness "$RAR_REAL"
 ```
 
+```sh
+java -Xmx512m -cp "$BUILD:$ART/*" SpoolContainmentHarness
+java -Xmx512m -cp "$BUILD:$ART/*" RealEngineSpoolHarness
+```
+
+`SpoolContainmentHarness` is stdlib-only (policy layer: spool, containment,
+cleanup, cancellation, error-map; 18/18 PASS). `RealEngineSpoolHarness`
+needs the exact candidate JARs on the classpath plus `xz-1.10.jar` for the
+XZ route (Commons declares XZ `1.10` optional; resolved from Maven Central
+into disposable space, SHA-256
+`95c63c1a55b22dd6453890a419cc1a640f790bbf7d8ae82db1e30aefefb08888`):
+
+```sh
+curl -fsSL "$BASE/org/tukaani/xz/1.10/xz-1.10.jar" -o "$ART/xz-1.10.jar"
+javac -cp "$ART/*" -d "$BUILD" tools/p05-004/engine-evidence/SpoolContainmentHarness.java tools/p05-004/engine-evidence/RealEngineSpoolHarness.java
+java -Xmx512m -cp "$BUILD:$ART/*" SpoolContainmentHarness
+java -Xmx512m -cp "$BUILD:$ART/*" RealEngineSpoolHarness
+```
+
 The expected hashes, POM/transitive inventory, and interpretation of partial
 or untested cases are in the P05-004 evidence documents. The harness does not
 claim Android SAF behavior, final APK packaging, 16 KiB runtime behavior, or
