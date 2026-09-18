@@ -11,11 +11,15 @@
    lifecycle evidence remain open, with raw runtime artifacts not retained.
 3. Media3 evidence is parent-observed on one Pixel 7a/API36 run; API31,
    pipe/provider, remote, lifecycle, and human audio acceptance remain open.
-4. Archive candidate closure remains conditional/open, including legal, parser-
-   security, real-provider, native packaging, and 16 KiB gates. P05-004 final
-   SHA `03d7c29e04932ecfbd926cd7934f8be66ab05fa2` (`OVERALL=NOT_CLOSED`;
-   harness `PASS`); the duplicate-fixture removal hypothesis was rejected as
-   false — `duplicate.tsv` is intentional negative coverage.
+4. Archive technology-family closure remains `NOT_READY` and `OVERALL=NOT_CLOSED`.
+   P05-004 final SHA is `b0ccc2ca0459c6a92b128f80bb9f0fb8c2406898`; strict
+   matrix and checked-in real-engine harnesses pass for exact Commons Compress
+   1.28.0, Zip4j 2.11.6, Junrar 8.1.1, and zstd-jni 1.5.7-17 host evidence.
+   Junrar/UnRAR legal approval, Android provider and retained-format/security
+   closure, zstd source/build/APK/runtime acceptance including runtime 16 KiB,
+   and the unresolved libarchive comparison remain open. The duplicate-fixture
+   removal hypothesis was rejected as false — `duplicate.tsv` is intentional
+   negative coverage.
 
 ## Post-scaffold non-blockers
 
