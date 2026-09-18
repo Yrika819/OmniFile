@@ -12,15 +12,21 @@
 3. Media3 evidence is parent-observed on one Pixel 7a/API36 run; API31,
    pipe/provider, remote, lifecycle, and human audio acceptance remain open.
 4. Archive technology-family closure remains `NOT_READY` and `OVERALL=NOT_CLOSED`.
-   P05-004 final SHA is `516308346d36c1c958a2bfa85a5fb1a2412379d9`; strict
+   P05-004 final SHA is `df624230483ee38fd28669ad37c54233b1efe841`; strict
    matrix and checked-in real-engine harnesses pass for exact Commons Compress
    1.28.0, Zip4j 2.11.6, Junrar 8.1.1, and zstd-jni 1.5.7-17 host evidence,
    with a disposable Pixel 7a/API36 4 KiB native/TAR.ZST/restart/SAF-PFD pass.
-   Junrar/UnRAR legal approval, Android provider and retained-format/security
-   closure, zstd source/build attestation and runtime 16 KiB remain open.
-   libarchive is explicitly `NOT_JUSTIFIED_FOR_CORE_V1` absent a concrete
-   Java-first capability gap. The duplicate-fixture removal hypothesis was
-   rejected as false — `duplicate.tsv` is intentional negative coverage.
+   One authorized API36 16 KiB guest confirmed `PAGE_SIZE=16384` and APK
+   alignment, but Package Manager failed with `Broken pipe (32)` before app
+   launch, so 16 KiB app runtime is `NOT_COMPLETED`. Junrar/UnRAR remains
+   `EXTERNAL_LICENSE_REVIEW_REQUIRED` / `RAR_FEATURE_FREEZE_BLOCKING_ONLY`;
+   Android provider and retained-format/security closure and zstd source/build
+   attestation remain open. The libarchive validator result remains
+   `libarchive=UNRESOLVED` and `OVERALL=NOT_CLOSED`; this is the expected guard
+   for an uninvoked candidate, not a libarchive failure, while the separate
+   campaign disposition is `NOT_JUSTIFIED_FOR_CORE_V1`. The duplicate-fixture
+   removal hypothesis was rejected as false — `duplicate.tsv` is intentional
+   negative coverage.
 
 ## Post-scaffold non-blockers
 
@@ -37,8 +43,10 @@ These remain separate later campaigns unless new evidence makes them foundationa
 - Production File Manager implementation: not started.
 - Production Android scaffold: not created.
 - Technology Freeze: not executed.
-- P05-004 independent final review: `REVIEW_NOT_COMPLETED` because the
-  requested review-agent dispatch hit the host subagent thread limit; no review
-  approval is claimed.
+- P05-004 skeptical review: completed; it required and received the
+  `RAR_FEATURE_FREEZE_BLOCKING_ONLY` and libarchive wording corrections.
+- P05-004 independent final review-agent: `REVIEW_NOT_COMPLETED`; the
+  dispatched agent did not return a result within the bounded wait and was
+  shut down. No approval is claimed.
 - Current architecture authority remains `6ec9e1037d0fd86afebdec6bd1a5be67b008ccbb`.
 - `main` remains `793d151f9608a684c1d0d4be2e58e5b49d26f823`.
