@@ -50,7 +50,7 @@ The current disposable manifest compresses this to `candidate`, `gate`, `status`
 | Commons Compress TAR/TAR.GZ | sequential stream listing/read with three entries including hostile names | PASS for tested fixtures | TAR.BZ2/XZ/ZST and broader corpus remain open |
 | Zip4j ZIP | sequential ZIP, AES-256 correct password, wrong password, truncated ZIP, 10k/100k real stored-entry listing | PASS for tested fixtures; wrong password `ZipException` | split/multipart and full provider/security corpus remain open |
 | Junrar 8.1.1 | RAR4/RAR5 file and stream listing/extraction, password and hostile fixtures, corrupted-header observation | PASS/CONTROLLED for tested fixtures | solid/multipart/large corpus and policy integration remain open |
-| zstd-jni 1.5.7-17 | valid decode and truncated/bad-frame host probes; exact AAR in disposable final APK; Pixel arm64 native load, valid/TAR.ZST decode, malformed errors, restart, and real Downloads PFD | PASS_WITH_PARTIAL_OUTPUT_CAVEAT | Pixel is 4 KiB; source/build attestation and 16 KiB runtime remain open |
+| zstd-jni 1.5.7-17 | valid decode and truncated/bad-frame host probes; exact AAR in disposable final APK; Pixel arm64 native load, valid/TAR.ZST decode, malformed errors, restart, and real Downloads PFD; 16 KiB guest page identity and APK alignment | PASS_WITH_PARTIAL_OUTPUT_CAVEAT | Pixel is 4 KiB; 16 KiB app runtime was `NOT_COMPLETED` because Package Manager failed with Broken pipe (32); source/build attestation remains open |
 | libarchive 3.8.9 | bounded CMake host configuration attempted; no library/JNI invocation completed | NOT_TESTED | no concrete Java-first gap demonstrated; final disposition `NOT_JUSTIFIED_FOR_CORE_V1` |
 
 Real ZIP scale reached 10,000 entries with the standard compressed generator

@@ -67,9 +67,9 @@ direction with explicit gates while remaining `OVERALL=NOT_CLOSED`.
 | Static ELF evidence overclaimed? | No: local AAR/ELF counts are `0`/`0`; absence finding only, no `readelf` claim |
 | Fixture coverage called security proof? | No: wording is `tested corpus failed safely under the enforced application policy`; parser rows stay `UNKNOWN`/`NOT_TESTED` |
 | Scale extrapolated? | No: synthetic host metadata-index only; parser/UI/Android/device scale explicitly open; maximum actually tested scale is the synthetic 100k entry index |
-| Java-first preferred without evidence? | The actual host evidence supports a direction, but retained required-format and license/native gates keep the family `NOT_READY`; no dependency selected, no freeze executed |
+| Java-first preferred without evidence? | The actual host evidence supports a conditional direction, but retained format/provider and native gates keep the family `NOT_READY`; Junrar remains a RAR-feature gate, no dependency selected, no freeze executed |
 | libarchive dismissed prematurely? | The focused Java/provider evidence exposed no required CORE_V1 capability that needs native libarchive; bounded CMake configuration was attempted but stopped before a comparator binary. Final disposition is `NOT_JUSTIFIED_FOR_CORE_V1`, not a global rejection. |
-| Freeze blocker mislabeled as release-only? | Corrected: Junrar license, zstd source/build/runtime, and the incomplete retained matrix remain Technology Freeze blockers; no Technology Freeze is executed here |
+| Freeze blocker mislabeled as release-only? | Corrected: zstd source/build/runtime and the incomplete retained matrix remain family-level Technology Freeze blockers; Junrar is `RAR_FEATURE_FREEZE_BLOCKING_ONLY`; no Technology Freeze is executed here |
 
 ### Code review (continuation diff)
 
@@ -115,17 +115,17 @@ common findings were reconciled here:
 
 | Finding | Disposition |
 |---|---|
-| Junrar/UnRAR terms | Exact tagged license permits RAR handling but prohibits recreating RAR compression; technical outcome remains `EXTERNAL_LICENSE_REVIEW_REQUIRED`. Because RAR read/extract is still required by the current architecture matrix, the severity is `FAMILY_FREEZE_BLOCKING`, not merely an optional-RAR implementation gate. |
+| Junrar/UnRAR terms | Exact tagged license permits RAR handling but prohibits recreating RAR compression; technical outcome remains `EXTERNAL_LICENSE_REVIEW_REQUIRED`. Protected architecture keeps the engine stack `POC_REQUIRED` and exact RAR/Junrar selection open, so the severity is `RAR_FEATURE_FREEZE_BLOCKING_ONLY`, not a blocker for the entire archive technology family. |
 | zstd-jni source/build | AAR/JAR/static ABI evidence is real; no `v1.5.7-17` source tag or release-to-source/compiler attestation was found. The candidate build recipe and CI toolchain differ, so source/build provenance remains a Technology Freeze blocker if TAR.ZST is retained. |
 | provider/security | The 14-case fixture harness is application-policy-only. Actual parser probes do not prove extraction security. Required missing decision evidence includes real extraction-root containment, partial-output cleanup, cancellation, split/multipart/solid cases, and SAF seekable-versus-pipe behavior. |
-| libarchive | An empty native row is not a defect by itself. No Java-first failure requiring native libarchive was demonstrated; the comparator is `NOT_JUSTIFIED_FOR_CORE_V1` and may reopen only on a concrete Java-first gap. |
-| technology severity | No new architecture blocker was found. The exact Technology Freeze blockers are selected archive-family evidence, Junrar legal disposition if RAR remains required, and zstd source/build/runtime acceptance if TAR.ZST remains required. Other P05 lifecycle, containment, packaging, notice, API, and human-acceptance gaps remain implementation or release gates. |
+| libarchive | An empty native row is not a defect by itself. The parent completed a bounded libarchive configuration/decision check, not a libarchive comparison or approval. No Java-first failure requiring native libarchive was demonstrated; the disposition is `NOT_JUSTIFIED_FOR_CORE_V1` and may reopen only on a concrete Java-first gap. |
+| technology severity | No new architecture blocker was found. Junrar legal disposition is a RAR-feature freeze blocker only because protected authority leaves exact engine selection and the RAR subset open. zstd source/build/runtime acceptance if TAR.ZST is retained and the retained provider/format/security matrix remain family-selection gates. Other P05 lifecycle, containment, packaging, notice, API, and human-acceptance gaps remain implementation or release gates. |
 
 The audit did not authorize dependency selection or Technology Freeze. One
 additional requested audit slot was unavailable because the host reported the
-subagent thread limit; the parent completed the missing libarchive comparison
-attempt and recorded its bounded result rather than treating the slot as
-approval.
+subagent thread limit; the parent completed the bounded libarchive
+configuration/decision check and recorded its result rather than treating the
+slot as approval.
 
 The requested fresh final review-agent pass was `REVIEW_NOT_COMPLETED`: the
 same host-level subagent thread limit rejected the dispatch. No independent
@@ -141,3 +141,32 @@ It is `NOT_16K_RUNTIME_EVIDENCE` because the authoritative runtime query was
 `PAGE_SIZE=4096`. The SDK’s apparent 16 KiB image directory was empty; no
 emulator was installed before the Pixel pass and no 16 KiB runtime claim is
 made.
+
+## Authorized 16 KiB runtime attempt — 2026-09-19
+
+The campaign then installed exactly one official API 36 `google_apis_ps16k`
+x86_64 image and created one isolated AVD. The guest identity was real and
+repeatable (`PAGE_SIZE=16384`), and the exact x86_64 APK passed packaging and
+signature checks. The guest nevertheless failed the only permitted install
+retry with `cmd: Failure calling service package: Broken pipe (32)` after
+Package Manager/system-server instability. The app never reached a trustworthy
+launch/decode state.
+
+Disposition: `16K_RUNTIME_NOT_COMPLETED / ENVIRONMENT_BLOCKER`. This closes
+neither native-load nor zstd/TAR.ZST runtime acceptance. It is not evidence of
+a zstd defect, and no additional image or repeated emulator retry is authorized
+by this campaign.
+
+## Junrar severity re-audit — 2026-09-19
+
+The architecture authority requires the later engine comparison to cover
+RAR4/RAR5, including encrypted, solid, and multipart inputs; it does not
+authorize a RAR encoder or freeze Junrar. The exact Junrar 8.1.1 artifact and
+tagged source remain `EXTERNAL_LICENSE_REVIEW_REQUIRED`: the UnRAR-derived
+terms permit RAR handling but prohibit recreating RAR compression, and no
+formal legal clearance is present. Protected authority leaves exact engine
+selection and the proven RAR subset open, so the disposition is
+`RAR_FEATURE_FREEZE_BLOCKING_ONLY`, not `FAMILY_FREEZE_BLOCKING`. If product
+authority later makes RAR read/extract mandatory for Core_V1, this issue must
+be promoted before that feature is frozen; it does not currently block the
+whole archive technology family.

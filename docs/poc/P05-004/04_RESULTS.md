@@ -240,3 +240,36 @@ header `52cb2d337569bded1bef57d484adcdabf28b15bce916d1a4cf6babb3e21fe2b8`,
 `parent-dir.rar` `9d3c14e766a9f08893c16a37a9c0ca837a1b3a19aca8ea84c7eb5209b7bbab72`,
 and `mkdir-escape.rar`
 `d1d09c89d32a555cae7fb4157ec4b16d8be6bac4b702727d14e4b68e7653a0cb`.
+
+## 16 KiB AVD runtime attempt — 2026-09-19
+
+The authorized API 36 `google_apis_ps16k/x86_64` image and isolated
+`P05_Pixel_API36_16K_x86_64` AVD independently confirmed a 16 KiB guest page
+size. The exact x86_64 APK was packaged with all APK entries stored, passed
+`zipalign -c -P 16 -v 4`, and had SHA-256
+`051b344a39b82e5711af430eced14ade5dd0b47149796a338490bda49eeaead4`.
+
+The guest reached a usable Package Manager state after a cold boot, but the
+install operation then failed with:
+
+```
+cmd: Failure calling service package: Broken pipe (32)
+```
+
+The failure occurred in the guest system/package service during installation,
+before a trustworthy application launch. A prior attempt also showed the
+same guest instability and an `Activity class ... does not exist` response
+while package state was unavailable. The result is therefore:
+
+| Gate | Result |
+|---|---|
+| 16 KiB guest identity | `PASS` — `PAGE_SIZE=16384`, API 36, x86_64 |
+| APK packaging/alignment | `PASS` — exact disposable APK, `zipalign -P 16` |
+| 16 KiB native load | `NOT_COMPLETED` |
+| 16 KiB zstd/TAR.ZST decode | `NOT_COMPLETED` |
+| 16 KiB malformed-input behavior | `NOT_COMPLETED` |
+| Cause | guest Package Manager/system-server instability, not an observed zstd failure |
+
+This is a runtime-environment blocker and must not be relabeled as either a
+native crash or a successful 16 KiB app test. The physical Pixel result stays
+the separate arm64/4 KiB runtime evidence above.

@@ -6,7 +6,7 @@
 |---|---|---|---|
 | Commons Compress 1.28.0 | Apache-2.0; exact JAR contains `META-INF/LICENSE.txt` and `META-INF/NOTICE.txt` | optional zstd convergence, full transitive notice register, broader parser/provider corpus | `READY_WITH_GATES` |
 | Zip4j 2.11.6 | Apache-2.0; exact JAR has no embedded license/NOTICE file | external notice register, split/multipart/provider/security corpus | `READY_WITH_GATES` |
-| Junrar 8.1.1 | UnRAR-derived non-standard terms; exact JAR/source contain no complete embedded license file | external license review, required-RAR family gate, broader solid/multipart/provider corpus | `READY_WITH_GATES` technical / `EXTERNAL_LICENSE_REVIEW_REQUIRED` licensing |
+| Junrar 8.1.1 | UnRAR-derived non-standard terms; exact JAR/source contain no complete embedded license file | external license review, conditional RAR-feature gate, broader solid/multipart/provider corpus | `READY_WITH_GATES` technical / `EXTERNAL_LICENSE_REVIEW_REQUIRED` licensing |
 | zstd-jni 1.5.7-17 | exact JAR/AAR resolved; AAR has four 16 KiB-aligned ELF ABIs but no embedded license/NOTICE | source/reproducible-build provenance, final APK/runtime packaging, Android runtime, partial-output wrapper | `READY_WITH_GATES` |
 | libarchive 3.8.9 | New BSD-style license | bounded CMake host attempt did not produce a comparator; no required Java-first capability gap justifies native adoption | `NOT_JUSTIFIED_FOR_CORE_V1` |
 
@@ -47,8 +47,9 @@ These requirements come directly from the architecture native boundary and licen
 
 - TAR.ZST worked on the tested arm64 Pixel 7a through the exact disposable
   Android APK and zstd-jni AAR/native library.
-- The Pixel reports `PAGE_SIZE=4096`; 16 KiB runtime compatibility remains
-  explicitly unmeasured.
+- The Pixel reports `PAGE_SIZE=4096`; the authorized 16 KiB guest reports
+  `PAGE_SIZE=16384` but app runtime was `NOT_COMPLETED` after Package Manager
+  failure, so 16 KiB runtime compatibility remains open.
 - A real Downloads DocumentsProvider URI/PFD decoded successfully; generic
   seekability, pipes, spooling, and extraction remain open.
 - The exact zstd-jni AAR was inspected; all four bundled ABIs had 16 KiB ELF
@@ -68,14 +69,18 @@ This is an engineering evidence register, not legal advice. RAR creation remains
 ## Core V1 disposition
 
 `NOT_READY`: the tested evidence supports a Java-first direction, but the
-required RAR read/extract path still has an external license disposition and
-the Zstandard/native path still lacks source/build attestation and production
-APK/runtime closure. The retained Java-first format/provider matrix is also not
-fully closed, so the evidence cannot prove that no unresolved issue would
-change the selected technology family. The libarchive comparison is now
-closed as `NOT_JUSTIFIED_FOR_CORE_V1`: no concrete unmet CORE_V1 requirement
-was demonstrated, and supports-more-formats alone is not sufficient to accept
-native complexity.
+conditional RAR read/extract feature still has an external license disposition
+and the Zstandard/native path still lacks source/build attestation and trustworthy
+16 KiB app-runtime closure. The authorized 16 KiB guest reached
+`PAGE_SIZE=16384`, but its Package Manager failed during APK installation with
+`Broken pipe (32)`, so no native-load or decode result exists for that guest.
+The retained Java-first format/provider matrix is also not fully closed, so the
+evidence cannot prove that no unresolved issue would change the selected
+technology family. The libarchive technical comparator remains uninvoked. No
+concrete unmet CORE_V1 requirement was demonstrated by the exercised
+Java/provider evidence, so the campaign disposition is
+`NOT_JUSTIFIED_FOR_CORE_V1`; this is a non-selection decision, not libarchive
+coverage or a global rejection.
 
 ## Final candidate classifications
 
@@ -83,21 +88,24 @@ native complexity.
 |---|---|---|
 | Commons Compress | `READY_WITH_GATES` | Apache notices and optional-zstd convergence remain explicit gates |
 | Zip4j | `READY_WITH_GATES` | external notices plus split/provider/security gates remain |
-| Junrar | `READY_WITH_GATES` technical | `EXTERNAL_LICENSE_REVIEW_REQUIRED`; `FAMILY_FREEZE_BLOCKING` while RAR read/extract remains required |
-| zstd-jni | `READY_WITH_GATES` | `16K_STATIC_PASS_RUNTIME_PENDING`; source/build/APK/runtime gates remain |
-| Java-first family | `NOT_READY` | required RAR licensing, zstd provenance/runtime, and retained provider/format evidence could still change the family |
+| Junrar | `READY_WITH_GATES` technical | `EXTERNAL_LICENSE_REVIEW_REQUIRED`; `RAR_FEATURE_FREEZE_BLOCKING_ONLY` while exact RAR scope remains open |
+| zstd-jni | `READY_WITH_GATES` | `16K_STATIC_PASS / 16K_RUNTIME_NOT_COMPLETED`; source/build, guest stability, and wrapper gates remain |
+| Java-first family | `NOT_READY` | zstd provenance/runtime and retained provider/format evidence could still change the family; Junrar remains a separate RAR-feature gate |
 
 ## Gate severity
 
-No `ARCHITECTURE_BLOCKER` was found. Remaining `TECHNOLOGY_FREEZE_BLOCKER`
-items are the Junrar/UnRAR license disposition for required RAR read/extract,
+No `ARCHITECTURE_BLOCKER` was found. Junrar/UnRAR legal disposition is a
+`RAR_FEATURE_FREEZE_BLOCKING_ONLY` item because protected authority leaves the
+exact RAR engine/scope open. Remaining `TECHNOLOGY_FREEZE_BLOCKER` items are
 zstd-jni source/build provenance and 16 KiB runtime acceptance if TAR.ZST is
-retained, and the selected retained-format/provider matrix. `libarchive` is
-not a blocker for this campaign because no concrete Java-first gap requires
-it. Remaining `IMPLEMENTATION_GATE` items are adapter spooling and reopen
+retained, and the selected retained-format/provider matrix. The 16 KiB runtime
+gate is now specifically `NOT_COMPLETED` because the authorized guest's
+Package Manager/system-server failed during installation. `libarchive` is not
+a blocker for this campaign because no concrete Java-first gap requires it.
+Remaining `IMPLEMENTATION_GATE` items are adapter spooling and reopen
 semantics, application containment/partial-output cleanup, error
 normalization, cancellation, and broader per-format hostile corpus/scale.
 Remaining `RELEASE_GATE` items are the complete transitive notice register,
-production APK packaging, 16 KiB runtime/device evidence, Android API
-coverage, update ownership, and human acceptance. These classifications do
-not execute Technology Freeze.
+production APK packaging, stable 16 KiB runtime/device evidence, Android API
+coverage, update ownership, and human acceptance. These classifications do not
+execute Technology Freeze.

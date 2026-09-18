@@ -139,3 +139,27 @@ SDK 36, min SDK 21, Java 8 bytecode, Build Tools 36.1.0, and the exact
 `zstd-jni:1.5.7-17` AAR. It is not OmniFile production scaffolding and did not
 choose a production namespace, module, signing, or dependency policy. The
 exact installed APK is recorded separately in `04_RESULTS.md`.
+
+## Authorized 16 KiB image and isolated AVD — 2026-09-19
+
+One authorized system image was installed and one isolated AVD was created;
+no second image, NDK, production SDK, or physical-device reset was used:
+
+| Field | Observed value |
+|---|---|
+| Package | `system-images;android-36;google_apis_ps16k;x86_64` |
+| Package metadata SHA-256 | `6d8f1ae9e4bd19b485c6410fe056009bef6308d81ec461f84306fa9219070bbb` |
+| AVD | `P05_Pixel_API36_16K_x86_64` / `pixel_7a` |
+| Guest | API 36, `sdk_gphone16k_x86_64`, x86_64 |
+| AVD path | `/Users/yuta/.android/avd/P05_Pixel_API36_16K_x86_64.avd` |
+| Runtime page identity | `getconf PAGE_SIZE=16384`; `getconf PAGESIZE=16384` |
+| Exact disposable APK | `/tmp/p05-004-16k-poc-build3/out/p05-004-zstd-16k-x86_64.apk` |
+| APK SHA-256 | `051b344a39b82e5711af430eced14ade5dd0b47149796a338490bda49eeaead4` |
+
+The APK was checked with `zipalign -c -P 16 -v 4` and passed signature
+verification; it contains only the x86_64 zstd-jni native library. The first
+installation attempt was not runtime evidence because the guest package
+service was unstable. A single cold-boot retry reached `service check package:
+found` and `PAGE_SIZE=16384`, but `adb install -r` later failed with `cmd:
+Failure calling service package: Broken pipe (32)` while Package Manager was
+being called. No 16 KiB app launch, decode, or crash result is claimed.
