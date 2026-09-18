@@ -42,7 +42,9 @@ The branch-local P0 reconciliation states that host and physical Pixel 7a archiv
 
 - selecting or adding production dependencies;
 - Android application or module creation;
-- ADB, emulator, physical-device, or Android runtime execution in this continuation;
+- ADB, emulator, physical-device, or Android runtime execution in the initial
+  host-only continuation; the later physical-device continuation is documented
+  in the dedicated section below;
 - building libarchive, zstd-jni, or any archive library;
 - claiming RAR creation;
 - claiming that parser APIs provide extraction security;
@@ -64,21 +66,23 @@ maintenance inputs, not runtime compatibility or legal approval.
 
 ## Continuation audit boundary
 
-The 2026-09-18 continuation downloaded exact candidate artifacts into
+The initial 2026-09-18 continuation downloaded exact candidate artifacts into
 disposable temporary directories and ran actual host/JVM parser, provider,
-scale, hostile-input, and native-inspection probes. It did not create a
-production dependency declaration, Android app/module, final APK, or device
-runtime. The worktree-local Junrar/native absence probes remain facts about
-this checkout only; they do not contradict the separately resolved temporary
-artifacts.
+scale, hostile-input, and native-inspection probes. The later device-priority
+pass additionally created one clearly disposable Android test APK outside the
+worktree and ran it on the connected Pixel 7a. It did not create a production
+dependency declaration, Android app/module, or OmniFile scaffold. The
+worktree-local Junrar/native absence probes remain facts about this checkout
+only; they do not contradict the separately resolved temporary artifacts.
 
 ## Real evidence continuation environment — 2026-09-18
 
-Host: macOS x86_64, Java `26.0.2.1`, no Maven/Gradle executable on `PATH`,
-no connected ADB device (`adb devices -l` returned only the header), and
-52 GiB free on the data volume at the start of the continuation. Artifacts were
-resolved into disposable `/tmp` directories from Maven Central; no dependency
-declaration or production build was created.
+Initial host-only environment: macOS x86_64, Java `26.0.2.1`, no Maven/Gradle
+executable on `PATH`, no connected ADB device (`adb devices -l` returned only
+the header), and 52 GiB free on the data volume. Artifacts were resolved into
+disposable `/tmp` directories from Maven Central; no dependency declaration or
+production build was created. The later device-priority environment is recorded
+separately below.
 
 | Candidate | Coordinate and tested artifact SHA-256 | POM SHA-256 | Sources SHA-256 |
 |---|---|---|---|
@@ -104,3 +108,34 @@ NOTICE file. Junrar's POM names the `UnRar License`; its upstream license and
 source headers are therefore required distribution inputs. The absence of an
 embedded file is recorded as a notice/provenance gate, not as evidence of no
 license obligation.
+
+## Physical Pixel 7a and disposable Android probe — 2026-09-18
+
+The later device-priority pass found exactly one intended physical device
+(listed twice by USB and wireless transports for the same serial):
+
+| Field | Observed value |
+|---|---|
+| ADB serial | `35241JEHN08768` |
+| Manufacturer / model | Google / Pixel 7a |
+| Product / device | `lynx` / `lynx` |
+| Android / API | Android `16` / API `36` |
+| Build fingerprint | `google/lynx/lynx:16/BP4A.260205.001/14624666:user/release-keys` |
+| ABI | `arm64-v8a` (only ABI in `ro.product.cpu.abilist`) |
+| Kernel | `6.1.134-android14-11-g66e758f7d0c0-ab13748739` |
+| Authorization | `adb get-state=device` |
+| Runtime page size | `adb shell getconf PAGE_SIZE=4096` |
+
+The SDK has Android API 31, 36, and 37 platforms and Build Tools 35.0.0,
+36.0.0, 36.1.0, and 37.0.0. The apparent
+`system-images/android-37.0/google_apis_playstore_ps16k` directory is empty,
+not an installed image. No NDK was installed. The host had 43 GiB free when
+the device campaign began. The official Android guidance requires final APK
+packaging and runtime testing in addition to ELF alignment; the Pixel is
+therefore valuable 4 KiB Android evidence but is not a 16 KiB runtime.
+
+The disposable probe was built outside Git with compile SDK/API 36, target
+SDK 36, min SDK 21, Java 8 bytecode, Build Tools 36.1.0, and the exact
+`zstd-jni:1.5.7-17` AAR. It is not OmniFile production scaffolding and did not
+choose a production namespace, module, signing, or dependency policy. The
+exact installed APK is recorded separately in `04_RESULTS.md`.

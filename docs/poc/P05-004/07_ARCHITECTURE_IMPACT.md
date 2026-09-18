@@ -14,10 +14,11 @@ These principles are already accepted/frozen in the architecture boundary and br
 
 - no production dependency was selected;
 - no final version or wrapper API was frozen;
-- libarchive was not adopted and is retained only as a second-stage alternative;
+- libarchive was not adopted; its CORE_V1 disposition is `NOT_JUSTIFIED_FOR_CORE_V1`
+  because no concrete Java-first capability gap was demonstrated;
 - zstd-jni was not accepted as a distributable native dependency;
 - Junrar licensing was not finally approved;
-- native crash isolation and 16 KiB compatibility were not closed;
+- native crash isolation and 16 KiB runtime compatibility were not closed;
 - production safety thresholds and 100k+ indexing strategy were not frozen.
 
 The unresolved list matches the branch-local P0 reconciliation and archive boundary record ([`docs/architecture/14_P0_EVIDENCE_INCORPORATION.md:51-62`](../../architecture/14_P0_EVIDENCE_INCORPORATION.md), [`docs/architecture/14_P0_EVIDENCE_INCORPORATION.md:110-125`](../../architecture/14_P0_EVIDENCE_INCORPORATION.md)).
@@ -28,7 +29,7 @@ The unresolved list matches the branch-local P0 reconciliation and archive bound
 2. Run the full licensed/generated format and adversarial corpus.
 3. Measure direct, SAF seekable/non-seekable, and remote/range access.
 4. Measure candidate-specific 10k/100k listing, first-entry latency, solid-entry latency, and memory; the current synthetic host result is not a parser result.
-5. If native candidates remain justified, perform reproducible ABI/16 KiB/size/crash testing on Android 12–16.
+5. If a concrete Java-first gap remains, perform reproducible ABI/16 KiB/size/crash testing on Android 12–16 for the justified native candidate.
 6. Revisit the candidate matrix and only then decide whether a dependency freeze is warranted.
 
 The branch-local P0 readiness assessment specifically calls for archive production-candidate closure including licensing, packaging/native acceptance, security corpus, and the supported format matrix ([`docs/architecture/14_P0_EVIDENCE_INCORPORATION.md:146-159`](../../architecture/14_P0_EVIDENCE_INCORPORATION.md)); the archive boundary retains 10k/100k listing, SAF/remote origins, and native 16 KiB checks as required evidence ([`docs/architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md:43-56`](../../architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md)).
@@ -43,19 +44,22 @@ The real-evidence continuation supports a Java-first evidence path with explicit
 gates, but not a freeze-ready technology family. Commons Compress, Zip4j, and Junrar 8.1.1 were actually invoked on host
 fixtures; provider evidence makes spooling/seek costs visible rather than
 claiming universal provider neutrality. zstd-jni 1.5.7-17 has static 16 KiB
-ELF alignment across all four AAR ABIs, but final APK packaging and Android
-runtime remain pending. Junrar remains `EXTERNAL_LICENSE_REVIEW_REQUIRED`, RAR
-creation remains unsupported, and the architecture does not authorize treating
-that license as optional. libarchive remains `UNRESOLVED` because the retained
-Java-first format/provider comparison is incomplete. The disposable manifest
-remains `OVERALL=NOT_CLOSED` because the remaining gates may still change the
-family selection.
+ELF alignment across all four AAR ABIs, and the disposable final APK passed
+16 KiB zip alignment plus real Pixel 7a 4 KiB native/TAR.ZST/SAF acceptance.
+Its source/build attestation and 16 KiB runtime remain pending. Junrar remains
+`EXTERNAL_LICENSE_REVIEW_REQUIRED`, RAR creation remains unsupported, and the
+architecture treats the required-RAR license as family-freeze blocking.
+libarchive is `NOT_JUSTIFIED_FOR_CORE_V1` after a bounded real host build
+attempt found no concrete Java-first gap; this is not a global rejection.
+The disposable manifest remains `OVERALL=NOT_CLOSED` because the remaining
+family gates can still change the selected stack.
 
 ## Technology Freeze reassessment input
 
 `NO` at the CORE_V1 technology-family level: the required RAR license
-disposition, retained Zstandard/native acceptance, and full Java-first versus
-libarchive comparison remain capable of changing the selected family. This is
-a readiness assessment only; Technology Freeze itself was not executed, exact
-production dependency versions were not frozen, and no production OmniFile
-module was initialized.
+disposition, zstd source/build and 16 KiB runtime acceptance, and selected
+retained provider/format matrix remain capable of changing the selected
+family. The physical Pixel evidence is explicitly 4 KiB and does not close
+that gate. This is a readiness assessment only; Technology Freeze itself was
+not executed, exact production dependency versions were not frozen, and no
+production OmniFile module was initialized.

@@ -68,7 +68,7 @@ direction with explicit gates while remaining `OVERALL=NOT_CLOSED`.
 | Fixture coverage called security proof? | No: wording is `tested corpus failed safely under the enforced application policy`; parser rows stay `UNKNOWN`/`NOT_TESTED` |
 | Scale extrapolated? | No: synthetic host metadata-index only; parser/UI/Android/device scale explicitly open; maximum actually tested scale is the synthetic 100k entry index |
 | Java-first preferred without evidence? | The actual host evidence supports a direction, but retained required-format and license/native gates keep the family `NOT_READY`; no dependency selected, no freeze executed |
-| libarchive dismissed prematurely? | Finding retained: libarchive remains `UNRESOLVED` until the retained Java-first matrix is closed; no native alternative was added |
+| libarchive dismissed prematurely? | The focused Java/provider evidence exposed no required CORE_V1 capability that needs native libarchive; bounded CMake configuration was attempted but stopped before a comparator binary. Final disposition is `NOT_JUSTIFIED_FOR_CORE_V1`, not a global rejection. |
 | Freeze blocker mislabeled as release-only? | Corrected: Junrar license, zstd source/build/runtime, and the incomplete retained matrix remain Technology Freeze blockers; no Technology Freeze is executed here |
 
 ### Code review (continuation diff)
@@ -106,3 +106,38 @@ inspection, and native scan. Two overlapping parent-launched runs were
 terminated; no repository files were changed. Root cause was bounded command
 timeout plus overlapping expensive JVM invocations, not a harness correctness
 failure. The final verification uses a single serialized run.
+
+## Fresh independent audit dispositions — 2026-09-18
+
+Six independent read-only audit agents reviewed the exact artifact, license,
+native, Android, provider, security, and technology-severity questions. Their
+common findings were reconciled here:
+
+| Finding | Disposition |
+|---|---|
+| Junrar/UnRAR terms | Exact tagged license permits RAR handling but prohibits recreating RAR compression; technical outcome remains `EXTERNAL_LICENSE_REVIEW_REQUIRED`. Because RAR read/extract is still required by the current architecture matrix, the severity is `FAMILY_FREEZE_BLOCKING`, not merely an optional-RAR implementation gate. |
+| zstd-jni source/build | AAR/JAR/static ABI evidence is real; no `v1.5.7-17` source tag or release-to-source/compiler attestation was found. The candidate build recipe and CI toolchain differ, so source/build provenance remains a Technology Freeze blocker if TAR.ZST is retained. |
+| provider/security | The 14-case fixture harness is application-policy-only. Actual parser probes do not prove extraction security. Required missing decision evidence includes real extraction-root containment, partial-output cleanup, cancellation, split/multipart/solid cases, and SAF seekable-versus-pipe behavior. |
+| libarchive | An empty native row is not a defect by itself. No Java-first failure requiring native libarchive was demonstrated; the comparator is `NOT_JUSTIFIED_FOR_CORE_V1` and may reopen only on a concrete Java-first gap. |
+| technology severity | No new architecture blocker was found. The exact Technology Freeze blockers are selected archive-family evidence, Junrar legal disposition if RAR remains required, and zstd source/build/runtime acceptance if TAR.ZST remains required. Other P05 lifecycle, containment, packaging, notice, API, and human-acceptance gaps remain implementation or release gates. |
+
+The audit did not authorize dependency selection or Technology Freeze. One
+additional requested audit slot was unavailable because the host reported the
+subagent thread limit; the parent completed the missing libarchive comparison
+attempt and recorded its bounded result rather than treating the slot as
+approval.
+
+The requested fresh final review-agent pass was `REVIEW_NOT_COMPLETED`: the
+same host-level subagent thread limit rejected the dispatch. No independent
+review approval is claimed; the parent performed only the documented manual
+diff, matrix, provenance, and scope checks.
+
+## Device-priority evidence disposition — 2026-09-18
+
+The physical Pixel 7a pass is `PASS` for the exact disposable APK’s arm64
+native load, valid decode, TAR.ZST decode, repeated use, controlled malformed
+errors, process restart, and one real Downloads DocumentsProvider/PFD URI.
+It is `NOT_16K_RUNTIME_EVIDENCE` because the authoritative runtime query was
+`PAGE_SIZE=4096`. The SDK’s apparent 16 KiB image directory was empty; no
+emulator was installed before the Pixel pass and no 16 KiB runtime claim is
+made.

@@ -50,11 +50,47 @@ The current disposable manifest compresses this to `candidate`, `gate`, `status`
 | Commons Compress TAR/TAR.GZ | sequential stream listing/read with three entries including hostile names | PASS for tested fixtures | TAR.BZ2/XZ/ZST and broader corpus remain open |
 | Zip4j ZIP | sequential ZIP, AES-256 correct password, wrong password, truncated ZIP, 10k/100k real stored-entry listing | PASS for tested fixtures; wrong password `ZipException` | split/multipart and full provider/security corpus remain open |
 | Junrar 8.1.1 | RAR4/RAR5 file and stream listing/extraction, password and hostile fixtures, corrupted-header observation | PASS/CONTROLLED for tested fixtures | solid/multipart/large corpus and policy integration remain open |
-| zstd-jni 1.5.7-17 | valid decode and truncated/bad-frame host probes; partial output observed before controlled `ZstdIOException` | PASS_WITH_PARTIAL_OUTPUT_CAVEAT | Android AAR runtime and final APK packaging remain open |
-| libarchive 3.8.9 | no build or JNI invocation | NOT_TESTED | retained Java-first comparison is incomplete; disposition remains `UNRESOLVED` |
+| zstd-jni 1.5.7-17 | valid decode and truncated/bad-frame host probes; exact AAR in disposable final APK; Pixel arm64 native load, valid/TAR.ZST decode, malformed errors, restart, and real Downloads PFD | PASS_WITH_PARTIAL_OUTPUT_CAVEAT | Pixel is 4 KiB; source/build attestation and 16 KiB runtime remain open |
+| libarchive 3.8.9 | bounded CMake host configuration attempted; no library/JNI invocation completed | NOT_TESTED | no concrete Java-first gap demonstrated; final disposition `NOT_JUSTIFIED_FOR_CORE_V1` |
 
 Real ZIP scale reached 10,000 entries with the standard compressed generator
 and 100,000 entries with a Zip64-forced stored-entry generator. The 100,000
 entry run produced a 15,777,878-byte archive and enumerated 100,000 entries in
 Commons Compress and Zip4j. This is format/engine evidence for ZIP, not a
 universal scale claim for TAR, RAR, SAF, Android, or all compressed modes.
+
+## Capability matrix from actual evidence — 2026-09-18
+
+The values below are deliberately capability-scoped. `FORMAT_DEPENDENT` marks
+an engine that is not a candidate for that format rather than pretending a
+uniform “no”; `UNKNOWN` means the comparator was not actually invoked.
+
+| Capability | Commons Compress | Zip4j | Junrar | zstd-jni-assisted path | libarchive comparator |
+|---|---|---|---|---|---|
+| list | YES | YES | YES | CONDITIONAL | UNKNOWN |
+| sequential read | YES | YES | CONDITIONAL | YES | UNKNOWN |
+| random entry read | CONDITIONAL | YES | CONDITIONAL | NO | UNKNOWN |
+| provider sequential | YES | YES | CONDITIONAL | YES | UNKNOWN |
+| provider seekable | YES | CONDITIONAL | CONDITIONAL | NO | UNKNOWN |
+| spool-required | CONDITIONAL | YES | CONDITIONAL | CONDITIONAL | UNKNOWN |
+| ZIP | YES | YES | FORMAT_DEPENDENT | FORMAT_DEPENDENT | UNKNOWN |
+| Zip64 | YES | YES | FORMAT_DEPENDENT | FORMAT_DEPENDENT | UNKNOWN |
+| encrypted ZIP | CONDITIONAL | YES | FORMAT_DEPENDENT | FORMAT_DEPENDENT | UNKNOWN |
+| split ZIP | CONDITIONAL | CONDITIONAL | FORMAT_DEPENDENT | FORMAT_DEPENDENT | UNKNOWN |
+| TAR | YES | FORMAT_DEPENDENT | FORMAT_DEPENDENT | CONDITIONAL | UNKNOWN |
+| GZ | YES | FORMAT_DEPENDENT | FORMAT_DEPENDENT | FORMAT_DEPENDENT | UNKNOWN |
+| BZ2 | YES | FORMAT_DEPENDENT | FORMAT_DEPENDENT | FORMAT_DEPENDENT | UNKNOWN |
+| XZ | YES | FORMAT_DEPENDENT | FORMAT_DEPENDENT | FORMAT_DEPENDENT | UNKNOWN |
+| ZSTD / TAR.ZST | CONDITIONAL | FORMAT_DEPENDENT | FORMAT_DEPENDENT | CONDITIONAL | UNKNOWN |
+| RAR4 | FORMAT_DEPENDENT | FORMAT_DEPENDENT | YES | FORMAT_DEPENDENT | UNKNOWN |
+| RAR5 | FORMAT_DEPENDENT | FORMAT_DEPENDENT | YES | FORMAT_DEPENDENT | UNKNOWN |
+| encrypted/password input | CONDITIONAL | YES | CONDITIONAL | FORMAT_DEPENDENT | UNKNOWN |
+| symlink metadata | CONDITIONAL | CONDITIONAL | CONDITIONAL | FORMAT_DEPENDENT | UNKNOWN |
+| archive creation | CONDITIONAL | CONDITIONAL | NO | NO | UNKNOWN |
+| cancellation | CONDITIONAL | CONDITIONAL | CONDITIONAL | CONDITIONAL | UNKNOWN |
+| malformed-input normalization | CONDITIONAL | CONDITIONAL | CONDITIONAL | CONDITIONAL | UNKNOWN |
+| large-entry-count behavior | CONDITIONAL | CONDITIONAL | UNKNOWN | FORMAT_DEPENDENT | UNKNOWN |
+
+This matrix is not a security certification and does not freeze a production
+wrapper. It records the tested route plus the explicit gates needed before a
+technology-family decision.

@@ -8,10 +8,10 @@
 | Zip4j 2.11.6 | encrypted/split ZIP | Encrypted/split ZIP host + Pixel evidence; pure Java | `CONDITIONAL` | provider behavior, malformed/security corpus, scale, exact artifact/transitives |
 | Junrar 8.1.x | RAR4/RAR5 read/extract | Technically survived the documented 8.1.x line | `CONDITIONAL` | exact artifact/UnRAR terms, encrypted/solid/multipart corpus, cancellation, security |
 | zstd-jni Android AAR | Zstandard codec path for TAR.ZST | TAR.ZST worked on tested arm64 Pixel 7a | `CONDITIONAL` | exact AAR/source provenance, ABI, 16 KiB, native crash/update/size evidence |
-| libarchive 3.8.9 | broad native alternative | No build or JNI invocation; required Java-first format/provider matrix is not fully closed | `UNRESOLVED` | Native alternative disposition requires closure of the retained Java-first requirements |
+| libarchive 3.8.9 | broad native alternative | Bounded CMake host configuration attempted; no library/JNI invocation completed; no required Java-first gap demonstrated | `NOT_JUSTIFIED_FOR_CORE_V1` | Reopen only if a concrete required Java-first capability or measured cost justifies native complexity |
 
 The first four dispositions reflect the branch-local P0 reconciliation and the
-actual-engine continuation ([`docs/architecture/14_P0_EVIDENCE_INCORPORATION.md:51-62`](../../architecture/14_P0_EVIDENCE_INCORPORATION.md), [`docs/architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md:58-66`](../../architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md)). Libarchive remains `UNRESOLVED`: it was not implemented, and the retained Java-first format/provider matrix is not fully closed. No native alternative is added by this assessment.
+actual-engine continuation ([`docs/architecture/14_P0_EVIDENCE_INCORPORATION.md:51-62`](../../architecture/14_P0_EVIDENCE_INCORPORATION.md), [`docs/architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md:58-66`](../../architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md)). Libarchive is not selected: no concrete required Java-first gap was demonstrated, and supports-more-formats alone does not justify native/JNI complexity. No native alternative is added by this assessment.
 
 ## Candidate-specific closure gates
 
@@ -29,11 +29,11 @@ Junrar is extraction-focused and must not be treated as a RAR creation path ([`d
 
 ### zstd-jni
 
-The repository-level P0 reconciliation states that zstd-jni worked for TAR.ZST on the tested arm64 Pixel 7a, that the device report used 4 KiB pages, and that 16 KiB compatibility and libarchive viability remain untested ([`docs/architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md:160-166`](../../architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md)). This continuation resolves exact zstd-jni `1.5.7-17` JAR/AAR bytes and ABI/ELF facts, but source-tag, final APK, Android runtime, and reproducible-build gates remain open, so its disposition remains conditional.
+The repository-level P0 reconciliation states that zstd-jni worked for TAR.ZST on the tested arm64 Pixel 7a and that the device report used 4 KiB pages ([`docs/architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md:160-166`](../../architecture/05_ARCHIVE_AND_CONVERSION_BOUNDARIES.md)). This continuation resolves exact zstd-jni `1.5.7-17` JAR/AAR bytes, ABI/ELF facts, a disposable final APK, Pixel 4 KiB runtime, and one real SAF/PFD route, but source-tag/compiler attestation and 16 KiB runtime gates remain open, so its disposition remains conditional.
 
 ### libarchive
 
-The research presents libarchive as a broad native C streaming alternative under New BSD, with JNI, native memory-safety, ABI, 16 KiB, and patch-ownership costs ([`docs/research/04_ARCHIVE_FORMATS.md:98-121`](../../research/04_ARCHIVE_FORMATS.md)). It remains a second-stage alternative until a measured benefit over the Java stack justifies those costs.
+The research presents libarchive as a broad native C streaming alternative under New BSD, with JNI, native memory-safety, ABI, 16 KiB, and patch-ownership costs ([`docs/research/04_ARCHIVE_FORMATS.md:98-121`](../../research/04_ARCHIVE_FORMATS.md)). Its final P05-004 disposition is `NOT_JUSTIFIED_FOR_CORE_V1`; it remains a later trigger if a measured Java-first gap justifies those costs.
 
 ## Machine-readable cross-check
 

@@ -126,13 +126,99 @@ pairs: arm64-v8a, 476,304 bytes, SHA-256
 x86, 552,328 bytes, `43ff557f9e6d5fb697e99c30a7f2ee0d0262512e914eb7be457bfbce473d885a`;
 x86_64, 547,360 bytes, `3cba491607edd9392911131000622454a42d534da40e022a0b4826943c223f27`.
 The AAR native entries were DEFLATED. `zipalign -c -P 16 -v 4` succeeded for
-the AAR's compressed entries, but no final APK existed, so APK packaging
-alignment remains `NOT_TESTED`.
+the AAR's compressed entries. In the initial host-only pass no final APK
+existed; the later disposable APK result is recorded below and is separate
+from the AAR-only check.
 
-The connected-device check returned no devices. Therefore static native result
-is `16K_STATIC_COMPATIBILITY_VERIFIED`, Android runtime is
-`16K_STATIC_PASS_RUNTIME_PENDING`, and no Pixel page-size claim is made for
-this continuation. The earlier Pixel result remains 4 KiB only.
+The initial native inspection pass had no connected device, so its result was
+`16K_STATIC_COMPATIBILITY_VERIFIED` with Android runtime
+`16K_STATIC_PASS_RUNTIME_PENDING`. The later device-priority pass below adds
+fresh Pixel evidence; it does not change the fact that the Pixel reports 4 KiB.
+
+## Physical Pixel 7a evidence — disposable APK — 2026-09-18
+
+The connected Pixel 7a was tested serially after explicit discovery and page
+size measurement. The disposable APK was assembled from the exact
+`zstd-jni:1.5.7-17` AAR, with only `lib/arm64-v8a/libzstd-jni-1.5.7-17.so`
+packaged for the device. It was not added to this repository and is not a
+production OmniFile artifact.
+
+| Artifact/runtime field | Observed value |
+|---|---|
+| APK local SHA-256 | `dd567436ef461cf568c300fc57194232846cee7610a4d0e2addd0196be8336d9` |
+| Installed APK SHA-256 | exactly equal to local SHA-256 (`dd567436ef461cf568c300fc57194232846cee7610a4d0e2addd0196be8336d9`) |
+| Compile / target / min | API 36 / 36 / 21 |
+| Build tools | 36.1.0 (`aapt2`, `d8`, `zipalign`, `apksigner`) |
+| Native ABI | arm64-v8a; `libzstd-jni-1.5.7-17.so` |
+| APK alignment | `zipalign -c -P 16 -v 4`: `Verification successful` |
+| Runtime page size | `4096` |
+| Process restart | force-stop followed by a new PID and a second complete result set |
+| Crash status | no `FATAL EXCEPTION`, native crash, or hang observed |
+
+The exact installed process emitted these results:
+
+| Test | Observed result |
+|---|---|
+| native load / identity | `PASS`; arm64-v8a, page size 4096 |
+| valid Zstandard | `PASS`; 30-byte frame to 21-byte payload |
+| TAR.ZST representative | `PASS`; 92-byte frame to 1536-byte TAR payload containing `P05-004-TAR` |
+| repeated load/use | `PASS`; 20/20 decodes |
+| truncated Zstandard | `CONTROLLED_ERROR`; `ZstdException:Src size is incorrect` |
+| malformed Zstandard | `CONTROLLED_ERROR`; `ZstdException:Unknown frame descriptor` |
+| force-stop/relaunch | `PASS`; same six results under a new process PID |
+
+This is real Android 4 KiB runtime evidence. It does not close runtime
+16 KiB verification. It also does not prove extraction containment: the probe
+decoded to memory and did not create destination files.
+
+## Real SAF / ParcelFileDescriptor evidence — 2026-09-18
+
+The same disposable probe launched `ACTION_OPEN_DOCUMENT`. A controlled
+`p05-004.tar.zst` fixture was placed only under the disposable device area
+`/sdcard/Download/p05-004-disposable/`, selected through Android DocumentsUI,
+and returned as the real URI
+`content://com.android.providers.downloads.documents/document/msf%3A13498`.
+The app opened it with `ContentResolver.openFileDescriptor(uri, "r")` and
+decoded 92 compressed bytes to 1536 bytes successfully. This closes one real
+Downloads DocumentsProvider/PFD sequential-read observation on the tested
+Pixel. Seekability, pipe-backed PFD behavior, revocation, cloud providers,
+spooling, and extraction cleanup remain untested.
+
+## Libarchive comparator disposition
+
+A bounded host attempt downloaded the official libarchive `3.8.9` source,
+started a CMake Release configuration, and detected the host C compiler plus
+zlib, bzip2, lzma, and zstd. Configuration was stopped after several minutes
+of macOS feature probes before a library or comparator executable was built.
+No Android/JNI artifact was produced. Since the actual Java-first probes have
+not exposed a required CORE_V1 capability that needs native libarchive, the
+final disposition is `NOT_JUSTIFIED_FOR_CORE_V1`, with native comparison
+retained as a later trigger if the focused Java/provider matrix fails. This is
+not a claim that libarchive is unfit globally.
+
+The unchanged disposable manifest/harness still prints
+`libarchive 3.8.9=UNRESOLVED` and `OVERALL=NOT_CLOSED`; that is the machine
+guard for an uninvoked candidate and is intentionally not reclassified as a
+successful libarchive result. The final architecture disposition for this
+campaign is the separate, explicit `NOT_JUSTIFIED_FOR_CORE_V1` decision above.
+
+## Error normalization proof boundary
+
+The observed results support a future wrapper taxonomy without freezing library
+exception class names:
+
+| Observed result | Architecture category supported |
+|---|---|
+| malformed/truncated ZIP `EOFException` / `ZipException`; Junrar broken headers | `INVALID_ARCHIVE` or `CORRUPT_OR_TRUNCATED` |
+| unsupported or untested format route | `UNSUPPORTED_FORMAT` / `UNSUPPORTED_FEATURE` |
+| missing Junrar password; wrong ZIP/RAR password exceptions | `PASSWORD_REQUIRED` / `BAD_PASSWORD` |
+| zstd truncated/bad frame `ZstdException` / `ZstdIOException` | `CORRUPT_OR_TRUNCATED` |
+| application cancellation/resource threshold | `CANCELLED` / `RESOURCE_LIMIT_EXCEEDED` (contract only; not yet runtime extraction evidence) |
+| provider open/read failure | `IO_FAILURE` (contract only; real PFD read passed for one URI) |
+
+This proves category-level normalization is feasible for the tested outcomes;
+it does not freeze Kotlin exception types or close cancellation, limits, or
+destination-cleanup behavior.
 
 ## Fixture hashes and reproduction anchors
 
