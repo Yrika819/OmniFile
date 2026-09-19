@@ -118,6 +118,7 @@ class LocalStorageProviderTest {
             val result = provider.rename(oldEntry, "after")
 
             val renamed = (result as StorageResult.Success).value
+            assertTrue(renamed.ref != oldEntry.ref)
             assertEquals(EntryKind.DIRECTORY, renamed.kind)
             assertEquals(listOf("child.txt"), names(provider, renamed.ref))
             assertTrue(Files.notExists(root.resolve("before")))
