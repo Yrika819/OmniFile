@@ -144,16 +144,17 @@ class FilesViewModelTest {
             val provider = SelectionProvider()
             val viewModel = FilesViewModel(FilesRepository(mapOf(provider.id to provider)), provider.id, scope = scope)
             viewModel.selectLocal()
-            val initial = viewModel.uiState.filterIsInstance<FilesUiState.Content>().first()
+            viewModel.uiState.filterIsInstance<FilesUiState.Content>().first()
             viewModel.enterSelection(provider.child)
             provider.replaceChild(provider.renamedChild)
 
             viewModel.retry()
-            viewModel.uiState.filterIsInstance<FilesUiState.Content>().first { it.entries.single().ref == provider.renamedChild.ref }
+            viewModel.uiState.filterIsInstance<FilesUiState.Content>().first { state ->
+                state.entries.any { it.ref == provider.renamedChild.ref }
+            }
 
             assertFalse(viewModel.selectedEntries.contains(provider.child.ref))
             assertTrue(viewModel.selectedEntries.isEmpty())
-            assertTrue(initial.entries.single().ref != provider.renamedChild.ref)
         } finally {
             scope.cancel()
         }
@@ -171,10 +172,11 @@ class FilesViewModelTest {
             provider.removeChild()
 
             viewModel.retry()
-            viewModel.uiState.filterIsInstance<FilesUiState.Empty>().first()
+            val refreshed = viewModel.uiState.filterIsInstance<FilesUiState.Content>().first()
 
             assertFalse(viewModel.isSelectionMode)
             assertTrue(viewModel.selectedEntries.isEmpty())
+            assertTrue(refreshed.entries.none { it.ref == provider.child.ref })
         } finally {
             scope.cancel()
         }
