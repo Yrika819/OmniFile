@@ -4,6 +4,7 @@ import com.omnifile.storage.ProviderId
 import com.omnifile.storage.StorageEntry
 import com.omnifile.storage.StorageError
 import com.omnifile.storage.StorageProvider
+import com.omnifile.storage.StorageTransferProvider
 import com.omnifile.storage.StorageResult
 
 class FilesRepository(providers: Map<ProviderId, StorageProvider>) {
@@ -12,6 +13,9 @@ class FilesRepository(providers: Map<ProviderId, StorageProvider>) {
     fun register(provider: StorageProvider) {
         providers[provider.id] = provider
     }
+
+    fun transferProvider(providerId: ProviderId): StorageTransferProvider? =
+        providers[providerId] as? StorageTransferProvider
 
     suspend fun root(providerId: ProviderId): StorageResult<StorageEntry> =
         providers[providerId]?.root() ?: StorageResult.Failure(StorageError.StaleReference)

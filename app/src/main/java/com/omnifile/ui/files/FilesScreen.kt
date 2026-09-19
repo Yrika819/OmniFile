@@ -48,6 +48,7 @@ import java.util.Date
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 fun FilesScreen(
     state: FilesUiState,
+    modifier: Modifier = Modifier,
     onSelectLocal: () -> Unit,
     onPickTree: () -> Unit,
     onOpenDirectory: (StorageEntry) -> Unit,
@@ -56,6 +57,11 @@ fun FilesScreen(
     onClearSelection: () -> Unit,
     onRenameSelected: (String) -> Unit,
     onDeleteSelected: () -> Unit,
+    onCopySelected: () -> Unit = {},
+    onMoveSelected: () -> Unit = {},
+    onOpenDestinationDirectory: (StorageEntry) -> Unit = {},
+    onConfirmDestination: () -> Unit = {},
+    onCancelDestination: () -> Unit = {},
     mutationInFlight: Boolean,
     onBack: () -> Unit,
     onRetry: () -> Unit,
@@ -65,10 +71,16 @@ fun FilesScreen(
     var requestedName by remember { mutableStateOf("") }
     val selection = selectionFor(state)
     val selectedEntries = entriesForSelection(state, selection)
+    val regularFilesOnly = selectedEntries.isNotEmpty() && selectedEntries.all {
+        it.kind == EntryKind.FILE && it.supports(StorageCapability.READ_SEQUENTIAL)
+    }
+    val canCopy = regularFilesOnly
+    val canMove = regularFilesOnly && selectedEntries.all { it.supports(StorageCapability.DELETE) }
     val canRename = selectedEntries.size == 1 && selectedEntries.single().supports(StorageCapability.RENAME)
     val canDelete = selectedEntries.isNotEmpty() && selectedEntries.all { it.supports(StorageCapability.DELETE) }
 
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = {
@@ -78,7 +90,9 @@ fun FilesScreen(
                     )
                 },
                 navigationIcon = {
-                    if (state !is FilesUiState.SourceSelection) {
+                    if (state is FilesUiState.DestinationPicker) {
+                        IconButton(onClick = onCancelDestination) { Text("‹") }
+                    } else if (state !is FilesUiState.SourceSelection) {
                         IconButton(
                             modifier = if (selection != null) Modifier.testTag("files.selection.close") else Modifier,
                             onClick = if (selection != null) onClearSelection else onBack,
@@ -86,11 +100,26 @@ fun FilesScreen(
                     }
                 },
                 actions = {
-                    if (selection != null && mutationInFlight) {
+                    if (state is FilesUiState.DestinationPicker) {
+                        TextButton(
+                            modifier = Modifier.testTag("files.destination.confirm"),
+                            onClick = onConfirmDestination,
+                        ) { Text("Use this folder") }
+                    } else if (selection != null && mutationInFlight) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(24.dp).testTag("files.mutation.progress"),
                         )
                     } else if (selection != null) {
+                        TextButton(
+                            modifier = Modifier.testTag("files.action.copy"),
+                            enabled = canCopy,
+                            onClick = onCopySelected,
+                        ) { Text("Copy") }
+                        TextButton(
+                            modifier = Modifier.testTag("files.action.move"),
+                            enabled = canMove,
+                            onClick = onMoveSelected,
+                        ) { Text("Move") }
                         if (canRename) {
                             TextButton(modifier = Modifier.testTag("files.action.rename"), onClick = {
                                 requestedName = selectedEntries.single().displayName
@@ -115,6 +144,14 @@ fun FilesScreen(
             when (state) {
                 FilesUiState.SourceSelection -> SourceSelection(onSelectLocal, onPickTree)
                 is FilesUiState.Loading -> LoadingState(state.location)
+                is FilesUiState.DestinationPicker -> EntryList(
+                    breadcrumb = state.breadcrumb,
+                    entries = state.entries,
+                    selection = null,
+                    onOpenDirectory = onOpenDestinationDirectory,
+                    onEnterSelection = {},
+                    onToggleSelection = {},
+                )
                 is FilesUiState.Content -> EntryList(
                     breadcrumb = state.breadcrumb,
                     entries = state.entries,
@@ -316,6 +353,7 @@ private fun EntryRow(
 
 private fun titleFor(state: FilesUiState): String = when (state) {
     FilesUiState.SourceSelection -> "Files"
+    is FilesUiState.DestinationPicker -> "${state.operationType} destination"
     is FilesUiState.Loading -> state.location?.displayName ?: "Files"
     is FilesUiState.Content -> state.location.displayName
     is FilesUiState.Empty -> state.location.displayName

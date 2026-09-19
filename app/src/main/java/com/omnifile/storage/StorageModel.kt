@@ -41,6 +41,7 @@ data class StorageEntry(
 sealed interface StorageError {
     data object NotFound : StorageError
     data object PermissionDenied : StorageError
+    data object SourceChanged : StorageError
     data object StaleReference : StorageError
     data object Unsupported : StorageError
     data class InvalidName(
@@ -55,6 +56,7 @@ sealed interface StorageError {
     }
     data class IoFailure(val detail: String?) : StorageError
     data object Cancelled : StorageError
+    data object AmbiguousFinalization : StorageError
 }
 
 data class DeleteItemResult(
@@ -70,6 +72,72 @@ sealed interface DeleteItemOutcome {
 sealed interface StorageResult<out T> {
     data class Success<T>(val value: T) : StorageResult<T>
     data class Failure(val error: StorageError) : StorageResult<Nothing>
+}
+
+enum class TransferCapability {
+    READ_SEQUENTIAL,
+    CREATE_CHILD,
+    WRITE_SEQUENTIAL,
+    RESUME_WRITE,
+    FINALIZE,
+    DELETE,
+}
+
+data class TransferFileFacts(
+    val locator: com.omnifile.operations.DurableLocator,
+    val kind: EntryKind,
+    val sizeBytes: Long?,
+    val versionToken: String?,
+)
+
+sealed interface FinalizationResult {
+    data class Finalized(val finalLocator: com.omnifile.operations.DurableLocator) : FinalizationResult
+    data object Ambiguous : FinalizationResult
+    data object Unsupported : FinalizationResult
+}
+
+interface SequentialReadHandle : java.io.Closeable {
+    val expectedBytes: Long?
+    fun read(buffer: ByteArray, offset: Int, length: Int): Int
+}
+
+interface SequentialWriteHandle : java.io.Closeable {
+    fun write(buffer: ByteArray, offset: Int, length: Int)
+    fun flush()
+}
+
+/** Optional transfer surface; StorageProvider remains browse/mutation compatible. */
+interface StorageTransferProvider : StorageProvider {
+    val transferCapabilities: Set<TransferCapability>
+
+    suspend fun encodeDurableLocator(ref: EntryRef): StorageResult<com.omnifile.operations.DurableLocator>
+
+    suspend fun resolveDurableLocator(locator: com.omnifile.operations.DurableLocator): StorageResult<StorageEntry>
+
+    suspend fun inspectTransfer(locator: com.omnifile.operations.DurableLocator): StorageResult<TransferFileFacts>
+
+    suspend fun openSequentialRead(locator: com.omnifile.operations.DurableLocator): StorageResult<SequentialReadHandle>
+
+    suspend fun createOperationPartial(
+        destinationParent: com.omnifile.operations.DurableLocator,
+        intendedFinalName: String,
+        operationId: String,
+    ): StorageResult<com.omnifile.operations.DurableLocator>
+
+    suspend fun openSequentialWrite(
+        partial: com.omnifile.operations.DurableLocator,
+        append: Boolean,
+    ): StorageResult<SequentialWriteHandle>
+
+    suspend fun finalizeOperationPartial(
+        partial: com.omnifile.operations.DurableLocator,
+        destinationParent: com.omnifile.operations.DurableLocator,
+        intendedFinalName: String,
+    ): StorageResult<FinalizationResult>
+
+    suspend fun deleteDurableSource(source: com.omnifile.operations.DurableLocator): StorageResult<Unit>
+
+    suspend fun deleteOperationPartial(partial: com.omnifile.operations.DurableLocator): StorageResult<Unit>
 }
 
 interface StorageProvider {

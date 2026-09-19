@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -37,6 +38,13 @@ android {
         compose = true
     }
 
+    sourceSets["androidTest"].java.srcDirs("src/androidTest/java")
+
+    ksp {
+        arg("room.schemaLocation", "$projectDir/schemas")
+        arg("room.generateKotlin", "true")
+    }
+
     testOptions {
         unitTests.isIncludeAndroidResources = true
     }
@@ -44,6 +52,9 @@ android {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
@@ -58,6 +69,7 @@ dependencies {
 
     testImplementation(libs.junit)
 
+    androidTestImplementation(libs.androidx.room.testing)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.espresso.core)

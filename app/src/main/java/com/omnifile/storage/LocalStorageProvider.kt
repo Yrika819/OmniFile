@@ -2,7 +2,10 @@ package com.omnifile.storage
 
 import java.io.FileNotFoundException
 import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
 import java.nio.file.AccessDeniedException
+import java.nio.file.FileAlreadyExistsException
 import java.nio.file.DirectoryNotEmptyException
 import java.nio.file.Files
 import java.nio.file.LinkOption
@@ -10,13 +13,14 @@ import java.nio.file.NoSuchFileException
 import java.nio.file.NotDirectoryException
 import java.nio.file.Path
 import java.nio.file.SecureDirectoryStream
+import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.BasicFileAttributeView
 import java.nio.file.attribute.BasicFileAttributes
 
 class LocalStorageProvider(
     rootDirectory: Path,
     override val id: ProviderId,
-) : StorageProvider {
+) : StorageTransferProvider {
     private val rootDirectory = rootDirectory.toAbsolutePath().normalize()
     private val filesystemRoot = rootDirectory.root
         ?: throw IllegalArgumentException("Local root must be absolute")
@@ -27,6 +31,7 @@ class LocalStorageProvider(
     } catch (_: NoSuchFileException) {
         this.rootDirectory
     }
+    private val secureAnchorDirectory = secureRootDirectory.parent ?: filesystemRoot
 
     override suspend fun root(): StorageResult<StorageEntry> = guarded {
         validateConfiguredRoot()
@@ -64,6 +69,210 @@ class LocalStorageProvider(
                 else -> throw UnsupportedOperationException("Unsupported Local entry type")
             }
         }
+    }
+
+    override val transferCapabilities: Set<TransferCapability> = setOf(
+        TransferCapability.READ_SEQUENTIAL,
+        TransferCapability.CREATE_CHILD,
+        TransferCapability.WRITE_SEQUENTIAL,
+        TransferCapability.FINALIZE,
+        TransferCapability.DELETE,
+    )
+
+    override suspend fun encodeDurableLocator(ref: EntryRef): StorageResult<com.omnifile.operations.DurableLocator> = guarded {
+        val localRef = checkedRef(ref)
+        locatorFor(localRef.path)
+    }
+
+    override suspend fun resolveDurableLocator(
+        locator: com.omnifile.operations.DurableLocator,
+    ): StorageResult<StorageEntry> = guarded {
+        entryFor(resolveDurablePath(locator))
+    }
+
+    override suspend fun inspectTransfer(
+        locator: com.omnifile.operations.DurableLocator,
+    ): StorageResult<TransferFileFacts> = guarded {
+        val path = resolveDurablePath(locator)
+        val attributes = Files.readAttributes(
+            path,
+            BasicFileAttributes::class.java,
+            LinkOption.NOFOLLOW_LINKS,
+        )
+        if (attributes.isSymbolicLink || (!attributes.isRegularFile && !attributes.isDirectory)) {
+            throw UnsupportedOperationException("Unsupported Local transfer entry")
+        }
+        TransferFileFacts(
+            locator = locatorFor(path),
+            kind = if (attributes.isDirectory) EntryKind.DIRECTORY else EntryKind.FILE,
+            sizeBytes = if (attributes.isRegularFile) attributes.size() else null,
+            versionToken = "${attributes.size()}:${attributes.lastModifiedTime().toMillis()}:${attributes.fileKey()}",
+        )
+    }
+
+    override suspend fun openSequentialRead(
+        locator: com.omnifile.operations.DurableLocator,
+    ): StorageResult<SequentialReadHandle> = guarded {
+        val path = resolveDurablePath(locator)
+        val attributes = Files.readAttributes(path, BasicFileAttributes::class.java, LinkOption.NOFOLLOW_LINKS)
+        if (!attributes.isRegularFile || attributes.isSymbolicLink) {
+            throw UnsupportedOperationException("Only regular Local files are transferable")
+        }
+        LocalReadHandle(
+            input = Files.newInputStream(path, StandardOpenOption.READ),
+            expectedBytes = attributes.size(),
+        )
+    }
+
+    override suspend fun createOperationPartial(
+        destinationParent: com.omnifile.operations.DurableLocator,
+        intendedFinalName: String,
+        operationId: String,
+    ): StorageResult<com.omnifile.operations.DurableLocator> = guarded {
+        val parent = resolveDurablePath(destinationParent)
+        if (!Files.isDirectory(parent, LinkOption.NOFOLLOW_LINKS)) {
+            throw NotDirectoryException(parent.toString())
+        }
+        if (!isValidSingleComponent(intendedFinalName)) {
+            throw IllegalArgumentException("Invalid destination name")
+        }
+        val safeOperationId = operationId.replace(Regex("[^A-Za-z0-9._-]"), "_")
+        if (safeOperationId.isBlank()) throw IllegalArgumentException("Invalid operation ID")
+        val partial = parent.resolve(".omnifile-$safeOperationId.partial")
+        if (!isWithinRoot(partial) || Files.exists(partial, LinkOption.NOFOLLOW_LINKS)) {
+            throw FileAlreadyExistsException(partial.toString())
+        }
+        withSecureParent(partial) { secureParent, name ->
+            secureParent.newByteChannel(
+                name,
+                setOf(StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE),
+            ).use { }
+        }
+        locatorFor(partial)
+    }
+
+    override suspend fun openSequentialWrite(
+        partial: com.omnifile.operations.DurableLocator,
+        append: Boolean,
+    ): StorageResult<SequentialWriteHandle> = guarded {
+        if (append) throw UnsupportedOperationException("Local true resume is not yet proven")
+        val path = resolveDurablePath(partial)
+        if (!isOperationPartial(path)) throw StaleReferenceException
+        val attributes = Files.readAttributes(path, BasicFileAttributes::class.java, LinkOption.NOFOLLOW_LINKS)
+        if (!attributes.isRegularFile || attributes.isSymbolicLink) {
+            throw UnsupportedOperationException("Only operation-owned regular files are writable")
+        }
+        LocalWriteHandle(
+            output = Files.newOutputStream(
+                path,
+                StandardOpenOption.WRITE,
+                StandardOpenOption.TRUNCATE_EXISTING,
+            ),
+        )
+    }
+
+    override suspend fun finalizeOperationPartial(
+        partial: com.omnifile.operations.DurableLocator,
+        destinationParent: com.omnifile.operations.DurableLocator,
+        intendedFinalName: String,
+    ): StorageResult<FinalizationResult> = guarded {
+        if (!isValidSingleComponent(intendedFinalName)) {
+            throw IllegalArgumentException("Invalid destination name")
+        }
+        val partialPath = resolveDurablePath(partial)
+        val parent = resolveDurablePath(destinationParent)
+        if (partialPath.parent != parent || !isOperationPartial(partialPath)) {
+            throw StaleReferenceException
+        }
+        val attributes = Files.readAttributes(partialPath, BasicFileAttributes::class.java, LinkOption.NOFOLLOW_LINKS)
+        if (!attributes.isRegularFile || attributes.isSymbolicLink) {
+            throw UnsupportedOperationException("Only operation-owned regular files can be finalized")
+        }
+        val finalPath = parent.resolve(intendedFinalName)
+        try {
+            withSecureParent(partialPath) { secureParent, partialName ->
+                secureParent.move(partialName, secureParent, Path.of(intendedFinalName))
+            }
+            FinalizationResult.Finalized(locatorFor(finalPath))
+        } catch (_: FileAlreadyExistsException) {
+            throw FileAlreadyExistsException(finalPath.toString())
+        }
+    }
+
+    override suspend fun deleteDurableSource(
+        source: com.omnifile.operations.DurableLocator,
+    ): StorageResult<Unit> = guarded {
+        val path = resolveDurablePath(source)
+        if (path == rootDirectory) throw UnsupportedOperationException("Cannot delete Local root")
+        withSecureParent(path) { parent, name ->
+            val attributes = childAttributes(parent, name)
+            if (!attributes.isRegularFile || attributes.isSymbolicLink) {
+                throw UnsupportedOperationException("Only regular Local files are movable")
+            }
+            parent.deleteFile(name)
+        }
+    }
+
+    override suspend fun deleteOperationPartial(
+        partial: com.omnifile.operations.DurableLocator,
+    ): StorageResult<Unit> = guarded {
+        val path = resolveDurablePath(partial)
+        if (!isOperationPartial(path)) throw StaleReferenceException
+        withSecureParent(path) { secureParent, name ->
+            val attributes = childAttributes(secureParent, name)
+            if (!attributes.isRegularFile || attributes.isSymbolicLink) {
+                throw StaleReferenceException
+            }
+            secureParent.deleteFile(name)
+        }
+    }
+
+    private fun locatorFor(path: Path): com.omnifile.operations.DurableLocator {
+        val normalized = path.toAbsolutePath().normalize()
+        if (!isWithinRoot(normalized)) throw StaleReferenceException
+        return com.omnifile.operations.DurableLocator(
+            providerId = id,
+            encoding = LOCAL_LOCATOR_ENCODING,
+            value = rootDirectory.relativize(normalized).toString().ifEmpty { "." },
+        )
+    }
+
+    private fun resolveDurablePath(locator: com.omnifile.operations.DurableLocator): Path {
+        if (locator.providerId != id || locator.encoding != LOCAL_LOCATOR_ENCODING) {
+            throw StaleReferenceException
+        }
+        val relative = Path.of(locator.value)
+        if (relative.isAbsolute || locator.value.isBlank()) throw StaleReferenceException
+        val resolved = rootDirectory.resolve(relative).normalize()
+        if (!isWithinRoot(resolved)) throw StaleReferenceException
+        validateConfiguredRoot()
+        requireNoSymlinkAncestors(resolved)
+        return resolved
+    }
+
+    private fun isOperationPartial(path: Path): Boolean {
+        val name = path.fileName?.toString() ?: return false
+        return name.startsWith(".omnifile-") && name.endsWith(".partial")
+    }
+
+    private fun isValidSingleComponent(name: String): Boolean =
+        name.isNotEmpty() && name != "." && name != ".." &&
+            '\u0000' !in name && '/' !in name && '\\' !in name
+
+    private class LocalReadHandle(
+        private val input: InputStream,
+        override val expectedBytes: Long,
+    ) : SequentialReadHandle {
+        override fun read(buffer: ByteArray, offset: Int, length: Int): Int = input.read(buffer, offset, length)
+        override fun close() = input.close()
+    }
+
+    private class LocalWriteHandle(
+        private val output: OutputStream,
+    ) : SequentialWriteHandle {
+        override fun write(buffer: ByteArray, offset: Int, length: Int) = output.write(buffer, offset, length)
+        override fun flush() = output.flush()
+        override fun close() = output.close()
     }
 
     private fun entryFor(path: Path, parentRef: EntryRef? = null): StorageEntry {
@@ -164,11 +373,11 @@ class LocalStorageProvider(
     ): T {
         if (!isWithinRoot(path)) throw StaleReferenceException
         val securePath = secureRootDirectory.resolve(rootDirectory.relativize(path))
-        val relative = filesystemRoot.relativize(securePath)
+        val relative = secureAnchorDirectory.relativize(securePath)
         if (relative.nameCount == 0) throw UnsupportedOperationException("Cannot mutate Local root")
 
         val streams = mutableListOf<SecureDirectoryStream<Path>>()
-        var current = openSecureFilesystemRoot()
+        var current = openSecureDirectory(secureAnchorDirectory)
         streams += current
         try {
             for (index in 0 until relative.nameCount - 1) {
@@ -184,8 +393,8 @@ class LocalStorageProvider(
         }
     }
 
-    private fun openSecureFilesystemRoot(): SecureDirectoryStream<Path> {
-        val stream = Files.newDirectoryStream(filesystemRoot)
+    private fun openSecureDirectory(directory: Path): SecureDirectoryStream<Path> {
+        val stream = Files.newDirectoryStream(directory)
         return stream as? SecureDirectoryStream<Path>
             ?: run {
                 stream.close()
@@ -267,6 +476,8 @@ class LocalStorageProvider(
         StorageResult.Failure(StorageError.NotFound)
     } catch (_: FileNotFoundException) {
         StorageResult.Failure(StorageError.NotFound)
+    } catch (error: FileAlreadyExistsException) {
+        StorageResult.Failure(StorageError.NameConflict(error.file ?: ""))
     } catch (_: AccessDeniedException) {
         StorageResult.Failure(StorageError.PermissionDenied)
     } catch (_: SecurityException) {
@@ -277,6 +488,10 @@ class LocalStorageProvider(
         StorageResult.Failure(StorageError.Unsupported)
     } catch (error: IOException) {
         StorageResult.Failure(StorageError.IoFailure(error.message))
+    }
+
+    private companion object {
+        const val LOCAL_LOCATOR_ENCODING = "root-relative-v1"
     }
 
     private data class LocalEntryRef(

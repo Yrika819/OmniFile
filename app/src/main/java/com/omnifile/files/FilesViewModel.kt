@@ -10,6 +10,9 @@ import com.omnifile.storage.ProviderId
 import com.omnifile.storage.StorageEntry
 import com.omnifile.storage.StorageError
 import com.omnifile.storage.StorageProvider
+import com.omnifile.storage.StorageTransferProvider
+import com.omnifile.operations.OperationManager
+import com.omnifile.operations.OperationType
 import com.omnifile.storage.StorageResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +35,14 @@ sealed interface FilesUiState {
     data object SourceSelection : FilesUiState
 
     data class Loading(val location: StorageEntry?) : FilesUiState
+
+    data class DestinationPicker(
+        val location: StorageEntry,
+        val entries: List<StorageEntry>,
+        val breadcrumb: List<String>,
+        val operationType: OperationType,
+        val sourceCount: Int,
+    ) : FilesUiState
 
     data class Content(
         val location: StorageEntry,
@@ -59,6 +70,8 @@ class FilesViewModel(
     private val localProviderId: ProviderId,
     private val safProviderFor: (Uri) -> StorageProvider = { error("SAF provider factory is not configured") },
     private val restoredSafUri: () -> Uri? = { null },
+    private val operationManager: OperationManager? = null,
+    private val onOperationsCreated: (List<String>) -> Unit = {},
     scope: CoroutineScope? = null,
 ) : ViewModel() {
     private val ownsScope = scope == null
@@ -69,6 +82,10 @@ class FilesViewModel(
     private var selection: FilesSelectionState? = null
     private var listingJob: Job? = null
     private var mutationJob: Job? = null
+    private var operationJob: Job? = null
+    private var destinationJob: Job? = null
+    private var destinationNavigation = mutableListOf<StorageEntry>()
+    private var pendingTransfer: PendingTransfer? = null
     private var requestToken = 0L
     private val nextMutationOwner = AtomicLong(0L)
     private val activeMutationOwner = AtomicLong(0L)
@@ -161,7 +178,9 @@ class FilesViewModel(
     }
 
     fun handleBack() {
-        if (isSelectionMode) {
+        if (pendingTransfer != null) {
+            destinationBack()
+        } else if (isSelectionMode) {
             clearSelection()
         } else {
             goBack()
@@ -217,6 +236,95 @@ class FilesViewModel(
         }
     }
 
+    fun copySelectedToCurrentDirectory() = beginDestinationPicker(OperationType.COPY)
+
+    fun moveSelectedToCurrentDirectory() = beginDestinationPicker(OperationType.MOVE)
+
+    private fun beginDestinationPicker(type: OperationType) {
+        val content = _uiState.value as? FilesUiState.Content ?: return
+        val current = selectionFor(content.location) ?: return
+        val entries = content.entries.filter { it.ref in current.selectedEntries }
+        if (entries.isEmpty() || entries.any { it.kind != EntryKind.FILE }) return
+        pendingTransfer = PendingTransfer(type, content.location, entries)
+        destinationNavigation = mutableListOf(content.location)
+        _uiState.value = FilesUiState.DestinationPicker(
+            location = content.location,
+            entries = content.entries,
+            breadcrumb = content.breadcrumb,
+            operationType = type,
+            sourceCount = entries.size,
+        )
+    }
+
+    fun openDestinationDirectory(entry: StorageEntry) {
+        val pending = pendingTransfer ?: return
+        if (entry.kind != EntryKind.DIRECTORY || entry.ref.providerId != pending.sourceLocation.ref.providerId) return
+        destinationNavigation += entry
+        val token = ++requestToken
+        destinationJob?.cancel()
+        destinationJob = lifecycleScope.launch(Dispatchers.IO) {
+            when (val result = repository.children(entry)) {
+                is StorageResult.Success -> if (token == requestToken) {
+                    _uiState.value = FilesUiState.DestinationPicker(
+                        entry, result.value, destinationNavigation.map { it.displayName },
+                        pending.type, pending.entries.size,
+                    )
+                }
+                is StorageResult.Failure -> if (token == requestToken) {
+                    _uiState.value = FilesUiState.Error(result.error, entry, destinationNavigation.map { it.displayName })
+                }
+            }
+        }
+    }
+
+    fun confirmDestination() {
+        val pending = pendingTransfer ?: return
+        val destination = destinationNavigation.lastOrNull() ?: return
+        val provider = repository.transferProvider(destination.ref.providerId) ?: return
+        operationJob?.cancel()
+        operationJob = lifecycleScope.launch(Dispatchers.IO) {
+            val destinationLocator = when (val result = provider.encodeDurableLocator(destination.ref)) {
+                is StorageResult.Success -> result.value
+                is StorageResult.Failure -> return@launch
+            }
+            val items = pending.entries.mapNotNull { entry ->
+                val source = when (val result = provider.encodeDurableLocator(entry.ref)) {
+                    is StorageResult.Success -> result.value
+                    is StorageResult.Failure -> return@mapNotNull null
+                }
+                OperationManager.EnqueueItem(source, destinationLocator, entry.displayName, entry.sizeBytes, null)
+            }
+            when (val result = operationManager?.enqueue(pending.type, items)) {
+                is StorageResult.Success -> {
+                    pendingTransfer = null
+                    destinationNavigation.clear()
+                    clearSelection()
+                    onOperationsCreated(result.value)
+                    result.value.forEach { operationManager?.execute(it) }
+                    loadChildren(pending.sourceLocation)
+                }
+                is StorageResult.Failure, null -> Unit
+            }
+        }
+    }
+
+    fun cancelDestinationPicker() {
+        val pending = pendingTransfer ?: return
+        pendingTransfer = null
+        destinationNavigation.clear()
+        loadChildren(pending.sourceLocation)
+    }
+
+    fun destinationBack() {
+        if (destinationNavigation.size > 1) {
+            destinationNavigation.removeAt(destinationNavigation.lastIndex)
+            val parent = destinationNavigation.last()
+            openDestinationDirectory(parent)
+        } else {
+            cancelDestinationPicker()
+        }
+    }
+
     fun deleteSelected() {
         val content = _uiState.value as? FilesUiState.Content ?: return
         val current = selectionFor(content.location) ?: return
@@ -255,6 +363,7 @@ class FilesViewModel(
     override fun onCleared() {
         listingJob?.cancel()
         mutationJob?.cancel()
+        operationJob?.cancel()
         if (ownsScope) lifecycleScope.cancel()
         super.onCleared()
     }
@@ -402,6 +511,12 @@ class FilesViewModel(
     }
 
     private fun breadcrumb(): List<String> = navigation.map { it.displayName }
+
+    private data class PendingTransfer(
+        val type: OperationType,
+        val sourceLocation: StorageEntry,
+        val entries: List<StorageEntry>,
+    )
 
     private data class MutationHandle(
         val requestToken: Long,
