@@ -310,6 +310,52 @@ class FilesViewModelTest {
         }
     }
 
+    @Test
+    fun fullDeleteClearsSelectionAfterProviderRefresh() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val provider = MutationProvider()
+            val viewModel = FilesViewModel(FilesRepository(mapOf(provider.id to provider)), provider.id, scope = scope)
+            viewModel.selectLocal()
+            val content = viewModel.uiState.filterIsInstance<FilesUiState.Content>().first()
+            viewModel.enterSelection(content.entries.single { it.ref == provider.old.ref })
+            viewModel.toggleSelection(content.entries.single { it.ref == provider.failed.ref })
+
+            viewModel.deleteSelected()
+            viewModel.uiState.filterIsInstance<FilesUiState.Content>().first { state ->
+                state.entries.singleOrNull()?.ref == provider.folder.ref
+            }
+
+            assertFalse(viewModel.isSelectionMode)
+            assertTrue(viewModel.selectedEntries.isEmpty())
+            assertEquals(2, provider.deleteCalls)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun staleMutationCompletionCannotOverwriteNewerNavigation() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val provider = MutationProvider(blockRename = true)
+            val viewModel = FilesViewModel(FilesRepository(mapOf(provider.id to provider)), provider.id, scope = scope)
+            viewModel.selectLocal()
+            val content = viewModel.uiState.filterIsInstance<FilesUiState.Content>().first()
+            viewModel.enterSelection(content.entries.single { it.ref == provider.old.ref })
+            viewModel.renameSelected("requested.txt")
+            provider.renameStarted.await()
+
+            viewModel.openDirectory(provider.folder)
+            viewModel.uiState.filterIsInstance<FilesUiState.Empty>().first { it.location.ref == provider.folder.ref }
+            provider.releaseRename.complete(Unit)
+
+            assertEquals(provider.folder.ref, (viewModel.uiState.value as FilesUiState.Empty).location.ref)
+        } finally {
+            scope.cancel()
+        }
+    }
+
     private inner class NavigationProvider : StorageProvider {
         override val id = ProviderId("navigation")
         val root = entry(id, "root", EntryKind.DIRECTORY)
@@ -360,6 +406,7 @@ class FilesViewModelTest {
     ) : StorageProvider {
         override val id = ProviderId("mutation")
         val root = entry(id, "root", EntryKind.DIRECTORY)
+        val folder = entry(id, "folder", EntryKind.DIRECTORY, root)
         val old = entry(id, "old", EntryKind.FILE, root)
         val renamed = entry(id, "renamed", EntryKind.FILE, root)
         val failed = entry(id, "failed", EntryKind.FILE, root)
@@ -367,12 +414,13 @@ class FilesViewModelTest {
         val releaseRename = CompletableDeferred<Unit>()
         var renameCalls = 0
         var deleteCalls = 0
-        private var children = listOf(old, failed)
+        private var children = listOf(folder, old, failed)
 
         override suspend fun root() = StorageResult.Success(root)
 
         override suspend fun listChildren(directory: EntryRef) = when (directory) {
             root.ref -> StorageResult.Success(children)
+            folder.ref -> StorageResult.Success(emptyList())
             else -> StorageResult.Failure(StorageError.NotFound)
         }
 
@@ -382,7 +430,7 @@ class FilesViewModelTest {
                 renameStarted.complete(Unit)
                 releaseRename.await()
             }
-            children = listOf(renamed, failed)
+            children = listOf(folder, renamed, failed)
             return StorageResult.Success(renamed)
         }
 

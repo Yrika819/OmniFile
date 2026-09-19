@@ -92,8 +92,14 @@ class FilesViewModel(
             navigation.clear()
             loadRoot(provider.id)
         } catch (_: SecurityException) {
+            invalidateActiveWork()
+            selectedProviderId = null
+            selection = null
             _uiState.value = FilesUiState.Error(StorageError.PermissionDenied, null, emptyList())
         } catch (_: IllegalArgumentException) {
+            invalidateActiveWork()
+            selectedProviderId = null
+            selection = null
             _uiState.value = FilesUiState.Error(StorageError.StaleReference, null, emptyList())
         }
     }
@@ -220,6 +226,12 @@ class FilesViewModel(
                 clearOnSuccess = failures.isEmpty(),
             )
         }
+    }
+
+    private fun invalidateActiveWork() {
+        listingJob?.cancel()
+        mutationJob?.cancel()
+        requestToken += 1
     }
 
     override fun onCleared() {
