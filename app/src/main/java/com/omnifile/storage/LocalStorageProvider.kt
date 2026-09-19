@@ -18,6 +18,15 @@ class LocalStorageProvider(
     override val id: ProviderId,
 ) : StorageProvider {
     private val rootDirectory = rootDirectory.toAbsolutePath().normalize()
+    private val filesystemRoot = rootDirectory.root
+        ?: throw IllegalArgumentException("Local root must be absolute")
+    // Stable pre-existing ancestors are canonicalized once; mutations still traverse this path
+    // from the filesystem-root descriptor with NOFOLLOW_LINKS, and validation rejects changes.
+    private val secureRootDirectory = try {
+        this.rootDirectory.toRealPath()
+    } catch (_: NoSuchFileException) {
+        this.rootDirectory
+    }
 
     override suspend fun root(): StorageResult<StorageEntry> = guarded {
         validateConfiguredRoot()
@@ -114,13 +123,22 @@ class LocalStorageProvider(
     }
 
     private fun validateConfiguredRoot() {
-        val attributes = Files.readAttributes(
+        val rootAttributes = Files.readAttributes(
             rootDirectory,
             BasicFileAttributes::class.java,
             LinkOption.NOFOLLOW_LINKS,
         )
-        if (attributes.isSymbolicLink || !attributes.isDirectory) {
+        if (rootAttributes.isSymbolicLink || !rootAttributes.isDirectory) {
             throw UnsupportedOperationException("Configured Local root is not a real directory")
+        }
+        if (rootDirectory.toRealPath() != secureRootDirectory) {
+            throw UnsupportedOperationException("Configured Local root changed")
+        }
+        withSecureParent(rootDirectory) { parent, name ->
+            val attributes = childAttributes(parent, name)
+            if (attributes.isSymbolicLink || !attributes.isDirectory) {
+                throw UnsupportedOperationException("Configured Local root is not a real directory")
+            }
         }
     }
 
@@ -147,12 +165,13 @@ class LocalStorageProvider(
         path: Path,
         block: (SecureDirectoryStream<Path>, Path) -> T,
     ): T {
-        if (path == rootDirectory || !isWithinRoot(path)) throw StaleReferenceException
-        val relative = rootDirectory.relativize(path)
+        if (!isWithinRoot(path)) throw StaleReferenceException
+        val securePath = secureRootDirectory.resolve(rootDirectory.relativize(path))
+        val relative = filesystemRoot.relativize(securePath)
         if (relative.nameCount == 0) throw UnsupportedOperationException("Cannot mutate Local root")
 
         val streams = mutableListOf<SecureDirectoryStream<Path>>()
-        var current = openSecureRoot()
+        var current = openSecureFilesystemRoot()
         streams += current
         try {
             for (index in 0 until relative.nameCount - 1) {
@@ -168,22 +187,13 @@ class LocalStorageProvider(
         }
     }
 
-    private fun openSecureRoot(): SecureDirectoryStream<Path> {
-        validateConfiguredRoot()
-        val parent = rootDirectory.parent ?: throw UnsupportedOperationException(
-            "Configured Local root has no secure parent",
-        )
-        val rootName = rootDirectory.fileName ?: throw UnsupportedOperationException(
-            "Configured Local root has no name",
-        )
-        val parentStream = Files.newDirectoryStream(parent)
-        try {
-            val secureParent = parentStream as? SecureDirectoryStream<Path>
-                ?: throw UnsupportedOperationException("Secure directory operations unavailable")
-            return secureParent.newDirectoryStream(rootName, LinkOption.NOFOLLOW_LINKS)
-        } finally {
-            parentStream.close()
-        }
+    private fun openSecureFilesystemRoot(): SecureDirectoryStream<Path> {
+        val stream = Files.newDirectoryStream(filesystemRoot)
+        return stream as? SecureDirectoryStream<Path>
+            ?: run {
+                stream.close()
+                throw UnsupportedOperationException("Secure directory operations unavailable")
+            }
     }
 
     private fun childAttributes(

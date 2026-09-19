@@ -242,6 +242,9 @@ class LocalStorageProviderTest {
             }
             val deleteResult = provider.delete(capturedEntry)
             assertTrue(deleteResult is StorageResult.Failure)
+            if (deleteResult is StorageResult.Failure) {
+                assertEquals(StorageError.Unsupported, deleteResult.error)
+            }
             assertTrue(Files.exists(outsideFile))
             assertTrue(Files.exists(relocatedRoot.resolve("nested/captured.txt")))
         } finally {
@@ -265,7 +268,11 @@ class LocalStorageProviderTest {
                 Files.move(nested, displacedNested)
                 Files.createSymbolicLink(root.resolve("nested"), outside)
 
-                assertTrue(provider.delete(capturedEntry) is StorageResult.Failure)
+                val result = provider.delete(capturedEntry)
+                assertTrue(result is StorageResult.Failure)
+                if (result is StorageResult.Failure) {
+                    assertEquals(StorageError.StaleReference, result.error)
+                }
                 assertTrue(Files.exists(outsideFile))
                 assertTrue(Files.exists(displacedNested.resolve("captured.txt")))
             } finally {
@@ -273,6 +280,40 @@ class LocalStorageProviderTest {
                 displacedNested.deleteRecursively()
                 outside.deleteRecursively()
             }
+        }
+    }
+
+    @Test
+    fun replacingConfiguredRootParentWithOutsideSymlinkBlocksCapturedDelete() = runBlocking {
+        val container = Files.createTempDirectory("omnifile-local-container-")
+        val configuredParent = container.resolve("configured-parent")
+        val configuredRoot = configuredParent.resolve("root")
+        val outsideParent = container.resolve("outside-parent")
+        val relocatedParent = container.resolve("configured-parent-relocated")
+        try {
+            val nested = Files.createDirectories(configuredRoot.resolve("nested"))
+            Files.createFile(nested.resolve("captured.txt"))
+            val outsideNested = Files.createDirectories(outsideParent.resolve("root/nested"))
+            val outsideFile = Files.createFile(outsideNested.resolve("captured.txt"))
+            val provider: StorageProvider = LocalStorageProvider(configuredRoot, ProviderId("local-test"))
+            val rootEntry = (provider.root() as StorageResult.Success).value
+            val capturedEntry = child(provider, child(provider, rootEntry, "nested"), "captured.txt")
+
+            Files.move(configuredParent, relocatedParent)
+            Files.createSymbolicLink(configuredParent, outsideParent)
+
+            val result = provider.delete(capturedEntry)
+            assertTrue(result is StorageResult.Failure)
+            if (result is StorageResult.Failure) {
+                assertEquals(StorageError.Unsupported, result.error)
+            }
+            assertTrue(Files.exists(outsideFile))
+            assertTrue(Files.exists(relocatedParent.resolve("root/nested/captured.txt")))
+        } finally {
+            Files.deleteIfExists(configuredParent)
+            relocatedParent.deleteRecursively()
+            outsideParent.deleteRecursively()
+            container.deleteRecursively()
         }
     }
 
