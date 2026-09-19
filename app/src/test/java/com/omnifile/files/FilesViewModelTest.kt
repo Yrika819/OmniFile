@@ -351,6 +351,7 @@ class FilesViewModelTest {
             viewModel.openDirectory(provider.folder)
             viewModel.uiState.filterIsInstance<FilesUiState.Empty>().first { it.location.ref == provider.folder.ref }
             provider.releaseRename.complete(Unit)
+            provider.renameCompleted.await()
 
             assertEquals(provider.folder.ref, (viewModel.uiState.value as FilesUiState.Empty).location.ref)
         } finally {
@@ -439,6 +440,7 @@ class FilesViewModelTest {
         val failed = entry(id, "failed", EntryKind.FILE, root)
         val renameStarted = CompletableDeferred<Unit>()
         val releaseRename = CompletableDeferred<Unit>()
+        val renameCompleted = CompletableDeferred<Unit>()
         val deleteStarted = CompletableDeferred<Unit>()
         val releaseDelete = CompletableDeferred<Unit>()
         var renameCalls = 0
@@ -462,6 +464,7 @@ class FilesViewModelTest {
                 }
             }
             children = listOf(folder, renamed, failed)
+            renameCompleted.complete(Unit)
             return StorageResult.Success(renamed)
         }
 
