@@ -19,4 +19,15 @@ class FilesRepository(providers: Map<ProviderId, StorageProvider>) {
     suspend fun children(entry: StorageEntry): StorageResult<List<StorageEntry>> =
         providers[entry.ref.providerId]?.listChildren(entry.ref)
             ?: StorageResult.Failure(StorageError.StaleReference)
+
+    suspend fun rename(
+        entry: StorageEntry,
+        requestedName: String,
+    ): StorageResult<StorageEntry> =
+        providers[entry.ref.providerId]?.rename(entry, requestedName)
+            ?: StorageResult.Failure(StorageError.StaleReference)
+
+    suspend fun delete(entry: StorageEntry): StorageResult<Unit> =
+        providers[entry.ref.providerId]?.delete(entry)
+            ?: StorageResult.Failure(StorageError.StaleReference)
 }

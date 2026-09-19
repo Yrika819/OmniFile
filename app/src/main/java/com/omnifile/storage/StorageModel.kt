@@ -37,8 +37,28 @@ sealed interface StorageError {
     data object PermissionDenied : StorageError
     data object StaleReference : StorageError
     data object Unsupported : StorageError
+    data class InvalidName(
+        val requestedName: String,
+        val message: String,
+    ) : StorageError
+    data class NameConflict(val requestedName: String) : StorageError {
+        val message: String = "An entry named $requestedName already exists"
+    }
+    data class PartialDelete(val outcomes: List<DeleteItemResult>) : StorageError {
+        val hasFailures: Boolean = outcomes.any { it.outcome is DeleteItemOutcome.Failed }
+    }
     data class IoFailure(val detail: String?) : StorageError
     data object Cancelled : StorageError
+}
+
+data class DeleteItemResult(
+    val entry: StorageEntry,
+    val outcome: DeleteItemOutcome,
+)
+
+sealed interface DeleteItemOutcome {
+    data object Deleted : DeleteItemOutcome
+    data class Failed(val error: StorageError) : DeleteItemOutcome
 }
 
 sealed interface StorageResult<out T> {
@@ -52,4 +72,12 @@ interface StorageProvider {
     suspend fun root(): StorageResult<StorageEntry>
 
     suspend fun listChildren(directory: EntryRef): StorageResult<List<StorageEntry>>
+
+    suspend fun rename(
+        entry: StorageEntry,
+        requestedName: String,
+    ): StorageResult<StorageEntry> = StorageResult.Failure(StorageError.Unsupported)
+
+    suspend fun delete(entry: StorageEntry): StorageResult<Unit> =
+        StorageResult.Failure(StorageError.Unsupported)
 }
