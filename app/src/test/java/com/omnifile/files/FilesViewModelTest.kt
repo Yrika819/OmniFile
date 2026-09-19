@@ -20,10 +20,166 @@ import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FilesViewModelTest {
+    @Test
+    fun longPressEntersSingleSelectionAndToggleDeselectsTheLastEntry() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val provider = SelectionProvider()
+            val viewModel = FilesViewModel(FilesRepository(mapOf(provider.id to provider)), provider.id, scope = scope)
+            viewModel.selectLocal()
+            val content = viewModel.uiState.filterIsInstance<FilesUiState.Content>().first()
+
+            viewModel.enterSelection(content.entries.first())
+            assertTrue(viewModel.isSelectionMode)
+            assertEquals(setOf(content.entries.first().ref), viewModel.selectedEntries)
+
+            viewModel.toggleSelection(content.entries.first())
+            assertFalse(viewModel.isSelectionMode)
+            assertTrue(viewModel.selectedEntries.isEmpty())
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun selectionToggleSupportsMultipleEntriesAndExplicitClear() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val provider = SelectionProvider()
+            val viewModel = FilesViewModel(FilesRepository(mapOf(provider.id to provider)), provider.id, scope = scope)
+            viewModel.selectLocal()
+            val entries = viewModel.uiState.filterIsInstance<FilesUiState.Content>().first().entries
+
+            viewModel.enterSelection(entries[0])
+            viewModel.toggleSelection(entries[1])
+            assertEquals(setOf(entries[0].ref, entries[1].ref), viewModel.selectedEntries)
+
+            viewModel.clearSelection()
+            assertFalse(viewModel.isSelectionMode)
+            assertTrue(viewModel.selectedEntries.isEmpty())
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun directoryNavigationClearsSelection() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val provider = SelectionProvider()
+            val viewModel = FilesViewModel(FilesRepository(mapOf(provider.id to provider)), provider.id, scope = scope)
+            viewModel.selectLocal()
+            val content = viewModel.uiState.filterIsInstance<FilesUiState.Content>().first()
+
+            viewModel.enterSelection(content.entries.first())
+            viewModel.openDirectory(provider.folder)
+            viewModel.uiState.filterIsInstance<FilesUiState.Empty>().first { it.location.ref == provider.folder.ref }
+
+            assertFalse(viewModel.isSelectionMode)
+            assertTrue(viewModel.selectedEntries.isEmpty())
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun providerBoundaryClearsSelection() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val local = SelectionProvider(ProviderId("local"))
+            val saf = SelectionProvider(ProviderId("saf"))
+            val uri = android.net.Uri.parse("content://selection-tree")
+            val viewModel = FilesViewModel(
+                FilesRepository(mapOf(local.id to local, saf.id to saf)),
+                local.id,
+                safProviderFor = { saf },
+                scope = scope,
+            )
+            viewModel.selectLocal()
+            val localContent = viewModel.uiState.filterIsInstance<FilesUiState.Content>().first()
+            viewModel.enterSelection(localContent.entries.first())
+
+            viewModel.selectSaf(uri)
+            viewModel.uiState.filterIsInstance<FilesUiState.Content>().first { it.location.ref == saf.root.ref }
+
+            assertFalse(viewModel.isSelectionMode)
+            assertTrue(viewModel.selectedEntries.isEmpty())
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun backClearsSelectionBeforeChangingDirectory() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val provider = SelectionProvider()
+            val viewModel = FilesViewModel(FilesRepository(mapOf(provider.id to provider)), provider.id, scope = scope)
+            viewModel.selectLocal()
+            viewModel.uiState.filterIsInstance<FilesUiState.Content>().first()
+            viewModel.enterSelection(provider.child)
+
+            viewModel.handleBack()
+            assertFalse(viewModel.isSelectionMode)
+            assertEquals(provider.root.ref, (viewModel.uiState.value as FilesUiState.Content).location.ref)
+
+            viewModel.openDirectory(provider.folder)
+            viewModel.uiState.filterIsInstance<FilesUiState.Empty>().first { it.location.ref == provider.folder.ref }
+            viewModel.goBack()
+            assertEquals(provider.root.ref, viewModel.uiState.filterIsInstance<FilesUiState.Content>().first().location.ref)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun refreshDropsTheOldRefWhenProviderRenamesAnEntry() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val provider = SelectionProvider()
+            val viewModel = FilesViewModel(FilesRepository(mapOf(provider.id to provider)), provider.id, scope = scope)
+            viewModel.selectLocal()
+            val initial = viewModel.uiState.filterIsInstance<FilesUiState.Content>().first()
+            viewModel.enterSelection(provider.child)
+            provider.replaceChild(provider.renamedChild)
+
+            viewModel.retry()
+            viewModel.uiState.filterIsInstance<FilesUiState.Content>().first { it.entries.single().ref == provider.renamedChild.ref }
+
+            assertFalse(viewModel.selectedEntries.contains(provider.child.ref))
+            assertTrue(viewModel.selectedEntries.isEmpty())
+            assertTrue(initial.entries.single().ref != provider.renamedChild.ref)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun refreshDropsTheRefWhenProviderDeletesAnEntry() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val provider = SelectionProvider()
+            val viewModel = FilesViewModel(FilesRepository(mapOf(provider.id to provider)), provider.id, scope = scope)
+            viewModel.selectLocal()
+            viewModel.uiState.filterIsInstance<FilesUiState.Content>().first()
+            viewModel.enterSelection(provider.child)
+            provider.removeChild()
+
+            viewModel.retry()
+            viewModel.uiState.filterIsInstance<FilesUiState.Empty>().first()
+
+            assertFalse(viewModel.isSelectionMode)
+            assertTrue(viewModel.selectedEntries.isEmpty())
+        } finally {
+            scope.cancel()
+        }
+    }
+
     @Test
     fun backStopsAtSourceSelectionInsteadOfLeavingSelectedRoot() = runBlocking {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -126,6 +282,32 @@ class FilesViewModelTest {
 
         override suspend fun listChildren(directory: EntryRef) =
             StorageResult.Failure(StorageError.PermissionDenied)
+    }
+
+    private inner class SelectionProvider(
+        override val id: ProviderId = ProviderId("selection"),
+    ) : StorageProvider {
+        val root = entry(id, "root", EntryKind.DIRECTORY)
+        val folder = entry(id, "folder", EntryKind.DIRECTORY, root)
+        val child = entry(id, "old-name", EntryKind.FILE, root)
+        val renamedChild = entry(id, "new-name", EntryKind.FILE, root)
+        private var children = listOf(folder, child)
+
+        override suspend fun root() = StorageResult.Success(root)
+
+        override suspend fun listChildren(directory: EntryRef) = when (directory) {
+            root.ref -> StorageResult.Success(children)
+            folder.ref -> StorageResult.Success(emptyList())
+            else -> StorageResult.Failure(StorageError.NotFound)
+        }
+
+        fun replaceChild(entry: StorageEntry) {
+            children = listOf(folder, entry)
+        }
+
+        fun removeChild() {
+            children = listOf(folder)
+        }
     }
 
     private fun entry(providerId: ProviderId, name: String, kind: EntryKind, parent: StorageEntry? = null) = StorageEntry(
