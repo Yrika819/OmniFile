@@ -41,6 +41,7 @@ public final class TestDocumentsProvider extends DocumentsProvider {
     private static String configuredRenameSource;
     private static String configuredRenameId;
     private static String configuredRenameName;
+    private static String configuredRenameFailure;
     private static String configuredDeleteFailure;
 
     static {
@@ -63,6 +64,7 @@ public final class TestDocumentsProvider extends DocumentsProvider {
         configuredRenameSource = null;
         configuredRenameId = null;
         configuredRenameName = null;
+        configuredRenameFailure = null;
         configuredDeleteFailure = null;
     }
 
@@ -84,6 +86,10 @@ public final class TestDocumentsProvider extends DocumentsProvider {
         configuredRenameSource = sourceId;
         configuredRenameId = returnedId;
         configuredRenameName = returnedName;
+    }
+
+    public static void configureRenameFailure(String documentId) {
+        configuredRenameFailure = documentId;
     }
 
     public static void configureDeleteFailure(String documentId) {
@@ -155,6 +161,9 @@ public final class TestDocumentsProvider extends DocumentsProvider {
         if (node == null) throw new FileNotFoundException(documentId);
         if ((node.flags & DocumentsContract.Document.FLAG_SUPPORTS_RENAME) == 0) {
             throw new UnsupportedOperationException("Rename is not supported");
+        }
+        if (configuredRenameFailure != null && configuredRenameFailure.equals(documentId)) {
+            throw new IllegalStateException("controlled rename failure");
         }
         if (configuredRenameSource != null && configuredRenameSource.equals(documentId)) {
             String returnedId = configuredRenameId;

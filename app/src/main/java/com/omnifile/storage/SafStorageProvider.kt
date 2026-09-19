@@ -34,7 +34,7 @@ class SafStorageProvider(
         return try {
             val sourceUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, ref.documentId)
             val returnedUri = DocumentsContract.renameDocument(contentResolver, sourceUri, requestedName)
-                ?: return StorageResult.Failure(StorageError.NotFound)
+                ?: return StorageResult.Failure(StorageError.IoFailure("Provider declined rename"))
             val returnedDocumentId = DocumentsContract.getDocumentId(returnedUri)
             queryEntry(returnedUri, entry.parentRef, returnedDocumentId)
         } catch (error: OperationCanceledException) {
