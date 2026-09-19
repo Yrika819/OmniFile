@@ -243,6 +243,73 @@ class FilesViewModelTest {
         }
     }
 
+    @Test
+    fun renameSelectedRefreshesProviderTruthAndClearsSelection() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val provider = MutationProvider()
+            val viewModel = FilesViewModel(FilesRepository(mapOf(provider.id to provider)), provider.id, scope = scope)
+            viewModel.selectLocal()
+            val content = viewModel.uiState.filterIsInstance<FilesUiState.Content>().first()
+            viewModel.enterSelection(content.entries.single { it.ref == provider.old.ref })
+
+            viewModel.renameSelected("requested.txt")
+            val refreshed = viewModel.uiState.filterIsInstance<FilesUiState.Content>().first { state ->
+                state.entries.any { it.ref == provider.renamed.ref }
+            }
+
+            assertTrue(refreshed.entries.none { it.ref == provider.old.ref })
+            assertFalse(viewModel.isSelectionMode)
+            assertEquals(1, provider.renameCalls)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun duplicateRenameSubmissionIsSuppressed() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val provider = MutationProvider(blockRename = true)
+            val viewModel = FilesViewModel(FilesRepository(mapOf(provider.id to provider)), provider.id, scope = scope)
+            viewModel.selectLocal()
+            val content = viewModel.uiState.filterIsInstance<FilesUiState.Content>().first()
+            viewModel.enterSelection(content.entries.single { it.ref == provider.old.ref })
+
+            viewModel.renameSelected("requested.txt")
+            provider.renameStarted.await()
+            viewModel.renameSelected("second.txt")
+            provider.releaseRename.complete(Unit)
+            viewModel.uiState.filterIsInstance<FilesUiState.Content>().first { it.entries.any { entry -> entry.ref == provider.renamed.ref } }
+
+            assertEquals(1, provider.renameCalls)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun partialDeleteRetainsOnlyFailedSurvivingEntries() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val provider = MutationProvider(failDelete = true)
+            val viewModel = FilesViewModel(FilesRepository(mapOf(provider.id to provider)), provider.id, scope = scope)
+            viewModel.selectLocal()
+            val content = viewModel.uiState.filterIsInstance<FilesUiState.Content>().first()
+            viewModel.enterSelection(content.entries.single { it.ref == provider.old.ref })
+            viewModel.toggleSelection(content.entries.single { it.ref == provider.failed.ref })
+
+            viewModel.deleteSelected()
+            val error = viewModel.uiState.filterIsInstance<FilesUiState.Error>().first { it.error is StorageError.PartialDelete }
+
+            assertEquals(setOf(provider.failed.ref), viewModel.selectedEntries)
+            assertTrue(error.location?.ref == provider.root.ref)
+            assertEquals(2, provider.deleteCalls)
+        } finally {
+            scope.cancel()
+        }
+    }
+
     private inner class NavigationProvider : StorageProvider {
         override val id = ProviderId("navigation")
         val root = entry(id, "root", EntryKind.DIRECTORY)
@@ -285,6 +352,49 @@ class FilesViewModelTest {
 
         override suspend fun listChildren(directory: EntryRef) =
             StorageResult.Failure(StorageError.PermissionDenied)
+    }
+
+    private inner class MutationProvider(
+        private val blockRename: Boolean = false,
+        private val failDelete: Boolean = false,
+    ) : StorageProvider {
+        override val id = ProviderId("mutation")
+        val root = entry(id, "root", EntryKind.DIRECTORY)
+        val old = entry(id, "old", EntryKind.FILE, root)
+        val renamed = entry(id, "renamed", EntryKind.FILE, root)
+        val failed = entry(id, "failed", EntryKind.FILE, root)
+        val renameStarted = CompletableDeferred<Unit>()
+        val releaseRename = CompletableDeferred<Unit>()
+        var renameCalls = 0
+        var deleteCalls = 0
+        private var children = listOf(old, failed)
+
+        override suspend fun root() = StorageResult.Success(root)
+
+        override suspend fun listChildren(directory: EntryRef) = when (directory) {
+            root.ref -> StorageResult.Success(children)
+            else -> StorageResult.Failure(StorageError.NotFound)
+        }
+
+        override suspend fun rename(entry: StorageEntry, requestedName: String): StorageResult<StorageEntry> {
+            renameCalls++
+            if (blockRename) {
+                renameStarted.complete(Unit)
+                releaseRename.await()
+            }
+            children = listOf(renamed, failed)
+            return StorageResult.Success(renamed)
+        }
+
+        override suspend fun delete(entry: StorageEntry): StorageResult<Unit> {
+            deleteCalls++
+            return if (failDelete && entry.ref == failed.ref) {
+                StorageResult.Failure(StorageError.PermissionDenied)
+            } else {
+                children = children.filterNot { it.ref == entry.ref }
+                StorageResult.Success(Unit)
+            }
+        }
     }
 
     private inner class SelectionProvider(

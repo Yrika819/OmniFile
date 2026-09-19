@@ -4,6 +4,8 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import com.omnifile.storage.EntryKind
 import com.omnifile.storage.EntryRef
+import com.omnifile.storage.DeleteItemOutcome
+import com.omnifile.storage.DeleteItemResult
 import com.omnifile.storage.ProviderId
 import com.omnifile.storage.StorageEntry
 import com.omnifile.storage.StorageError
@@ -65,6 +67,7 @@ class FilesViewModel(
     private var selectedProviderId: ProviderId? = null
     private var selection: FilesSelectionState? = null
     private var listingJob: Job? = null
+    private var mutationJob: Job? = null
     private var requestToken = 0L
 
     val uiState: StateFlow<FilesUiState> = _uiState.asStateFlow()
@@ -176,8 +179,52 @@ class FilesViewModel(
         }
     }
 
+    fun renameSelected(requestedName: String) {
+        val content = _uiState.value as? FilesUiState.Content ?: return
+        val current = selectionFor(content.location) ?: return
+        if (current.selectedEntries.size != 1 || mutationJob?.isActive == true) return
+        val entry = content.entries.singleOrNull { it.ref in current.selectedEntries } ?: return
+        val token = beginMutation(content.location)
+        mutationJob = lifecycleScope.launch(Dispatchers.IO) {
+            val result = repository.rename(entry, requestedName)
+            refreshAfterMutation(
+                token = token,
+                location = content.location,
+                retainedRefs = current.selectedEntries,
+                mutationError = (result as? StorageResult.Failure)?.error,
+                clearOnSuccess = true,
+            )
+        }
+    }
+
+    fun deleteSelected() {
+        val content = _uiState.value as? FilesUiState.Content ?: return
+        val current = selectionFor(content.location) ?: return
+        if (current.selectedEntries.isEmpty() || mutationJob?.isActive == true) return
+        val entries = content.entries.filter { it.ref in current.selectedEntries }
+        if (entries.isEmpty()) return
+        val token = beginMutation(content.location)
+        mutationJob = lifecycleScope.launch(Dispatchers.IO) {
+            val outcomes = entries.map { entry ->
+                when (val result = repository.delete(entry)) {
+                    is StorageResult.Success -> DeleteItemResult(entry, DeleteItemOutcome.Deleted)
+                    is StorageResult.Failure -> DeleteItemResult(entry, DeleteItemOutcome.Failed(result.error))
+                }
+            }
+            val failures = outcomes.filter { it.outcome is DeleteItemOutcome.Failed }
+            refreshAfterMutation(
+                token = token,
+                location = content.location,
+                retainedRefs = failures.mapTo(linkedSetOf()) { it.entry.ref },
+                mutationError = failures.takeIf { it.isNotEmpty() }?.let { StorageError.PartialDelete(outcomes) },
+                clearOnSuccess = failures.isEmpty(),
+            )
+        }
+    }
+
     override fun onCleared() {
         listingJob?.cancel()
+        mutationJob?.cancel()
         if (ownsScope) lifecycleScope.cancel()
         super.onCleared()
     }
@@ -227,10 +274,57 @@ class FilesViewModel(
 
     private fun beginLoading(location: StorageEntry?): Long {
         listingJob?.cancel()
+        mutationJob?.cancel()
         requestToken += 1
         _uiState.value = FilesUiState.Loading(location)
         return requestToken
     }
+
+    private fun beginMutation(location: StorageEntry): Long {
+        listingJob?.cancel()
+        requestToken += 1
+        _uiState.value = FilesUiState.Loading(location)
+        return requestToken
+    }
+
+    private suspend fun refreshAfterMutation(
+        token: Long,
+        location: StorageEntry,
+        retainedRefs: Set<EntryRef>,
+        mutationError: StorageError?,
+        clearOnSuccess: Boolean,
+    ) {
+        when (val result = repository.children(location)) {
+            is StorageResult.Failure -> publish(token) {
+                FilesUiState.Error(result.error, location, breadcrumb(), selectionFor(location))
+            }
+
+            is StorageResult.Success -> publish(token) {
+                val listedRefs = result.value.mapTo(mutableSetOf()) { it.ref }
+                val retained = if (clearOnSuccess && mutationError == null) {
+                    emptySet()
+                } else {
+                    retainedRefs.filterTo(linkedSetOf()) { it in listedRefs }
+                }
+                selection = retained.takeIf { it.isNotEmpty() }?.let {
+                    FilesSelectionState(location.ref.providerId, location.ref, it)
+                }
+                val refreshed = contentState(location, result.value)
+                if (mutationError != null) {
+                    FilesUiState.Error(mutationError, location, breadcrumb(), selectionFor(location))
+                } else {
+                    refreshed
+                }
+            }
+        }
+    }
+
+    private fun contentState(location: StorageEntry, entries: List<StorageEntry>): FilesUiState =
+        if (entries.isEmpty()) {
+            FilesUiState.Empty(location, breadcrumb(), selectionFor(location))
+        } else {
+            FilesUiState.Content(location, entries, breadcrumb(), selectionFor(location))
+        }
 
     private suspend fun publish(token: Long, state: () -> FilesUiState) {
         if (token == requestToken) _uiState.value = state()
