@@ -76,7 +76,11 @@ class StorageModelTest {
         )
 
         assertEquals(2, result.outcomes.size)
+        assertEquals(deleted, result.outcomes[0].entry)
+        assertEquals(deleted.ref, result.outcomes[0].entry.ref)
         assertEquals(DeleteItemOutcome.Deleted, result.outcomes[0].outcome)
+        assertEquals(failed, result.outcomes[1].entry)
+        assertEquals(failed.ref, result.outcomes[1].entry.ref)
         assertEquals(
             DeleteItemOutcome.Failed(StorageError.PermissionDenied),
             result.outcomes[1].outcome,

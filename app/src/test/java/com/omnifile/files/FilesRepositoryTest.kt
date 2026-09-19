@@ -29,7 +29,7 @@ class FilesRepositoryTest {
     fun renameDelegatesOnlyToTheEntryProvider() = runBlocking {
         val selected = FakeProvider(ProviderId("selected"))
         val other = FakeProvider(ProviderId("other"))
-        val repository = FilesRepository(mapOf(selected.id to selected, other.id to other))
+        val repository = FilesRepository(mapOf(other.id to other, selected.id to selected))
         val entry = selected.child
 
         val result = repository.rename(entry, "renamed.txt")
@@ -43,7 +43,7 @@ class FilesRepositoryTest {
     fun deleteDelegatesOnlyToTheEntryProvider() = runBlocking {
         val selected = FakeProvider(ProviderId("selected"))
         val other = FakeProvider(ProviderId("other"))
-        val repository = FilesRepository(mapOf(selected.id to selected, other.id to other))
+        val repository = FilesRepository(mapOf(other.id to other, selected.id to selected))
 
         val result = repository.delete(selected.child)
 
@@ -56,6 +56,7 @@ class FilesRepositoryTest {
         val calls = mutableListOf<ProviderId>()
         val mutationCalls = mutableListOf<String>()
         private val root = entry("root", EntryKind.DIRECTORY, setOf(StorageCapability.LIST_CHILDREN))
+        private val folder = entry("folder", EntryKind.DIRECTORY, setOf(StorageCapability.LIST_CHILDREN))
         val child = entry(
             "child",
             EntryKind.FILE,
@@ -74,7 +75,7 @@ class FilesRepositoryTest {
 
         override suspend fun listChildren(directory: EntryRef): StorageResult<List<StorageEntry>> {
             calls += id
-            return StorageResult.Success(listOf(child))
+            return StorageResult.Success(listOf(folder))
         }
 
         override suspend fun rename(
