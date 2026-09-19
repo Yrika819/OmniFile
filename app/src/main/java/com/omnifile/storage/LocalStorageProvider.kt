@@ -134,12 +134,9 @@ class LocalStorageProvider(
         if (rootDirectory.toRealPath() != secureRootDirectory) {
             throw UnsupportedOperationException("Configured Local root changed")
         }
-        withSecureParent(rootDirectory) { parent, name ->
-            val attributes = childAttributes(parent, name)
-            if (attributes.isSymbolicLink || !attributes.isDirectory) {
-                throw UnsupportedOperationException("Configured Local root is not a real directory")
-            }
-        }
+        // Browsing an app-private root must not require listing an inaccessible
+        // filesystem ancestor. Descriptor-relative traversal remains required for
+        // destructive mutations and is intentionally kept in withSecureParent().
     }
 
     private fun requireNoSymlinkAncestors(path: Path) {
