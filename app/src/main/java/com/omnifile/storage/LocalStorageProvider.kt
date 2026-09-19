@@ -4,14 +4,13 @@ import java.io.FileNotFoundException
 import java.io.IOException
 import java.nio.file.AccessDeniedException
 import java.nio.file.DirectoryNotEmptyException
-import java.nio.file.FileAlreadyExistsException
-import java.nio.file.FileVisitResult
 import java.nio.file.Files
-import java.nio.file.InvalidPathException
 import java.nio.file.LinkOption
 import java.nio.file.NoSuchFileException
+import java.nio.file.NotDirectoryException
 import java.nio.file.Path
-import java.nio.file.SimpleFileVisitor
+import java.nio.file.SecureDirectoryStream
+import java.nio.file.attribute.BasicFileAttributeView
 import java.nio.file.attribute.BasicFileAttributes
 
 class LocalStorageProvider(
@@ -21,6 +20,7 @@ class LocalStorageProvider(
     private val rootDirectory = rootDirectory.toAbsolutePath().normalize()
 
     override suspend fun root(): StorageResult<StorageEntry> = guarded {
+        validateConfiguredRoot()
         entryFor(rootDirectory)
     }
 
@@ -41,54 +41,26 @@ class LocalStorageProvider(
     override suspend fun rename(
         entry: StorageEntry,
         requestedName: String,
-    ): StorageResult<StorageEntry> {
-        if (!isValidSingleComponent(requestedName)) {
-            return StorageResult.Failure(StorageError.InvalidName(requestedName, ""))
-        }
-
-        return guarded {
-            val sourceRef = checkedRef(entry.ref)
-            val source = sourceRef.path
-            if (source == rootDirectory) throw UnsupportedOperationException("Cannot rename Local root")
-
-            val parent = source.parent
-                ?: throw UnsupportedOperationException("Cannot rename entry without a parent")
-            val target = parent.resolve(requestedName).normalize()
-            if (target.parent != parent || !isWithinRoot(target)) {
-                throw InvalidNameException(requestedName)
-            }
-            if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
-                throw NameConflictException(requestedName)
-            }
-
-            try {
-                Files.move(source, target)
-            } catch (_: FileAlreadyExistsException) {
-                throw NameConflictException(requestedName)
-            }
-            entryFor(target, LocalEntryRef(id, parent))
-        }
-    }
+    ): StorageResult<StorageEntry> = StorageResult.Failure(StorageError.Unsupported)
 
     override suspend fun delete(entry: StorageEntry): StorageResult<Unit> = guarded {
         val localRef = checkedRef(entry.ref)
         val path = localRef.path
         if (path == rootDirectory) throw UnsupportedOperationException("Cannot delete Local root")
-        val attributes = Files.readAttributes(
-            path,
-            BasicFileAttributes::class.java,
-            LinkOption.NOFOLLOW_LINKS,
-        )
-        when {
-            attributes.isDirectory -> deleteEmptyDirectory(path)
-            attributes.isRegularFile || attributes.isSymbolicLink -> Files.delete(path)
-            else -> throw UnsupportedOperationException("Unsupported Local entry type")
+        withSecureParent(path) { parent, name ->
+            val attributes = childAttributes(parent, name)
+            when {
+                attributes.isRegularFile || attributes.isSymbolicLink -> parent.deleteFile(name)
+                attributes.isDirectory -> deleteEmptyDirectory(parent, name)
+                else -> throw UnsupportedOperationException("Unsupported Local entry type")
+            }
         }
     }
 
     private fun entryFor(path: Path, parentRef: EntryRef? = null): StorageEntry {
         val normalized = path.toAbsolutePath().normalize()
         if (!isWithinRoot(normalized)) throw StaleReferenceException
+        validateConfiguredRoot()
         requireNoSymlinkAncestors(normalized)
         if (Files.notExists(normalized, LinkOption.NOFOLLOW_LINKS)) {
             throw NoSuchFileException(normalized.toString())
@@ -110,8 +82,7 @@ class LocalStorageProvider(
                 add(StorageCapability.READ_SEEKABLE)
             }
             if (normalized != rootDirectory) {
-                add(StorageCapability.RENAME)
-                if (attributes.isRegularFile || symbolicLink || (directory && isEmptyDirectory(normalized))) {
+                if (canDelete(normalized, attributes)) {
                     add(StorageCapability.DELETE)
                 }
             }
@@ -134,11 +105,23 @@ class LocalStorageProvider(
         if (localRef.providerId != id || !isWithinRoot(localRef.path)) {
             throw StaleReferenceException
         }
+        validateConfiguredRoot()
         requireNoSymlinkAncestors(localRef.path)
         if (Files.notExists(localRef.path, LinkOption.NOFOLLOW_LINKS)) {
             throw NoSuchFileException(localRef.path.toString())
         }
         return localRef
+    }
+
+    private fun validateConfiguredRoot() {
+        val attributes = Files.readAttributes(
+            rootDirectory,
+            BasicFileAttributes::class.java,
+            LinkOption.NOFOLLOW_LINKS,
+        )
+        if (attributes.isSymbolicLink || !attributes.isDirectory) {
+            throw UnsupportedOperationException("Configured Local root is not a real directory")
+        }
     }
 
     private fun requireNoSymlinkAncestors(path: Path) {
@@ -160,59 +143,102 @@ class LocalStorageProvider(
         }
     }
 
-    private fun isValidSingleComponent(requestedName: String): Boolean {
-        if (requestedName.isEmpty() || requestedName == "." || requestedName == "..") return false
-        if ('\u0000' in requestedName || '/' in requestedName || '\\' in requestedName) return false
-        return try {
-            val path = rootDirectory.fileSystem.getPath(requestedName)
-            !path.isAbsolute && path.nameCount == 1 && path.fileName.toString() == requestedName
-        } catch (_: InvalidPathException) {
-            false
+    private fun <T> withSecureParent(
+        path: Path,
+        block: (SecureDirectoryStream<Path>, Path) -> T,
+    ): T {
+        if (path == rootDirectory || !isWithinRoot(path)) throw StaleReferenceException
+        val relative = rootDirectory.relativize(path)
+        if (relative.nameCount == 0) throw UnsupportedOperationException("Cannot mutate Local root")
+
+        val streams = mutableListOf<SecureDirectoryStream<Path>>()
+        var current = openSecureRoot()
+        streams += current
+        try {
+            for (index in 0 until relative.nameCount - 1) {
+                current = current.newDirectoryStream(
+                    relative.getName(index),
+                    LinkOption.NOFOLLOW_LINKS,
+                )
+                streams += current
+            }
+            return block(current, relative.getName(relative.nameCount - 1))
+        } finally {
+            streams.asReversed().forEach { it.close() }
         }
     }
 
-    private fun deleteEmptyDirectory(path: Path) {
+    private fun openSecureRoot(): SecureDirectoryStream<Path> {
+        validateConfiguredRoot()
+        val parent = rootDirectory.parent ?: throw UnsupportedOperationException(
+            "Configured Local root has no secure parent",
+        )
+        val rootName = rootDirectory.fileName ?: throw UnsupportedOperationException(
+            "Configured Local root has no name",
+        )
+        val parentStream = Files.newDirectoryStream(parent)
         try {
-            Files.walkFileTree(path, object : SimpleFileVisitor<Path>() {
-                override fun preVisitDirectory(
-                    directory: Path,
-                    attributes: BasicFileAttributes,
-                ): FileVisitResult {
-                    if (directory != path || !isWithinRoot(directory)) {
-                        throw UnsupportedOperationException("Recursive directory deletion is unsupported")
-                    }
-                    return FileVisitResult.CONTINUE
-                }
+            val secureParent = parentStream as? SecureDirectoryStream<Path>
+                ?: throw UnsupportedOperationException("Secure directory operations unavailable")
+            return secureParent.newDirectoryStream(rootName, LinkOption.NOFOLLOW_LINKS)
+        } finally {
+            parentStream.close()
+        }
+    }
 
-                override fun visitFile(
-                    file: Path,
-                    attributes: BasicFileAttributes,
-                ): FileVisitResult = throw UnsupportedOperationException(
-                    "Recursive directory deletion is unsupported",
-                )
+    private fun childAttributes(
+        parent: SecureDirectoryStream<Path>,
+        name: Path,
+    ): BasicFileAttributes {
+        val view = parent.getFileAttributeView(
+            name,
+            BasicFileAttributeView::class.java,
+            LinkOption.NOFOLLOW_LINKS,
+        ) ?: throw UnsupportedOperationException("Secure file attributes unavailable")
+        return view.readAttributes()
+    }
 
-                override fun postVisitDirectory(
-                    directory: Path,
-                    error: IOException?,
-                ): FileVisitResult {
-                    if (error != null) throw error
-                    if (directory != path || !isWithinRoot(directory)) {
-                        throw UnsupportedOperationException("Recursive directory deletion is unsupported")
-                    }
-                    Files.delete(directory)
-                    return FileVisitResult.CONTINUE
-                }
-            })
+    private fun deleteEmptyDirectory(parent: SecureDirectoryStream<Path>, name: Path) {
+        val child = parent.newDirectoryStream(name, LinkOption.NOFOLLOW_LINKS)
+        try {
+            if (child.iterator().hasNext()) {
+                throw UnsupportedOperationException("Recursive directory deletion is unsupported")
+            }
+        } finally {
+            child.close()
+        }
+        try {
+            parent.deleteDirectory(name)
         } catch (_: DirectoryNotEmptyException) {
             throw UnsupportedOperationException("Recursive directory deletion is unsupported")
         }
     }
 
-    private fun isEmptyDirectory(path: Path): Boolean = try {
-        Files.newDirectoryStream(path).use { directory -> !directory.iterator().hasNext() }
+    private fun canDelete(path: Path, attributes: BasicFileAttributes): Boolean = try {
+        if (!attributes.isRegularFile && !attributes.isSymbolicLink && !attributes.isDirectory) {
+            false
+        } else {
+            withSecureParent(path) { parent, name ->
+                val current = childAttributes(parent, name)
+                when {
+                    current.isRegularFile || current.isSymbolicLink -> true
+                    current.isDirectory -> {
+                        val child = parent.newDirectoryStream(name, LinkOption.NOFOLLOW_LINKS)
+                        try {
+                            !child.iterator().hasNext()
+                        } finally {
+                            child.close()
+                        }
+                    }
+                    else -> false
+                }
+            }
+        }
     } catch (_: IOException) {
         false
     } catch (_: SecurityException) {
+        false
+    } catch (_: UnsupportedOperationException) {
         false
     }
 
@@ -228,10 +254,6 @@ class LocalStorageProvider(
 
     private fun <T> guarded(block: () -> T): StorageResult<T> = try {
         StorageResult.Success(block())
-    } catch (error: InvalidNameException) {
-        StorageResult.Failure(StorageError.InvalidName(error.requestedName, ""))
-    } catch (error: NameConflictException) {
-        StorageResult.Failure(StorageError.NameConflict(error.requestedName))
     } catch (_: StaleReferenceException) {
         StorageResult.Failure(StorageError.StaleReference)
     } catch (_: NoSuchFileException) {
@@ -242,6 +264,8 @@ class LocalStorageProvider(
         StorageResult.Failure(StorageError.PermissionDenied)
     } catch (_: SecurityException) {
         StorageResult.Failure(StorageError.PermissionDenied)
+    } catch (_: NotDirectoryException) {
+        StorageResult.Failure(StorageError.Unsupported)
     } catch (_: UnsupportedOperationException) {
         StorageResult.Failure(StorageError.Unsupported)
     } catch (error: IOException) {
@@ -252,10 +276,6 @@ class LocalStorageProvider(
         override val providerId: ProviderId,
         val path: Path,
     ) : EntryRef
-
-    private class InvalidNameException(val requestedName: String) : RuntimeException()
-
-    private class NameConflictException(val requestedName: String) : RuntimeException()
 
     private object StaleReferenceException : RuntimeException()
 }

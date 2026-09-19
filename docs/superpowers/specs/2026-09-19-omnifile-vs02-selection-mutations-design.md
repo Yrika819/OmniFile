@@ -30,9 +30,9 @@ The provider-neutral error model adds only the VS02 cases: invalid name, name co
 
 ## Local semantics
 
-Local Rename validates a non-empty single path component, rejects NUL, `/`, `\\`, `.`, `..`, and normalized traversal. It resolves only within the current entry's parent and rejects an existing target explicitly. The root/session root has no mutation capability and is rejected independently at execution time.
+Local Rename is conservatively unsupported on the Local provider until this app has a verified atomic no-replace primitive. Local entries never expose `RENAME`, and the provider never falls back to a precheck followed by `Files.move` or `SecureDirectoryStream.move` because Android's implementation does not establish the required no-replacement guarantee.
 
-Local Delete supports regular files and symbolic links by deleting the link itself. Directory deletion is exposed only if the implementation can safely walk below the provider root without following symlinks. The implementation uses `Files.walkFileTree` without `FOLLOW_LINKS`, checks lexical containment for every visited path, refuses the configured root, and reports partial failures without claiming success. No shell command is constructed.
+Local Delete validates the configured root itself with `NOFOLLOW_LINKS`, then opens the root and each parent directory through `SecureDirectoryStream`/descriptor-relative operations. Regular files and symbolic links use `deleteFile`, with the final link removed rather than followed. Empty directories use `deleteDirectory`; non-empty recursive deletion remains `Unsupported`. If a secure descriptor-relative primitive is unavailable, Local entries withhold `DELETE` and the operation returns `Unsupported`; no pathname fallback is permitted. The configured root is never deleted and no shell command is constructed.
 
 ## SAF semantics
 

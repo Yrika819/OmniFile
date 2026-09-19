@@ -92,83 +92,17 @@ class LocalStorageProviderTest {
     }
 
     @Test
-    fun renamingFileReturnsNewIdentityAndListingTruth() = runBlocking {
+    fun localRenameIsUnsupportedAndNeverExposesRenameCapability() = runBlocking {
         withFixture { root, provider, rootEntry ->
             Files.createFile(root.resolve("before.txt"))
             val oldEntry = child(provider, rootEntry, "before.txt")
 
+            assertFalse(StorageCapability.RENAME in oldEntry.capabilities)
             val result = provider.rename(oldEntry, "after.txt")
 
-            val renamed = (result as StorageResult.Success).value
-            assertTrue(renamed.ref != oldEntry.ref)
-            assertEquals("after.txt", renamed.displayName)
-            assertTrue(Files.notExists(root.resolve("before.txt")))
-            assertTrue(Files.exists(root.resolve("after.txt")))
-            assertEquals(listOf("after.txt"), names(provider, rootEntry.ref))
-        }
-    }
-
-    @Test
-    fun renamingDirectoryPreservesChildrenAndReturnsDirectoryEntry() = runBlocking {
-        withFixture { root, provider, rootEntry ->
-            val before = Files.createDirectories(root.resolve("before"))
-            Files.createFile(before.resolve("child.txt"))
-            val oldEntry = child(provider, rootEntry, "before")
-
-            val result = provider.rename(oldEntry, "after")
-
-            val renamed = (result as StorageResult.Success).value
-            assertTrue(renamed.ref != oldEntry.ref)
-            assertEquals(EntryKind.DIRECTORY, renamed.kind)
-            assertEquals(listOf("child.txt"), names(provider, renamed.ref))
-            assertTrue(Files.notExists(root.resolve("before")))
-            assertTrue(Files.exists(root.resolve("after/child.txt")))
-        }
-    }
-
-    @Test
-    fun renamingUnicodeEntryPreservesUnicodeName() = runBlocking {
-        withFixture { root, provider, rootEntry ->
-            Files.createFile(root.resolve("古い名前.txt"))
-            val oldEntry = child(provider, rootEntry, "古い名前.txt")
-
-            val result = provider.rename(oldEntry, "新しい名前.txt")
-
-            assertEquals("新しい名前.txt", (result as StorageResult.Success).value.displayName)
-            assertTrue(Files.exists(root.resolve("新しい名前.txt")))
-        }
-    }
-
-    @Test
-    fun renamingRejectsEmptySeparatorNulDotAndDotDotNames() = runBlocking {
-        withFixture { root, provider, rootEntry ->
-            listOf("", "nested/name", "nul\u0000name", ".", "..").forEachIndexed { index, invalidName ->
-                val file = Files.createFile(root.resolve("source-$index.txt"))
-                val entry = child(provider, rootEntry, file.fileName.toString())
-
-                val result = provider.rename(entry, invalidName)
-
-                assertEquals(
-                    StorageError.InvalidName(invalidName, ""),
-                    (result as StorageResult.Failure).error,
-                )
-            }
-        }
-    }
-
-    @Test
-    fun renamingRejectsExistingTargetWithoutChangingEitherEntry() = runBlocking {
-        withFixture { root, provider, rootEntry ->
-            Files.createFile(root.resolve("source.txt"))
-            Files.createFile(root.resolve("target.txt"))
-            val source = child(provider, rootEntry, "source.txt")
-
-            val result = provider.rename(source, "target.txt")
-
-            assertEquals(StorageError.NameConflict("target.txt"), (result as StorageResult.Failure).error)
-            assertTrue(Files.exists(root.resolve("source.txt")))
-            assertTrue(Files.exists(root.resolve("target.txt")))
-            assertEquals(listOf("source.txt", "target.txt"), names(provider, rootEntry.ref))
+            assertEquals(StorageError.Unsupported, result.failure().error)
+            assertTrue(Files.exists(root.resolve("before.txt")))
+            assertTrue(Files.notExists(root.resolve("after.txt")))
         }
     }
 
@@ -179,8 +113,8 @@ class LocalStorageProviderTest {
             assertFalse(StorageCapability.DELETE in rootEntry.capabilities)
             Files.createFile(root.resolve("child.txt"))
             val child = child(provider, rootEntry, "child.txt")
-            assertTrue(StorageCapability.RENAME in child.capabilities)
             assertTrue(StorageCapability.DELETE in child.capabilities)
+            assertFalse(StorageCapability.RENAME in child.capabilities)
             assertEquals(StorageError.Unsupported, (provider.rename(rootEntry, "renamed").failure()).error)
             assertEquals(StorageError.Unsupported, (provider.delete(rootEntry).failure()).error)
         }
@@ -216,8 +150,8 @@ class LocalStorageProviderTest {
             val file = Files.createFile(directory.resolve("child.txt"))
             val entry = child(provider, rootEntry, directory.fileName.toString())
 
-            assertTrue(StorageCapability.RENAME in entry.capabilities)
             assertFalse(StorageCapability.DELETE in entry.capabilities)
+            assertFalse(StorageCapability.RENAME in entry.capabilities)
             assertEquals(StorageError.Unsupported, provider.delete(entry).failure().error)
             assertTrue(Files.exists(directory))
             assertTrue(Files.exists(file))
@@ -241,7 +175,7 @@ class LocalStorageProviderTest {
             val otherProvider: StorageProvider = LocalStorageProvider(root, ProviderId("other"))
 
             assertEquals(StorageError.StaleReference, otherProvider.listChildren(rootEntry.ref).failure().error)
-            assertEquals(StorageError.StaleReference, otherProvider.rename(rootEntry, "renamed").failure().error)
+            assertEquals(StorageError.Unsupported, otherProvider.rename(rootEntry, "renamed").failure().error)
             assertEquals(StorageError.StaleReference, otherProvider.delete(rootEntry).failure().error)
         }
     }
@@ -253,7 +187,7 @@ class LocalStorageProviderTest {
             val entry = child(provider, rootEntry, file.fileName.toString())
             Files.delete(file)
 
-            assertEquals(StorageError.NotFound, provider.rename(entry, "new.txt").failure().error)
+            assertEquals(StorageError.Unsupported, provider.rename(entry, "new.txt").failure().error)
             assertEquals(StorageError.NotFound, provider.delete(entry).failure().error)
         }
     }
@@ -285,13 +219,71 @@ class LocalStorageProviderTest {
     }
 
     @Test
+    fun replacingConfiguredRootWithOutsideSymlinkBlocksCapturedNestedDelete() = runBlocking {
+        val root = Files.createTempDirectory("omnifile-local-root-")
+        val outside = Files.createTempDirectory("omnifile-local-outside-")
+        val relocatedRoot = root.resolveSibling("${root.fileName}-relocated")
+        try {
+            val nested = Files.createDirectories(root.resolve("nested"))
+            val capturedFile = Files.createFile(nested.resolve("captured.txt"))
+            val outsideNested = Files.createDirectories(outside.resolve("nested"))
+            val outsideFile = Files.createFile(outsideNested.resolve("captured.txt"))
+            val provider: StorageProvider = LocalStorageProvider(root, ProviderId("local-test"))
+            val rootEntry = (provider.root() as StorageResult.Success).value
+            val capturedEntry = child(provider, child(provider, rootEntry, "nested"), "captured.txt")
+
+            Files.move(root, relocatedRoot)
+            Files.createSymbolicLink(root, outside)
+
+            val rootResult = provider.root()
+            assertTrue(rootResult is StorageResult.Failure)
+            if (rootResult is StorageResult.Failure) {
+                assertEquals(StorageError.Unsupported, rootResult.error)
+            }
+            val deleteResult = provider.delete(capturedEntry)
+            assertTrue(deleteResult is StorageResult.Failure)
+            assertTrue(Files.exists(outsideFile))
+            assertTrue(Files.exists(relocatedRoot.resolve("nested/captured.txt")))
+        } finally {
+            Files.deleteIfExists(root)
+            relocatedRoot.deleteRecursively()
+            outside.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun replacingNestedAncestorWithOutsideSymlinkCannotRedirectCapturedDelete() = runBlocking {
+        withFixture { root, provider, rootEntry ->
+            val nested = Files.createDirectory(root.resolve("nested"))
+            val capturedFile = Files.createFile(nested.resolve("captured.txt"))
+            val outside = Files.createTempDirectory("omnifile-local-outside-")
+            val displacedNested = root.resolveSibling("${root.fileName}-nested-displaced")
+            try {
+                val outsideFile = Files.createFile(outside.resolve("captured.txt"))
+                val capturedEntry = child(provider, child(provider, rootEntry, "nested"), "captured.txt")
+
+                Files.move(nested, displacedNested)
+                Files.createSymbolicLink(root.resolve("nested"), outside)
+
+                assertTrue(provider.delete(capturedEntry) is StorageResult.Failure)
+                assertTrue(Files.exists(outsideFile))
+                assertTrue(Files.exists(displacedNested.resolve("captured.txt")))
+            } finally {
+                Files.deleteIfExists(root.resolve("nested"))
+                displacedNested.deleteRecursively()
+                outside.deleteRecursively()
+            }
+        }
+    }
+
+    @Test
     fun mutationTargetRemainsContainedInTheEntryParent() = runBlocking {
         withFixture { root, provider, rootEntry ->
             val directory = Files.createDirectory(root.resolve("folder"))
             val file = Files.createFile(directory.resolve("entry.txt"))
             val entry = child(provider, child(provider, rootEntry, "folder"), file.fileName.toString())
 
-            assertEquals(StorageError.InvalidName("../outside.txt", ""), provider.rename(entry, "../outside.txt").failure().error)
+            assertEquals(StorageError.Unsupported, provider.rename(entry, "../outside.txt").failure().error)
             assertTrue(Files.exists(file))
             assertTrue(Files.notExists(root.resolve("outside.txt")))
         }

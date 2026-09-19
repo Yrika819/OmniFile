@@ -110,13 +110,13 @@
 **Files:**
 - Modify: `app/src/main/java/com/omnifile/storage/LocalStorageProvider.kt`
 
-**Interfaces:** Local entries expose Rename/Delete only when safely eligible; `rename` returns the re-resolved entry; `delete` never follows symlinks and never deletes the configured root.
+**Interfaces:** Local entries expose only descriptor-relative `DELETE` when safely eligible; Local `RENAME` remains conservatively unsupported until an atomic no-replace primitive is proven. `delete` never follows symlinks and never deletes the configured root.
 
-- [ ] Step 1: Add root-aware capability calculation and reject root mutation at both capability and operation time.
-- [ ] Step 2: Add single-component requested-name validation and same-parent target resolution.
-- [ ] Step 3: Implement rename with explicit target conflict mapping and re-resolution.
-- [ ] Step 4: Implement deletion with no-follow file-tree traversal, strict containment, and conservative directory capability if recursive safety is not provable.
-- [ ] Step 5: Add exact error mapping for invalid name, conflict, stale reference, permission, unsupported, and I/O failure.
+- [ ] Step 1: Validate the configured root itself with no-follow metadata and reject root mutation at both capability and operation time.
+- [ ] Step 2: Keep Local rename unsupported; do not expose a precheck-plus-move sequence without a proven atomic no-replace primitive.
+- [ ] Step 3: Anchor supported delete operations to securely opened root/parent directories and no-follow descriptor-relative traversal.
+- [ ] Step 4: Delete regular files, symbolic links, and empty directories only; withhold `DELETE` when secure directory operations are unavailable and keep non-empty recursion unsupported.
+- [ ] Step 5: Preserve exact error mapping for stale reference, permission, unsupported, and I/O failure.
 - [ ] Step 6: Run Local tests, then the full host suite; commit `feat(storage): add safe Local rename and delete`.
 
 ### Task 8: Add controlled SAF mutation tests and provider implementation
