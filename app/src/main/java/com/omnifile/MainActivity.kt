@@ -60,12 +60,13 @@ class MainActivity : ComponentActivity() {
                     onBackPressedDispatcher.onBackPressed()
                     isEnabled = true
                 } else {
-                    filesViewModel.goBack()
+                    filesViewModel.handleBack()
                 }
             }
         })
         setContent {
             val state by filesViewModel.uiState.collectAsState()
+            val mutationInFlight by filesViewModel.mutationInFlight.collectAsState()
             OmniFileTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     FilesScreen(
@@ -73,7 +74,13 @@ class MainActivity : ComponentActivity() {
                         onSelectLocal = filesViewModel::selectLocal,
                         onPickTree = { treePicker.launch(null) },
                         onOpenDirectory = filesViewModel::openDirectory,
-                        onBack = filesViewModel::goBack,
+                        onEnterSelection = filesViewModel::enterSelection,
+                        onToggleSelection = filesViewModel::toggleSelection,
+                        onClearSelection = filesViewModel::clearSelection,
+                        onRenameSelected = filesViewModel::renameSelected,
+                        onDeleteSelected = filesViewModel::deleteSelected,
+                        mutationInFlight = mutationInFlight,
+                        onBack = filesViewModel::handleBack,
                         onRetry = filesViewModel::retry,
                     )
                 }

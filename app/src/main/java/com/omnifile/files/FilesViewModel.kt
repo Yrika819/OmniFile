@@ -69,14 +69,16 @@ class FilesViewModel(
     private var listingJob: Job? = null
     private var mutationJob: Job? = null
     private var requestToken = 0L
+    private val _mutationInFlight = MutableStateFlow(false)
 
     val uiState: StateFlow<FilesUiState> = _uiState.asStateFlow()
+    val mutationInFlight: StateFlow<Boolean> = _mutationInFlight.asStateFlow()
     val selectedEntries: Set<EntryRef>
         get() = selection?.selectedEntries.orEmpty()
     val isSelectionMode: Boolean
         get() = selectedEntries.isNotEmpty()
     val isMutationInFlight: Boolean
-        get() = mutationJob?.isActive == true
+        get() = _mutationInFlight.value
 
     fun selectLocal() {
         clearSelection()
@@ -195,15 +197,20 @@ class FilesViewModel(
         if (current.selectedEntries.size != 1 || mutationJob?.isActive == true) return
         val entry = content.entries.singleOrNull { it.ref in current.selectedEntries } ?: return
         val token = beginMutation(content.location)
+        _mutationInFlight.value = true
         mutationJob = lifecycleScope.launch(Dispatchers.IO) {
-            val result = repository.rename(entry, requestedName)
-            refreshAfterMutation(
-                token = token,
-                location = content.location,
-                retainedRefs = current.selectedEntries,
-                mutationError = (result as? StorageResult.Failure)?.error,
-                clearOnSuccess = true,
-            )
+            try {
+                val result = repository.rename(entry, requestedName)
+                refreshAfterMutation(
+                    token = token,
+                    location = content.location,
+                    retainedRefs = current.selectedEntries,
+                    mutationError = (result as? StorageResult.Failure)?.error,
+                    clearOnSuccess = true,
+                )
+            } finally {
+                _mutationInFlight.value = false
+            }
         }
     }
 
@@ -214,21 +221,26 @@ class FilesViewModel(
         val entries = content.entries.filter { it.ref in current.selectedEntries }
         if (entries.isEmpty()) return
         val token = beginMutation(content.location)
+        _mutationInFlight.value = true
         mutationJob = lifecycleScope.launch(Dispatchers.IO) {
-            val outcomes = entries.map { entry ->
-                when (val result = repository.delete(entry)) {
-                    is StorageResult.Success -> DeleteItemResult(entry, DeleteItemOutcome.Deleted)
-                    is StorageResult.Failure -> DeleteItemResult(entry, DeleteItemOutcome.Failed(result.error))
+            try {
+                val outcomes = entries.map { entry ->
+                    when (val result = repository.delete(entry)) {
+                        is StorageResult.Success -> DeleteItemResult(entry, DeleteItemOutcome.Deleted)
+                        is StorageResult.Failure -> DeleteItemResult(entry, DeleteItemOutcome.Failed(result.error))
+                    }
                 }
+                val failures = outcomes.filter { it.outcome is DeleteItemOutcome.Failed }
+                refreshAfterMutation(
+                    token = token,
+                    location = content.location,
+                    retainedRefs = failures.mapTo(linkedSetOf()) { it.entry.ref },
+                    mutationError = failures.takeIf { it.isNotEmpty() }?.let { StorageError.PartialDelete(outcomes) },
+                    clearOnSuccess = failures.isEmpty(),
+                )
+            } finally {
+                _mutationInFlight.value = false
             }
-            val failures = outcomes.filter { it.outcome is DeleteItemOutcome.Failed }
-            refreshAfterMutation(
-                token = token,
-                location = content.location,
-                retainedRefs = failures.mapTo(linkedSetOf()) { it.entry.ref },
-                mutationError = failures.takeIf { it.isNotEmpty() }?.let { StorageError.PartialDelete(outcomes) },
-                clearOnSuccess = failures.isEmpty(),
-            )
         }
     }
 
