@@ -6,7 +6,6 @@ import java.nio.file.attribute.FileTime
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -101,7 +100,7 @@ class LocalStorageProviderTest {
             val result = provider.rename(oldEntry, "after.txt")
 
             val renamed = (result as StorageResult.Success).value
-            assertNotEquals(oldEntry.ref, renamed.ref)
+            assertTrue(renamed.ref != oldEntry.ref)
             assertEquals("after.txt", renamed.displayName)
             assertTrue(Files.notExists(root.resolve("before.txt")))
             assertTrue(Files.exists(root.resolve("after.txt")))
@@ -242,6 +241,7 @@ class LocalStorageProviderTest {
 
             assertEquals(StorageError.StaleReference, otherProvider.listChildren(rootEntry.ref).failure().error)
             assertEquals(StorageError.StaleReference, otherProvider.rename(rootEntry, "renamed").failure().error)
+            assertEquals(StorageError.StaleReference, otherProvider.delete(rootEntry).failure().error)
         }
     }
 
