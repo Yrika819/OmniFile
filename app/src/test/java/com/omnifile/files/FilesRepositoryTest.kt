@@ -25,9 +25,47 @@ class FilesRepositoryTest {
         assertEquals(listOf(provider.id, provider.id), provider.calls)
     }
 
+    @Test
+    fun renameDelegatesOnlyToTheEntryProvider() = runBlocking {
+        val selected = FakeProvider(ProviderId("selected"))
+        val other = FakeProvider(ProviderId("other"))
+        val repository = FilesRepository(mapOf(selected.id to selected, other.id to other))
+        val entry = selected.child
+
+        val result = repository.rename(entry, "renamed.txt")
+
+        assertEquals(StorageResult.Success(selected.renamed), result)
+        assertEquals(listOf("rename:renamed.txt"), selected.mutationCalls)
+        assertEquals(emptyList<String>(), other.mutationCalls)
+    }
+
+    @Test
+    fun deleteDelegatesOnlyToTheEntryProvider() = runBlocking {
+        val selected = FakeProvider(ProviderId("selected"))
+        val other = FakeProvider(ProviderId("other"))
+        val repository = FilesRepository(mapOf(selected.id to selected, other.id to other))
+
+        val result = repository.delete(selected.child)
+
+        assertEquals(StorageResult.Success(Unit), result)
+        assertEquals(listOf("delete:child"), selected.mutationCalls)
+        assertEquals(emptyList<String>(), other.mutationCalls)
+    }
+
     private class FakeProvider(override val id: ProviderId) : StorageProvider {
         val calls = mutableListOf<ProviderId>()
+        val mutationCalls = mutableListOf<String>()
         private val root = entry("root", EntryKind.DIRECTORY, setOf(StorageCapability.LIST_CHILDREN))
+        val child = entry(
+            "child",
+            EntryKind.FILE,
+            setOf(StorageCapability.RENAME, StorageCapability.DELETE),
+        )
+        val renamed = entry(
+            "renamed.txt",
+            EntryKind.FILE,
+            setOf(StorageCapability.RENAME, StorageCapability.DELETE),
+        )
 
         override suspend fun root(): StorageResult<StorageEntry> {
             calls += id
@@ -36,7 +74,20 @@ class FilesRepositoryTest {
 
         override suspend fun listChildren(directory: EntryRef): StorageResult<List<StorageEntry>> {
             calls += id
-            return StorageResult.Success(listOf(entry("folder", EntryKind.DIRECTORY, setOf(StorageCapability.LIST_CHILDREN))))
+            return StorageResult.Success(listOf(child))
+        }
+
+        override suspend fun rename(
+            entry: StorageEntry,
+            requestedName: String,
+        ): StorageResult<StorageEntry> {
+            mutationCalls += "rename:$requestedName"
+            return StorageResult.Success(renamed)
+        }
+
+        override suspend fun delete(entry: StorageEntry): StorageResult<Unit> {
+            mutationCalls += "delete:${entry.displayName}"
+            return StorageResult.Success(Unit)
         }
 
         private fun entry(name: String, kind: EntryKind, capabilities: Set<StorageCapability>) =
