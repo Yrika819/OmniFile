@@ -1,6 +1,7 @@
 package com.omnifile
 
 import android.view.ViewGroup
+import android.content.pm.PackageManager
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -18,11 +19,18 @@ class ProductionScaffoldInstrumentedTest {
     }
 
     @Test
-    fun temporaryScaffoldIsDisplayed() {
+    fun filesScreenIsDisplayedWithoutBroadStoragePermission() {
         val scenario = ActivityScenario.launch(MainActivity::class.java)
         scenario.onActivity { activity ->
             val contentRoot = activity.findViewById<ViewGroup>(android.R.id.content)
             assertTrue(contentRoot.childCount > 0)
+            assertTrue(
+                activity.packageManager.getPackageInfo(
+                    activity.packageName,
+                    PackageManager.GET_PERMISSIONS,
+                ).requestedPermissions.orEmpty()
+                    .none { it == "android.permission.MANAGE_EXTERNAL_STORAGE" },
+            )
         }
         scenario.close()
     }
