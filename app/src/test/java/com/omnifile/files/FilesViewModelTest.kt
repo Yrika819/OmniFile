@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -353,6 +355,9 @@ class FilesViewModelTest {
             provider.releaseRename.complete(Unit)
             provider.renameCompleted.await()
             provider.staleRefreshCompleted.await()
+            withTimeout(2_000) {
+                while (viewModel.isMutationInFlight) yield()
+            }
 
             assertEquals(provider.folder.ref, (viewModel.uiState.value as FilesUiState.Empty).location.ref)
         } finally {

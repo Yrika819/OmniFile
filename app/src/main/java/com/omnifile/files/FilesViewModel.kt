@@ -75,6 +75,8 @@ class FilesViewModel(
         get() = selection?.selectedEntries.orEmpty()
     val isSelectionMode: Boolean
         get() = selectedEntries.isNotEmpty()
+    val isMutationInFlight: Boolean
+        get() = mutationJob?.isActive == true
 
     fun selectLocal() {
         clearSelection()
