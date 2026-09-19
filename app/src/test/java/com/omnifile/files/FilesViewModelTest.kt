@@ -1,5 +1,6 @@
 package com.omnifile.files
 
+import android.net.TestUri
 import com.omnifile.storage.EntryKind
 import com.omnifile.storage.EntryRef
 import com.omnifile.storage.ProviderId
@@ -93,7 +94,7 @@ class FilesViewModelTest {
         try {
             val local = SelectionProvider(ProviderId("local"))
             val saf = SelectionProvider(ProviderId("saf"))
-            val uri = android.net.Uri.parse("content://selection-tree")
+            val uri = TestUri("content://selection-tree")
             val viewModel = FilesViewModel(
                 FilesRepository(mapOf(local.id to local, saf.id to saf)),
                 local.id,

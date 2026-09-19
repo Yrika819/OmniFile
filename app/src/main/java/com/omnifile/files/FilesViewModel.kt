@@ -3,6 +3,7 @@ package com.omnifile.files
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import com.omnifile.storage.EntryKind
+import com.omnifile.storage.EntryRef
 import com.omnifile.storage.ProviderId
 import com.omnifile.storage.StorageEntry
 import com.omnifile.storage.StorageError
@@ -18,6 +19,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+data class FilesSelectionState(
+    val providerId: ProviderId,
+    val locationRef: EntryRef,
+    val selectedEntries: Set<EntryRef>,
+)
+
 sealed interface FilesUiState {
     data object SourceSelection : FilesUiState
 
@@ -27,17 +34,20 @@ sealed interface FilesUiState {
         val location: StorageEntry,
         val entries: List<StorageEntry>,
         val breadcrumb: List<String>,
+        val selection: FilesSelectionState? = null,
     ) : FilesUiState
 
     data class Empty(
         val location: StorageEntry,
         val breadcrumb: List<String>,
+        val selection: FilesSelectionState? = null,
     ) : FilesUiState
 
     data class Error(
         val error: StorageError,
         val location: StorageEntry?,
         val breadcrumb: List<String>,
+        val selection: FilesSelectionState? = null,
     ) : FilesUiState
 }
 
@@ -53,18 +63,25 @@ class FilesViewModel(
     private val _uiState = MutableStateFlow<FilesUiState>(FilesUiState.SourceSelection)
     private val navigation = mutableListOf<StorageEntry>()
     private var selectedProviderId: ProviderId? = null
+    private var selection: FilesSelectionState? = null
     private var listingJob: Job? = null
     private var requestToken = 0L
 
     val uiState: StateFlow<FilesUiState> = _uiState.asStateFlow()
+    val selectedEntries: Set<EntryRef>
+        get() = selection?.selectedEntries.orEmpty()
+    val isSelectionMode: Boolean
+        get() = selectedEntries.isNotEmpty()
 
     fun selectLocal() {
+        clearSelection()
         selectedProviderId = localProviderId
         navigation.clear()
         loadRoot(localProviderId)
     }
 
     fun selectSaf(uri: Uri) {
+        clearSelection()
         try {
             val provider = safProviderFor(uri)
             repository.register(provider)
@@ -84,6 +101,7 @@ class FilesViewModel(
 
     fun openDirectory(entry: StorageEntry) {
         if (entry.kind != EntryKind.DIRECTORY || entry.ref.providerId != selectedProviderId) return
+        clearSelection()
         entry.parentRef?.let { parentRef ->
             val parentIndex = navigation.indexOfFirst { it.ref == parentRef }
             if (parentIndex >= 0) {
@@ -94,14 +112,54 @@ class FilesViewModel(
         loadChildren(entry)
     }
 
+    fun enterSelection(entry: StorageEntry) {
+        val content = _uiState.value as? FilesUiState.Content ?: return
+        if (content.entries.none { it.ref == entry.ref }) return
+        val locationRef = content.location.ref
+        if (entry.ref.providerId != locationRef.providerId || entry.ref.providerId != selectedProviderId) return
+        selection = FilesSelectionState(entry.ref.providerId, locationRef, setOf(entry.ref))
+        publishSelection()
+    }
+
+    fun toggleSelection(entry: StorageEntry) {
+        val content = _uiState.value as? FilesUiState.Content ?: return
+        val current = selection ?: return
+        if (current.providerId != selectedProviderId || current.locationRef != content.location.ref) return
+        if (entry.ref.providerId != current.providerId || content.entries.none { it.ref == entry.ref }) return
+
+        val selected = if (entry.ref in current.selectedEntries) {
+            current.selectedEntries - entry.ref
+        } else {
+            current.selectedEntries + entry.ref
+        }
+        selection = current.copy(selectedEntries = selected).takeIf { selected.isNotEmpty() }
+        publishSelection()
+    }
+
+    fun clearSelection() {
+        if (selection == null) return
+        selection = null
+        publishSelection()
+    }
+
+    fun handleBack() {
+        if (isSelectionMode) {
+            clearSelection()
+        } else {
+            goBack()
+        }
+    }
+
     fun goBack() {
         when {
             navigation.size > 1 -> {
+                clearSelection()
                 navigation.removeAt(navigation.lastIndex)
                 loadChildren(navigation.last())
             }
 
             navigation.size == 1 -> {
+                clearSelection()
                 listingJob?.cancel()
                 requestToken += 1
                 navigation.clear()
@@ -129,7 +187,8 @@ class FilesViewModel(
         listingJob = lifecycleScope.launch(Dispatchers.IO) {
             when (val result = repository.root(providerId)) {
                 is StorageResult.Failure -> publish(token) {
-                    FilesUiState.Error(result.error, null, emptyList())
+                    selection = null
+                    FilesUiState.Error(result.error, null, emptyList(), selection)
                 }
 
                 is StorageResult.Success -> {
@@ -151,15 +210,16 @@ class FilesViewModel(
     private suspend fun publishChildren(token: Long, location: StorageEntry) {
         when (val result = repository.children(location)) {
             is StorageResult.Failure -> publish(token) {
-                FilesUiState.Error(result.error, location, breadcrumb())
+                FilesUiState.Error(result.error, location, breadcrumb(), selectionFor(location))
             }
 
             is StorageResult.Success -> publish(token) {
+                selection = reconciledSelection(location, result.value)
                 val breadcrumb = breadcrumb()
                 if (result.value.isEmpty()) {
-                    FilesUiState.Empty(location, breadcrumb)
+                    FilesUiState.Empty(location, breadcrumb, selection)
                 } else {
-                    FilesUiState.Content(location, result.value, breadcrumb)
+                    FilesUiState.Content(location, result.value, breadcrumb, selection)
                 }
             }
         }
@@ -174,6 +234,32 @@ class FilesViewModel(
 
     private suspend fun publish(token: Long, state: () -> FilesUiState) {
         if (token == requestToken) _uiState.value = state()
+    }
+
+    private fun publishSelection() {
+        _uiState.value = when (val state = _uiState.value) {
+            is FilesUiState.Content -> state.copy(selection = selectionFor(state.location))
+            is FilesUiState.Empty -> state.copy(selection = selectionFor(state.location))
+            is FilesUiState.Error -> state.copy(selection = state.location?.let(::selectionFor))
+            else -> state
+        }
+    }
+
+    private fun selectionFor(location: StorageEntry): FilesSelectionState? =
+        selection?.takeIf {
+            it.providerId == location.ref.providerId &&
+                it.locationRef == location.ref &&
+                it.selectedEntries.isNotEmpty()
+        }
+
+    private fun reconciledSelection(
+        location: StorageEntry,
+        entries: List<StorageEntry>,
+    ): FilesSelectionState? {
+        val current = selectionFor(location) ?: return null
+        val listedRefs = entries.mapTo(mutableSetOf()) { it.ref }
+        val retained = current.selectedEntries.filterTo(linkedSetOf()) { it in listedRefs }
+        return current.copy(selectedEntries = retained).takeIf { retained.isNotEmpty() }
     }
 
     private fun breadcrumb(): List<String> = navigation.map { it.displayName }
