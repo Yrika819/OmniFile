@@ -352,6 +352,7 @@ class FilesViewModelTest {
             viewModel.uiState.filterIsInstance<FilesUiState.Empty>().first { it.location.ref == provider.folder.ref }
             provider.releaseRename.complete(Unit)
             provider.renameCompleted.await()
+            provider.staleRefreshCompleted.await()
 
             assertEquals(provider.folder.ref, (viewModel.uiState.value as FilesUiState.Empty).location.ref)
         } finally {
@@ -441,6 +442,7 @@ class FilesViewModelTest {
         val renameStarted = CompletableDeferred<Unit>()
         val releaseRename = CompletableDeferred<Unit>()
         val renameCompleted = CompletableDeferred<Unit>()
+        val staleRefreshCompleted = CompletableDeferred<Unit>()
         val deleteStarted = CompletableDeferred<Unit>()
         val releaseDelete = CompletableDeferred<Unit>()
         var renameCalls = 0
@@ -450,7 +452,10 @@ class FilesViewModelTest {
         override suspend fun root() = StorageResult.Success(root)
 
         override suspend fun listChildren(directory: EntryRef) = when (directory) {
-            root.ref -> StorageResult.Success(children)
+            root.ref -> {
+                if (renameCompleted.isCompleted) staleRefreshCompleted.complete(Unit)
+                StorageResult.Success(children)
+            }
             folder.ref -> StorageResult.Success(emptyList())
             else -> StorageResult.Failure(StorageError.NotFound)
         }
