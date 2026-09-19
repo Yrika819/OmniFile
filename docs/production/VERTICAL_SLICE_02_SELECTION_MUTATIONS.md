@@ -73,7 +73,7 @@ The connected test XML is `app/build/outputs/androidTest-results/connected/debug
 - No Copy/Move/Share, archive, media, network, cloud, or durable-operation work was added.
 - `origin/HEAD` was observed as `793d151f9608a684c1d0d4be2e58e5b49d26f823`.
 - The feature branch is not present on `origin`; remote equality for `development/core-v1-selection-mutations-v1` is therefore `NOT_VERIFIED`. No push was performed.
-- No new production dependency or native `.so` was introduced.
+- No new production dependency or native `.so` was introduced. The final APK's native inventory contains only the pre-existing Compose dependency library `libandroidx.graphics.path.so` for `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`.
 
 ## Final state
 
