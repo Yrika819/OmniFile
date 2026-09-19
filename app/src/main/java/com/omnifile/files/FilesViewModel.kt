@@ -87,7 +87,7 @@ class FilesViewModel(
         entry.parentRef?.let { parentRef ->
             val parentIndex = navigation.indexOfFirst { it.ref == parentRef }
             if (parentIndex >= 0) {
-                while (navigation.size > parentIndex + 1) navigation.removeLast()
+                while (navigation.size > parentIndex + 1) navigation.removeAt(navigation.lastIndex)
             }
         }
         navigation += entry
@@ -97,7 +97,7 @@ class FilesViewModel(
     fun goBack() {
         when {
             navigation.size > 1 -> {
-                navigation.removeLast()
+                navigation.removeAt(navigation.lastIndex)
                 loadChildren(navigation.last())
             }
 
