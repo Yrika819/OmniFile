@@ -15,11 +15,13 @@ import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -356,6 +358,30 @@ class FilesViewModelTest {
         }
     }
 
+    @Test
+    fun duplicateDeleteSubmissionIsSuppressed() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val provider = MutationProvider(blockDelete = true)
+            val viewModel = FilesViewModel(FilesRepository(mapOf(provider.id to provider)), provider.id, scope = scope)
+            viewModel.selectLocal()
+            val content = viewModel.uiState.filterIsInstance<FilesUiState.Content>().first()
+            viewModel.enterSelection(content.entries.single { it.ref == provider.old.ref })
+
+            viewModel.deleteSelected()
+            provider.deleteStarted.await()
+            viewModel.deleteSelected()
+            provider.releaseDelete.complete(Unit)
+            viewModel.uiState.filterIsInstance<FilesUiState.Content>().first { state ->
+                state.entries.none { it.ref == provider.old.ref }
+            }
+
+            assertEquals(1, provider.deleteCalls)
+        } finally {
+            scope.cancel()
+        }
+    }
+
     private inner class NavigationProvider : StorageProvider {
         override val id = ProviderId("navigation")
         val root = entry(id, "root", EntryKind.DIRECTORY)
@@ -403,6 +429,7 @@ class FilesViewModelTest {
     private inner class MutationProvider(
         private val blockRename: Boolean = false,
         private val failDelete: Boolean = false,
+        private val blockDelete: Boolean = false,
     ) : StorageProvider {
         override val id = ProviderId("mutation")
         val root = entry(id, "root", EntryKind.DIRECTORY)
@@ -412,6 +439,8 @@ class FilesViewModelTest {
         val failed = entry(id, "failed", EntryKind.FILE, root)
         val renameStarted = CompletableDeferred<Unit>()
         val releaseRename = CompletableDeferred<Unit>()
+        val deleteStarted = CompletableDeferred<Unit>()
+        val releaseDelete = CompletableDeferred<Unit>()
         var renameCalls = 0
         var deleteCalls = 0
         private var children = listOf(folder, old, failed)
@@ -428,7 +457,9 @@ class FilesViewModelTest {
             renameCalls++
             if (blockRename) {
                 renameStarted.complete(Unit)
-                releaseRename.await()
+                withContext(NonCancellable) {
+                    releaseRename.await()
+                }
             }
             children = listOf(folder, renamed, failed)
             return StorageResult.Success(renamed)
@@ -436,6 +467,12 @@ class FilesViewModelTest {
 
         override suspend fun delete(entry: StorageEntry): StorageResult<Unit> {
             deleteCalls++
+            if (blockDelete) {
+                deleteStarted.complete(Unit)
+                withContext(NonCancellable) {
+                    releaseDelete.await()
+                }
+            }
             return if (failDelete && entry.ref == failed.ref) {
                 StorageResult.Failure(StorageError.PermissionDenied)
             } else {

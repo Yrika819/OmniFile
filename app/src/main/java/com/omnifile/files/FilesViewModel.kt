@@ -95,11 +95,13 @@ class FilesViewModel(
             invalidateActiveWork()
             selectedProviderId = null
             selection = null
+            navigation.clear()
             _uiState.value = FilesUiState.Error(StorageError.PermissionDenied, null, emptyList())
         } catch (_: IllegalArgumentException) {
             invalidateActiveWork()
             selectedProviderId = null
             selection = null
+            navigation.clear()
             _uiState.value = FilesUiState.Error(StorageError.StaleReference, null, emptyList())
         }
     }
@@ -295,7 +297,6 @@ class FilesViewModel(
     private fun beginMutation(location: StorageEntry): Long {
         listingJob?.cancel()
         requestToken += 1
-        _uiState.value = FilesUiState.Loading(location)
         return requestToken
     }
 
