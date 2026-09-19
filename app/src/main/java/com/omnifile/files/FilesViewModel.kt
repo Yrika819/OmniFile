@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicLong
 
 data class FilesSelectionState(
     val providerId: ProviderId,
@@ -69,6 +70,8 @@ class FilesViewModel(
     private var listingJob: Job? = null
     private var mutationJob: Job? = null
     private var requestToken = 0L
+    private val nextMutationOwner = AtomicLong(0L)
+    private val activeMutationOwner = AtomicLong(0L)
     private val _mutationInFlight = MutableStateFlow(false)
 
     val uiState: StateFlow<FilesUiState> = _uiState.asStateFlow()
@@ -176,6 +179,7 @@ class FilesViewModel(
             navigation.size == 1 -> {
                 clearSelection()
                 listingJob?.cancel()
+                invalidateMutation()
                 requestToken += 1
                 navigation.clear()
                 selectedProviderId = null
@@ -196,20 +200,19 @@ class FilesViewModel(
         val current = selectionFor(content.location) ?: return
         if (current.selectedEntries.size != 1 || mutationJob?.isActive == true) return
         val entry = content.entries.singleOrNull { it.ref in current.selectedEntries } ?: return
-        val token = beginMutation(content.location)
-        _mutationInFlight.value = true
+        val mutation = beginMutation()
         mutationJob = lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val result = repository.rename(entry, requestedName)
                 refreshAfterMutation(
-                    token = token,
+                    token = mutation.requestToken,
                     location = content.location,
                     retainedRefs = current.selectedEntries,
                     mutationError = (result as? StorageResult.Failure)?.error,
                     clearOnSuccess = true,
                 )
             } finally {
-                _mutationInFlight.value = false
+                finishMutation(mutation.ownerToken)
             }
         }
     }
@@ -220,8 +223,7 @@ class FilesViewModel(
         if (current.selectedEntries.isEmpty() || mutationJob?.isActive == true) return
         val entries = content.entries.filter { it.ref in current.selectedEntries }
         if (entries.isEmpty()) return
-        val token = beginMutation(content.location)
-        _mutationInFlight.value = true
+        val mutation = beginMutation()
         mutationJob = lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val outcomes = entries.map { entry ->
@@ -232,21 +234,21 @@ class FilesViewModel(
                 }
                 val failures = outcomes.filter { it.outcome is DeleteItemOutcome.Failed }
                 refreshAfterMutation(
-                    token = token,
+                    token = mutation.requestToken,
                     location = content.location,
                     retainedRefs = failures.mapTo(linkedSetOf()) { it.entry.ref },
                     mutationError = failures.takeIf { it.isNotEmpty() }?.let { StorageError.PartialDelete(outcomes) },
                     clearOnSuccess = failures.isEmpty(),
                 )
             } finally {
-                _mutationInFlight.value = false
+                finishMutation(mutation.ownerToken)
             }
         }
     }
 
     private fun invalidateActiveWork() {
         listingJob?.cancel()
-        mutationJob?.cancel()
+        invalidateMutation()
         requestToken += 1
     }
 
@@ -302,16 +304,32 @@ class FilesViewModel(
 
     private fun beginLoading(location: StorageEntry?): Long {
         listingJob?.cancel()
-        mutationJob?.cancel()
+        invalidateMutation()
         requestToken += 1
         _uiState.value = FilesUiState.Loading(location)
         return requestToken
     }
 
-    private fun beginMutation(location: StorageEntry): Long {
+    private fun beginMutation(): MutationHandle {
         listingJob?.cancel()
         requestToken += 1
-        return requestToken
+        val ownerToken = nextMutationOwner.incrementAndGet()
+        activeMutationOwner.set(ownerToken)
+        _mutationInFlight.value = true
+        return MutationHandle(requestToken, ownerToken)
+    }
+
+    private fun invalidateMutation() {
+        mutationJob?.cancel()
+        mutationJob = null
+        activeMutationOwner.set(0L)
+        _mutationInFlight.value = false
+    }
+
+    private fun finishMutation(ownerToken: Long) {
+        if (activeMutationOwner.compareAndSet(ownerToken, 0L)) {
+            _mutationInFlight.value = false
+        }
     }
 
     private suspend fun refreshAfterMutation(
@@ -384,4 +402,9 @@ class FilesViewModel(
     }
 
     private fun breadcrumb(): List<String> = navigation.map { it.displayName }
+
+    private data class MutationHandle(
+        val requestToken: Long,
+        val ownerToken: Long,
+    )
 }

@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
@@ -366,6 +367,44 @@ class FilesViewModelTest {
     }
 
     @Test
+    fun staleMutationCompletionCannotClearNewerMutationInFlight() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val provider = MutationOwnershipProvider()
+            val viewModel = FilesViewModel(FilesRepository(mapOf(provider.id to provider)), provider.id, scope = scope)
+            provider.inFlightProbe = { viewModel.isMutationInFlight }
+            viewModel.selectLocal()
+            val rootContent = viewModel.uiState.filterIsInstance<FilesUiState.Content>().first()
+
+            viewModel.enterSelection(rootContent.entries.single { it.ref == provider.first.ref })
+            viewModel.renameSelected("first-renamed.txt")
+            withTimeout(2_000) { provider.firstRenameStarted.await() }
+
+            viewModel.openDirectory(provider.folder)
+            viewModel.uiState.filterIsInstance<FilesUiState.Content>().first { it.location.ref == provider.folder.ref }
+            val folderContent = viewModel.uiState.value as FilesUiState.Content
+            viewModel.enterSelection(folderContent.entries.single { it.ref == provider.second.ref })
+            viewModel.renameSelected("second-renamed.txt")
+            withTimeout(2_000) { provider.secondRenameStarted.await() }
+
+            provider.releaseFirstRename.complete(Unit)
+            withTimeout(2_000) { provider.firstRefreshStarted.await() }
+            provider.releaseFirstRefresh.complete(Unit)
+            withTimeout(2_000) { provider.firstRefreshReturned.await() }
+            val staleOwnerCleared = withTimeout(2_000) { provider.secondMutationObservation.await() }
+            assertFalse(staleOwnerCleared)
+
+            provider.releaseSecondRename.complete(Unit)
+            viewModel.uiState.filterIsInstance<FilesUiState.Content>().first { state ->
+                state.entries.any { it.ref == provider.secondRenamed.ref }
+            }
+            assertFalse(viewModel.isMutationInFlight)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
     fun duplicateDeleteSubmissionIsSuppressed() = runBlocking {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         try {
@@ -495,6 +534,68 @@ class FilesViewModelTest {
         }
     }
 
+    private inner class MutationOwnershipProvider : StorageProvider {
+        override val id = ProviderId("mutation-ownership")
+        val root = entry(id, "root", EntryKind.DIRECTORY)
+        val folder = entry(id, "folder", EntryKind.DIRECTORY, root)
+        val first = entry(id, "first", EntryKind.FILE, root, capabilities = setOf(StorageCapability.RENAME))
+        val firstRenamed = entry(id, "first-renamed", EntryKind.FILE, root, capabilities = setOf(StorageCapability.RENAME))
+        val second = entry(id, "second", EntryKind.FILE, folder, capabilities = setOf(StorageCapability.RENAME))
+        val secondRenamed = entry(id, "second-renamed", EntryKind.FILE, folder, capabilities = setOf(StorageCapability.RENAME))
+        val firstRenameStarted = CompletableDeferred<Unit>()
+        val releaseFirstRename = CompletableDeferred<Unit>()
+        val firstRefreshStarted = CompletableDeferred<Unit>()
+        val releaseFirstRefresh = CompletableDeferred<Unit>()
+        val firstRefreshReturned = CompletableDeferred<Unit>()
+        val secondRenameStarted = CompletableDeferred<Unit>()
+        val secondMutationObservation = CompletableDeferred<Boolean>()
+        val releaseSecondRename = CompletableDeferred<Unit>()
+        var inFlightProbe: () -> Boolean = { true }
+        private var children = listOf(folder, first)
+        private var folderChildren = listOf(second)
+        private var renameCalls = 0
+
+        override suspend fun root() = StorageResult.Success(root)
+
+        override suspend fun listChildren(directory: EntryRef): StorageResult<List<StorageEntry>> = when (directory) {
+            root.ref -> {
+                if (renameCalls >= 1 && !firstRefreshStarted.isCompleted) {
+                    firstRefreshStarted.complete(Unit)
+                    withContext(NonCancellable) {
+                        releaseFirstRefresh.await()
+                        firstRefreshReturned.complete(Unit)
+                    }
+                }
+                StorageResult.Success(children)
+            }
+            folder.ref -> StorageResult.Success(folderChildren)
+            else -> StorageResult.Failure(StorageError.NotFound)
+        }
+
+        override suspend fun rename(entry: StorageEntry, requestedName: String): StorageResult<StorageEntry> {
+            renameCalls += 1
+            if (entry.ref == first.ref) {
+                firstRenameStarted.complete(Unit)
+                withContext(NonCancellable) { releaseFirstRename.await() }
+                children = listOf(folder, firstRenamed)
+                return StorageResult.Success(firstRenamed)
+            }
+            secondRenameStarted.complete(Unit)
+            val staleOwnerCleared = try {
+                withTimeout(500) {
+                    while (inFlightProbe()) yield()
+                }
+                true
+            } catch (_: TimeoutCancellationException) {
+                false
+            }
+            secondMutationObservation.complete(staleOwnerCleared)
+            withContext(NonCancellable) { releaseSecondRename.await() }
+            folderChildren = listOf(secondRenamed)
+            return StorageResult.Success(secondRenamed)
+        }
+    }
+
     private inner class SelectionProvider(
         override val id: ProviderId = ProviderId("selection"),
     ) : StorageProvider {
@@ -521,19 +622,31 @@ class FilesViewModelTest {
         }
     }
 
-    private fun entry(providerId: ProviderId, name: String, kind: EntryKind, parent: StorageEntry? = null) = StorageEntry(
+    private fun entry(
+        providerId: ProviderId,
+        name: String,
+        kind: EntryKind,
+        parent: StorageEntry? = null,
+        capabilities: Set<StorageCapability> = if (kind == EntryKind.DIRECTORY) {
+            setOf(StorageCapability.LIST_CHILDREN)
+        } else {
+            emptySet()
+        },
+    ) = StorageEntry(
         ref = TestEntryRef(providerId, name),
         displayName = name,
         kind = kind,
         sizeBytes = null,
         modifiedAtEpochMillis = null,
         mimeType = null,
-        capabilities = if (kind == EntryKind.DIRECTORY) setOf(StorageCapability.LIST_CHILDREN) else emptySet(),
+        capabilities = capabilities,
         parentRef = parent?.ref,
     )
 
     private data class TestEntryRef(
         override val providerId: ProviderId,
         val token: String,
-    ) : EntryRef
+    ) : EntryRef {
+        override val identityKey: String = "${providerId.value}\u0000$token"
+    }
 }

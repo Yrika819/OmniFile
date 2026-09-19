@@ -209,7 +209,9 @@ class SafStorageProvider(
         override val providerId: ProviderId,
         val treeUri: Uri,
         val documentId: String,
-    ) : EntryRef
+    ) : EntryRef {
+        override val identityKey: String = "${providerId.value}\u0000$treeUri\u0000$documentId"
+    }
 
     private companion object {
         val PROJECTION = arrayOf(

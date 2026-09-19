@@ -5,6 +5,12 @@ value class ProviderId(val value: String)
 
 interface EntryRef {
     val providerId: ProviderId
+
+    /**
+     * Stable, provider-scoped identity containing every field that distinguishes this reference.
+     * UI code may use it as a Bundle-saveable list key without reducing identity to a hash.
+     */
+    val identityKey: String
 }
 
 enum class EntryKind {

@@ -33,6 +33,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.omnifile.files.FilesSelectionState
 import com.omnifile.files.FilesUiState
@@ -69,23 +71,37 @@ fun FilesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (selection != null) "${selection.selectedEntries.size} selected" else titleFor(state)) },
+                title = {
+                    Text(
+                        text = if (selection != null) "${selection.selectedEntries.size} selected" else titleFor(state),
+                        modifier = if (selection != null) Modifier.testTag("files.selection.title") else Modifier,
+                    )
+                },
                 navigationIcon = {
                     if (state !is FilesUiState.SourceSelection) {
-                        IconButton(onClick = if (selection != null) onClearSelection else onBack) { Text("‹") }
+                        IconButton(
+                            modifier = if (selection != null) Modifier.testTag("files.selection.close") else Modifier,
+                            onClick = if (selection != null) onClearSelection else onBack,
+                        ) { Text("‹") }
                     }
                 },
                 actions = {
                     if (selection != null && mutationInFlight) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp).testTag("files.mutation.progress"),
+                        )
                     } else if (selection != null) {
                         if (canRename) {
-                            TextButton(onClick = {
+                            TextButton(modifier = Modifier.testTag("files.action.rename"), onClick = {
                                 requestedName = selectedEntries.single().displayName
                                 renameDialogVisible = true
                             }) { Text("Rename") }
                         }
-                        TextButton(enabled = canDelete, onClick = { deleteDialogVisible = true }) { Text("Delete") }
+                        TextButton(
+                            modifier = Modifier.testTag("files.action.delete"),
+                            enabled = canDelete,
+                            onClick = { deleteDialogVisible = true },
+                        ) { Text("Delete") }
                     }
                 },
             )
@@ -115,37 +131,55 @@ fun FilesScreen(
 
     if (renameDialogVisible) {
         AlertDialog(
+            modifier = Modifier.testTag("files.dialog.rename"),
             onDismissRequest = { renameDialogVisible = false },
             title = { Text("Rename") },
             text = {
                 TextField(
                     value = requestedName,
                     onValueChange = { requestedName = it },
+                    modifier = Modifier.testTag("files.dialog.rename.field"),
                     singleLine = true,
                     label = { Text("New name") },
                 )
             },
             confirmButton = {
-                TextButton(enabled = requestedName.isNotBlank(), onClick = {
+                TextButton(
+                    modifier = Modifier.testTag("files.dialog.rename.confirm"),
+                    enabled = requestedName.isNotBlank(),
+                    onClick = {
                     renameDialogVisible = false
                     onRenameSelected(requestedName)
                 }) { Text("Rename") }
             },
-            dismissButton = { TextButton(onClick = { renameDialogVisible = false }) { Text("Cancel") } },
+            dismissButton = {
+                TextButton(
+                    modifier = Modifier.testTag("files.dialog.rename.cancel"),
+                    onClick = { renameDialogVisible = false },
+                ) { Text("Cancel") }
+            },
         )
     }
     if (deleteDialogVisible) {
         AlertDialog(
+            modifier = Modifier.testTag("files.dialog.delete"),
             onDismissRequest = { deleteDialogVisible = false },
             title = { Text("Delete selected items?") },
             text = { Text("This action cannot be undone.") },
             confirmButton = {
-                TextButton(onClick = {
+                TextButton(
+                    modifier = Modifier.testTag("files.dialog.delete.confirm"),
+                    onClick = {
                     deleteDialogVisible = false
                     onDeleteSelected()
                 }) { Text("Delete") }
             },
-            dismissButton = { TextButton(onClick = { deleteDialogVisible = false }) { Text("Cancel") } },
+            dismissButton = {
+                TextButton(
+                    modifier = Modifier.testTag("files.dialog.delete.cancel"),
+                    onClick = { deleteDialogVisible = false },
+                ) { Text("Cancel") }
+            },
         )
     }
 }
@@ -193,7 +227,9 @@ private fun EntryList(
         style = MaterialTheme.typography.labelLarge,
     )
     LazyColumn(modifier = Modifier.fillMaxSize()) {
-        items(entries, key = { it.ref.hashCode() }) { entry ->
+        // identityKey preserves the complete provider-scoped EntryRef identity in a
+        // Bundle-saveable form; reducing it to hashCode() could merge distinct entries.
+        items(entries, key = { it.ref.identityKey }) { entry ->
             EntryRow(
                 entry = entry,
                 selected = entry.ref in selection?.selectedEntries.orEmpty(),
@@ -250,7 +286,14 @@ private fun EntryRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .semantics { this.selected = selected }
+            .testTag("files.entry.${entry.displayName}")
+            .semantics(mergeDescendants = true) {
+                this.selected = selected
+                onLongClick {
+                    onEnterSelection(entry)
+                    true
+                }
+            }
             .combinedClickable(
                 onClick = {
                     if (selectionMode) onToggleSelection(entry)

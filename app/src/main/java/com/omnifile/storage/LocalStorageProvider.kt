@@ -285,7 +285,9 @@ class LocalStorageProvider(
     private data class LocalEntryRef(
         override val providerId: ProviderId,
         val path: Path,
-    ) : EntryRef
+    ) : EntryRef {
+        override val identityKey: String = "${providerId.value}\u0000$path"
+    }
 
     private object StaleReferenceException : RuntimeException()
 }

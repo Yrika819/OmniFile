@@ -104,5 +104,7 @@ class StorageModelTest {
     private data class TestEntryRef(
         override val providerId: ProviderId,
         val token: String,
-    ) : EntryRef
+    ) : EntryRef {
+        override val identityKey: String = "${providerId.value}\u0000$token"
+    }
 }
