@@ -7,6 +7,7 @@ import android.os.ParcelFileDescriptor;
 import android.provider.DocumentsContract;
 import android.provider.DocumentsProvider;
 
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -35,17 +36,73 @@ public final class TestDocumentsProvider extends DocumentsProvider {
             DocumentsContract.Root.COLUMN_ICON,
     };
     private static final Map<String, Node> NODES = new LinkedHashMap<>();
+    private static int renameCalls;
+    private static int deleteCalls;
+    private static String configuredRenameSource;
+    private static String configuredRenameId;
+    private static String configuredRenameName;
+    private static String configuredDeleteFailure;
 
     static {
+        reset();
+    }
+
+    public static void reset() {
         int directoryFlags = DocumentsContract.Document.FLAG_DIR_SUPPORTS_CREATE;
         int fileFlags = DocumentsContract.Document.FLAG_SUPPORTS_WRITE
                 | DocumentsContract.Document.FLAG_SUPPORTS_RENAME
                 | DocumentsContract.Document.FLAG_SUPPORTS_DELETE;
+        NODES.clear();
         NODES.put("root", new Node("root", null, "Controlled SAF", DocumentsContract.Document.MIME_TYPE_DIR, null, null, directoryFlags));
         NODES.put("root/folder", new Node("root/folder", "root", "Folder A", DocumentsContract.Document.MIME_TYPE_DIR, null, 1000L, directoryFlags));
         NODES.put("root/empty", new Node("root/empty", "root", "empty", DocumentsContract.Document.MIME_TYPE_DIR, null, 2000L, directoryFlags));
         NODES.put("root/alpha", new Node("root/alpha", "root", "alpha.txt", "text/plain", 5L, 3000L, fileFlags));
         NODES.put("root/folder/nested", new Node("root/folder/nested", "root/folder", "nested.txt", "text/plain", 6L, 4000L, fileFlags));
+        renameCalls = 0;
+        deleteCalls = 0;
+        configuredRenameSource = null;
+        configuredRenameId = null;
+        configuredRenameName = null;
+        configuredDeleteFailure = null;
+    }
+
+    public static void enableRootMutationFlags() {
+        Node root = NODES.get("root");
+        root.flags |= DocumentsContract.Document.FLAG_SUPPORTS_RENAME
+                | DocumentsContract.Document.FLAG_SUPPORTS_DELETE;
+    }
+
+    public static void setRenameSupported(String documentId, boolean supported) {
+        setFlag(documentId, DocumentsContract.Document.FLAG_SUPPORTS_RENAME, supported);
+    }
+
+    public static void setDeleteSupported(String documentId, boolean supported) {
+        setFlag(documentId, DocumentsContract.Document.FLAG_SUPPORTS_DELETE, supported);
+    }
+
+    public static void configureRename(String sourceId, String returnedId, String returnedName) {
+        configuredRenameSource = sourceId;
+        configuredRenameId = returnedId;
+        configuredRenameName = returnedName;
+    }
+
+    public static void configureDeleteFailure(String documentId) {
+        configuredDeleteFailure = documentId;
+    }
+
+    public static int renameCalls() {
+        return renameCalls;
+    }
+
+    public static int deleteCalls() {
+        return deleteCalls;
+    }
+
+    private static void setFlag(String documentId, int flag, boolean enabled) {
+        Node node = NODES.get(documentId);
+        if (node == null) throw new IllegalArgumentException("Unknown document " + documentId);
+        if (enabled) node.flags |= flag;
+        else node.flags &= ~flag;
     }
 
     @Override
@@ -91,6 +148,45 @@ public final class TestDocumentsProvider extends DocumentsProvider {
         throw new UnsupportedOperationException("Not needed for browse tests");
     }
 
+    @Override
+    public String renameDocument(String documentId, String displayName) throws FileNotFoundException {
+        renameCalls++;
+        Node node = NODES.get(documentId);
+        if (node == null) throw new FileNotFoundException(documentId);
+        if ((node.flags & DocumentsContract.Document.FLAG_SUPPORTS_RENAME) == 0) {
+            throw new UnsupportedOperationException("Rename is not supported");
+        }
+        if (configuredRenameSource != null && configuredRenameSource.equals(documentId)) {
+            String returnedId = configuredRenameId;
+            String returnedName = configuredRenameName;
+            NODES.remove(documentId);
+            NODES.put(returnedId, new Node(
+                    returnedId,
+                    node.parentId,
+                    returnedName,
+                    node.mimeType,
+                    node.sizeBytes,
+                    node.modifiedAt,
+                    node.flags));
+            return returnedId;
+        }
+        return documentId;
+    }
+
+    @Override
+    public void deleteDocument(String documentId) throws FileNotFoundException {
+        deleteCalls++;
+        Node node = NODES.get(documentId);
+        if (node == null) throw new FileNotFoundException(documentId);
+        if ((node.flags & DocumentsContract.Document.FLAG_SUPPORTS_DELETE) == 0) {
+            throw new UnsupportedOperationException("Delete is not supported");
+        }
+        if (configuredDeleteFailure != null && configuredDeleteFailure.equals(documentId)) {
+            throw new IllegalStateException("controlled delete failure");
+        }
+        NODES.remove(documentId);
+    }
+
     private static void addNode(MatrixCursor cursor, Node node) {
         if (node == null) return;
         cursor.addRow(new Object[]{node.id, node.name, node.mimeType, node.sizeBytes, node.modifiedAt, node.flags});
@@ -103,7 +199,7 @@ public final class TestDocumentsProvider extends DocumentsProvider {
         final String mimeType;
         final Long sizeBytes;
         final Long modifiedAt;
-        final int flags;
+        int flags;
 
         Node(String id, String parentId, String name, String mimeType, Long sizeBytes, Long modifiedAt, int flags) {
             this.id = id;

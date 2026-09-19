@@ -21,6 +21,7 @@ class SafStorageProviderInstrumentedTest {
 
     @Before
     fun registerControlledProviderInProcess() {
+        TestDocumentsProvider.reset()
         val provider = TestDocumentsProvider()
         provider.attachInfo(
             context,
@@ -74,8 +75,103 @@ class SafStorageProviderInstrumentedTest {
         assertEquals(ProviderId("saf-test"), root.ref.providerId)
     }
 
+    @Test
+    fun renameUsesProviderReturnedIdentityAndSanitizedName() = runBlocking {
+        TestDocumentsProvider.configureRename(
+            "root/alpha",
+            "root/renamed-alpha",
+            "provider-name.txt",
+        )
+        val provider = testProvider()
+        val root = provider.root().requireSuccess()
+        val original = provider.listChildren(root.ref).requireSuccess().single { it.displayName == "alpha.txt" }
+
+        val renamed = provider.rename(original, "requested-name.txt").requireSuccess()
+
+        assertTrue(renamed.ref != original.ref)
+        assertEquals("provider-name.txt", renamed.displayName)
+        assertEquals(
+            listOf("Folder A", "empty", "provider-name.txt"),
+            provider.listChildren(root.ref).requireSuccess().map { it.displayName },
+        )
+    }
+
+    @Test
+    fun missingRenameFlagIsUnsupportedAndDoesNotCallProvider() = runBlocking {
+        TestDocumentsProvider.setRenameSupported("root/alpha", false)
+        val provider = testProvider()
+        val root = provider.root().requireSuccess()
+        val file = provider.listChildren(root.ref).requireSuccess().single { it.displayName == "alpha.txt" }
+
+        assertFalse(StorageCapability.RENAME in file.capabilities)
+        assertEquals(StorageError.Unsupported, provider.rename(file, "new.txt").failure().error)
+        assertEquals(0, TestDocumentsProvider.renameCalls())
+    }
+
+    @Test
+    fun rootNeverExposesMutationCapabilitiesEvenIfProviderReportsThem() = runBlocking {
+        TestDocumentsProvider.enableRootMutationFlags()
+        val root = testProvider().root().requireSuccess()
+
+        assertFalse(StorageCapability.RENAME in root.capabilities)
+        assertFalse(StorageCapability.DELETE in root.capabilities)
+    }
+
+    @Test
+    fun deleteUsesProviderDeleteAndRefreshesTruth() = runBlocking {
+        val provider = testProvider()
+        val root = provider.root().requireSuccess()
+        val file = provider.listChildren(root.ref).requireSuccess().single { it.displayName == "alpha.txt" }
+
+        assertEquals(StorageResult.Success(Unit), provider.delete(file))
+        assertEquals(1, TestDocumentsProvider.deleteCalls())
+        assertEquals(listOf("Folder A", "empty"), provider.listChildren(root.ref).requireSuccess().map { it.displayName })
+    }
+
+    @Test
+    fun missingDeleteFlagIsUnsupportedAndDoesNotCallProvider() = runBlocking {
+        TestDocumentsProvider.setDeleteSupported("root/alpha", false)
+        val provider = testProvider()
+        val root = provider.root().requireSuccess()
+        val file = provider.listChildren(root.ref).requireSuccess().single { it.displayName == "alpha.txt" }
+
+        assertFalse(StorageCapability.DELETE in file.capabilities)
+        assertEquals(StorageError.Unsupported, provider.delete(file).failure().error)
+        assertEquals(0, TestDocumentsProvider.deleteCalls())
+    }
+
+    @Test
+    fun providerDeleteFailureIsMappedWithoutDeletingEntry() = runBlocking {
+        TestDocumentsProvider.configureDeleteFailure("root/alpha")
+        val provider = testProvider()
+        val root = provider.root().requireSuccess()
+        val file = provider.listChildren(root.ref).requireSuccess().single { it.displayName == "alpha.txt" }
+
+        assertEquals(StorageError.IoFailure("controlled delete failure"), provider.delete(file).failure().error)
+        assertEquals(listOf("Folder A", "alpha.txt", "empty"), provider.listChildren(root.ref).requireSuccess().map { it.displayName })
+    }
+
+    @Test
+    fun staleTreeReferenceIsRejectedForRenameAndDelete() = runBlocking {
+        val sourceProvider = testProvider(id = ProviderId("source"))
+        val root = sourceProvider.root().requireSuccess()
+        val file = sourceProvider.listChildren(root.ref).requireSuccess().single { it.displayName == "alpha.txt" }
+        val otherProvider = testProvider(id = ProviderId("other"))
+
+        assertEquals(StorageError.StaleReference, otherProvider.rename(file, "new.txt").failure().error)
+        assertEquals(StorageError.StaleReference, otherProvider.delete(file).failure().error)
+    }
+
+    private fun testProvider(id: ProviderId = ProviderId("saf-test")) = SafStorageProvider(
+        contentResolver = resolver,
+        treeUri = TestDocumentsProvider.ROOT_URI,
+        id = id,
+    )
+
     private fun <T> StorageResult<T>.requireSuccess(): T = when (this) {
         is StorageResult.Success -> value
         is StorageResult.Failure -> throw AssertionError("SAF provider failure: $error")
     }
+
+    private fun <T> StorageResult<T>.failure(): StorageResult.Failure = this as StorageResult.Failure
 }

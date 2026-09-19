@@ -18,6 +18,77 @@ class SafStorageProvider(
 
     override suspend fun root(): StorageResult<StorageEntry> = queryEntry(rootDocumentId)
 
+    override suspend fun rename(
+        entry: StorageEntry,
+        requestedName: String,
+    ): StorageResult<StorageEntry> {
+        val ref = checkedRef(entry.ref)
+            ?: return StorageResult.Failure(StorageError.StaleReference)
+        if (ref.documentId == rootDocumentId || StorageCapability.RENAME !in entry.capabilities) {
+            return StorageResult.Failure(StorageError.Unsupported)
+        }
+        if (!isValidSingleComponent(requestedName)) {
+            return StorageResult.Failure(StorageError.InvalidName(requestedName, ""))
+        }
+
+        return try {
+            val sourceUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, ref.documentId)
+            val returnedUri = DocumentsContract.renameDocument(contentResolver, sourceUri, requestedName)
+                ?: return StorageResult.Failure(StorageError.NotFound)
+            val returnedDocumentId = DocumentsContract.getDocumentId(returnedUri)
+            queryEntry(returnedUri, entry.parentRef, returnedDocumentId)
+        } catch (error: OperationCanceledException) {
+            StorageResult.Failure(StorageError.Cancelled)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: SecurityException) {
+            StorageResult.Failure(StorageError.PermissionDenied)
+        } catch (error: FileNotFoundException) {
+            StorageResult.Failure(StorageError.NotFound)
+        } catch (error: UnsupportedOperationException) {
+            StorageResult.Failure(StorageError.Unsupported)
+        } catch (error: IllegalArgumentException) {
+            StorageResult.Failure(StorageError.StaleReference)
+        } catch (error: IOException) {
+            StorageResult.Failure(StorageError.IoFailure(error.message))
+        } catch (error: IllegalStateException) {
+            StorageResult.Failure(StorageError.IoFailure(error.message))
+        }
+    }
+
+    override suspend fun delete(entry: StorageEntry): StorageResult<Unit> {
+        val ref = checkedRef(entry.ref)
+            ?: return StorageResult.Failure(StorageError.StaleReference)
+        if (ref.documentId == rootDocumentId || StorageCapability.DELETE !in entry.capabilities) {
+            return StorageResult.Failure(StorageError.Unsupported)
+        }
+
+        return try {
+            val documentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, ref.documentId)
+            if (DocumentsContract.deleteDocument(contentResolver, documentUri)) {
+                StorageResult.Success(Unit)
+            } else {
+                StorageResult.Failure(StorageError.IoFailure("Provider declined delete"))
+            }
+        } catch (error: OperationCanceledException) {
+            StorageResult.Failure(StorageError.Cancelled)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: SecurityException) {
+            StorageResult.Failure(StorageError.PermissionDenied)
+        } catch (error: FileNotFoundException) {
+            StorageResult.Failure(StorageError.NotFound)
+        } catch (error: UnsupportedOperationException) {
+            StorageResult.Failure(StorageError.Unsupported)
+        } catch (error: IllegalArgumentException) {
+            StorageResult.Failure(StorageError.StaleReference)
+        } catch (error: IOException) {
+            StorageResult.Failure(StorageError.IoFailure(error.message))
+        } catch (error: IllegalStateException) {
+            StorageResult.Failure(StorageError.IoFailure(error.message))
+        }
+    }
+
     override suspend fun listChildren(directory: EntryRef): StorageResult<List<StorageEntry>> {
         val ref = directory as? SafEntryRef
             ?: return StorageResult.Failure(StorageError.StaleReference)
@@ -49,12 +120,18 @@ class SafStorageProvider(
         }
     }
 
-    private fun queryEntry(documentId: String): StorageResult<StorageEntry> = try {
-        val uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId)
+    private fun queryEntry(documentId: String): StorageResult<StorageEntry> =
+        queryEntry(DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId), null, null)
+
+    private fun queryEntry(
+        uri: Uri,
+        parentRef: EntryRef?,
+        authoritativeDocumentId: String? = null,
+    ): StorageResult<StorageEntry> = try {
         var entry: StorageEntry? = null
         query(uri) { cursor ->
             if (cursor.moveToFirst()) {
-                entry = cursor.toEntry()
+                entry = cursor.toEntry(parentRef, authoritativeDocumentId)
             }
         }
         entry?.let { StorageResult.Success(it) } ?: StorageResult.Failure(StorageError.NotFound)
@@ -70,13 +147,22 @@ class SafStorageProvider(
         StorageResult.Failure(StorageError.IoFailure(error.message))
     }
 
+    private fun checkedRef(ref: EntryRef): SafEntryRef? {
+        val safRef = ref as? SafEntryRef ?: return null
+        return safRef.takeIf { it.providerId == id && it.treeUri == treeUri }
+    }
+
     private fun query(uri: Uri, block: (Cursor) -> Unit) {
         contentResolver.query(uri, PROJECTION, null, null, null)?.use(block)
             ?: throw IOException("Provider returned no cursor")
     }
 
-    private fun Cursor.toEntry(parentRef: EntryRef? = null): StorageEntry {
-        val documentId = getString(getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID))
+    private fun Cursor.toEntry(
+        parentRef: EntryRef? = null,
+        authoritativeDocumentId: String? = null,
+    ): StorageEntry {
+        val queriedDocumentId = getString(getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID))
+        val documentId = authoritativeDocumentId ?: queriedDocumentId
         val displayName = getString(getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME))
             ?: "Unnamed"
         val mimeType = getString(getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_MIME_TYPE))
@@ -87,11 +173,13 @@ class SafStorageProvider(
             if (flags and DocumentsContract.Document.FLAG_SUPPORTS_WRITE != 0) {
                 add(StorageCapability.WRITE)
             }
-            if (flags and DocumentsContract.Document.FLAG_SUPPORTS_RENAME != 0) {
-                add(StorageCapability.RENAME)
-            }
-            if (flags and DocumentsContract.Document.FLAG_SUPPORTS_DELETE != 0) {
-                add(StorageCapability.DELETE)
+            if (documentId != rootDocumentId) {
+                if (flags and DocumentsContract.Document.FLAG_SUPPORTS_RENAME != 0) {
+                    add(StorageCapability.RENAME)
+                }
+                if (flags and DocumentsContract.Document.FLAG_SUPPORTS_DELETE != 0) {
+                    add(StorageCapability.DELETE)
+                }
             }
         }
         return StorageEntry(
@@ -109,6 +197,12 @@ class SafStorageProvider(
     private fun Cursor.nullableLong(column: String): Long? {
         val index = getColumnIndexOrThrow(column)
         return if (isNull(index)) null else getLong(index)
+    }
+
+    private fun isValidSingleComponent(name: String): Boolean {
+        if (name.isEmpty() || name == "." || name == "..") return false
+        if ('\u0000' in name || '/' in name || '\\' in name) return false
+        return true
     }
 
     private data class SafEntryRef(
