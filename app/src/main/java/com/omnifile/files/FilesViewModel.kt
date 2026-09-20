@@ -246,7 +246,7 @@ class FilesViewModel(
         val entries = content.entries.filter { it.ref in current.selectedEntries }
         if (entries.isEmpty() || entries.any { it.kind != EntryKind.FILE }) return
         pendingTransfer = PendingTransfer(type, content.location, entries)
-        destinationNavigation = mutableListOf(content.location)
+        destinationNavigation = navigation.toMutableList()
         _uiState.value = FilesUiState.DestinationPicker(
             location = content.location,
             entries = content.entries,
@@ -260,6 +260,11 @@ class FilesViewModel(
         val pending = pendingTransfer ?: return
         if (entry.kind != EntryKind.DIRECTORY || entry.ref.providerId != pending.sourceLocation.ref.providerId) return
         destinationNavigation += entry
+        loadDestinationDirectory(entry)
+    }
+
+    private fun loadDestinationDirectory(entry: StorageEntry) {
+        val pending = pendingTransfer ?: return
         val token = ++requestToken
         destinationJob?.cancel()
         destinationJob = lifecycleScope.launch(Dispatchers.IO) {
@@ -318,8 +323,7 @@ class FilesViewModel(
     fun destinationBack() {
         if (destinationNavigation.size > 1) {
             destinationNavigation.removeAt(destinationNavigation.lastIndex)
-            val parent = destinationNavigation.last()
-            openDestinationDirectory(parent)
+            loadDestinationDirectory(destinationNavigation.last())
         } else {
             cancelDestinationPicker()
         }

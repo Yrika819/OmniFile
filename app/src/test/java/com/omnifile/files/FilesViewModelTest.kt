@@ -210,6 +210,39 @@ class FilesViewModelTest {
     }
 
     @Test
+    fun destinationPickerCanBackToParentAndEnterSiblingDirectory() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val provider = DestinationPickerProvider()
+            val viewModel = FilesViewModel(FilesRepository(mapOf(provider.id to provider)), provider.id, scope = scope)
+
+            viewModel.selectLocal()
+            viewModel.uiState.filterIsInstance<FilesUiState.Content>().first { it.location.ref == provider.root.ref }
+            viewModel.openDirectory(provider.container)
+            viewModel.uiState.filterIsInstance<FilesUiState.Content>().first { it.location.ref == provider.container.ref }
+            viewModel.openDirectory(provider.source)
+            val source = viewModel.uiState.filterIsInstance<FilesUiState.Content>().first { it.location.ref == provider.source.ref }
+            viewModel.enterSelection(source.entries.single { it.ref == provider.sourceFile.ref })
+
+            viewModel.copySelectedToCurrentDirectory()
+            val sourcePicker = viewModel.uiState.filterIsInstance<FilesUiState.DestinationPicker>().first()
+            assertEquals(provider.source.ref, sourcePicker.location.ref)
+            assertEquals(listOf("root", "container", "source"), sourcePicker.breadcrumb)
+
+            viewModel.handleBack()
+            val parentPicker = viewModel.uiState.filterIsInstance<FilesUiState.DestinationPicker>().first { it.location.ref == provider.container.ref }
+            assertEquals(listOf("root", "container"), parentPicker.breadcrumb)
+            assertTrue(parentPicker.entries.any { it.ref == provider.destination.ref })
+
+            viewModel.openDestinationDirectory(provider.destination)
+            val destinationPicker = viewModel.uiState.filterIsInstance<FilesUiState.DestinationPicker>().first { it.location.ref == provider.destination.ref }
+            assertEquals(listOf("root", "container", "destination"), destinationPicker.breadcrumb)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
     fun delayedFolderResultCannotOverwriteNewerFolder() = runBlocking {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         try {
@@ -438,6 +471,25 @@ class FilesViewModelTest {
         override suspend fun listChildren(directory: EntryRef) = when (directory) {
             root.ref -> StorageResult.Success(listOf(folder))
             else -> StorageResult.Success(emptyList())
+        }
+    }
+
+    private inner class DestinationPickerProvider : StorageProvider {
+        override val id = ProviderId("destination-picker")
+        val root = entry(id, "root", EntryKind.DIRECTORY)
+        val container = entry(id, "container", EntryKind.DIRECTORY, root)
+        val source = entry(id, "source", EntryKind.DIRECTORY, container)
+        val destination = entry(id, "destination", EntryKind.DIRECTORY, container)
+        val sourceFile = entry(id, "source.bin", EntryKind.FILE, source, setOf(StorageCapability.READ_SEQUENTIAL))
+
+        override suspend fun root() = StorageResult.Success(root)
+
+        override suspend fun listChildren(directory: EntryRef) = when (directory) {
+            root.ref -> StorageResult.Success(listOf(container))
+            container.ref -> StorageResult.Success(listOf(source, destination))
+            source.ref -> StorageResult.Success(listOf(sourceFile))
+            destination.ref -> StorageResult.Success(emptyList())
+            else -> StorageResult.Failure(StorageError.NotFound)
         }
     }
 
