@@ -27,7 +27,7 @@ class LocalStorageTransferTest {
 
             val partial = transfer.createOperationPartial(destinationParent, source.displayName, "op-1")
                 .requireSuccess()
-            val writer = transfer.openSequentialWrite(partial, append = false).requireSuccess()
+            val writer = transfer.openSequentialWrite(partial, append = false, operationId = "op-1").requireSuccess()
             writer.write(bytes, 0, bytes.size)
             writer.flush()
             writer.close()
@@ -35,7 +35,7 @@ class LocalStorageTransferTest {
             val facts = transfer.inspectTransfer(partial).requireSuccess()
             assertEquals(EntryKind.FILE, facts.kind)
             assertEquals(bytes.size.toLong(), facts.sizeBytes)
-            val finalized = transfer.finalizeOperationPartial(partial, destinationParent, "copy.txt")
+            val finalized = transfer.finalizeOperationPartial(partial, destinationParent, "copy.txt", operationId = "op-1")
                 .requireSuccess()
             val finalLocator = (finalized as FinalizationResult.Finalized).finalLocator
             assertEquals("copy.txt", transfer.resolveDurableLocator(finalLocator).requireSuccess().displayName)
@@ -57,11 +57,11 @@ class LocalStorageTransferTest {
             val transfer = provider as StorageTransferProvider
             val parent = transfer.encodeDurableLocator(provider.root().requireSuccess().ref).requireSuccess()
             val partial = transfer.createOperationPartial(parent, "source.txt", "op-2").requireSuccess()
-            val writer = transfer.openSequentialWrite(partial, append = false).requireSuccess()
+            val writer = transfer.openSequentialWrite(partial, append = false, operationId = "op-2").requireSuccess()
             writer.write(byteArrayOf(3), 0, 1)
             writer.close()
 
-            val result = transfer.finalizeOperationPartial(partial, parent, "copy.txt")
+            val result = transfer.finalizeOperationPartial(partial, parent, "copy.txt", operationId = "op-2")
             assertEquals(StorageError.NameConflict("copy.txt"), result.failure().error)
             assertTrue(Files.exists(root.resolve(".omnifile-op-2.partial"), LinkOption.NOFOLLOW_LINKS))
             assertArrayEquals(byteArrayOf(2), Files.readAllBytes(root.resolve("copy.txt")))

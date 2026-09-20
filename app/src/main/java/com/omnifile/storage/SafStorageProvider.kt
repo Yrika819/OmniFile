@@ -25,6 +25,7 @@ class SafStorageProvider(
     override val id: ProviderId,
     private val grantFlags: Int = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
     private val finalizationProven: Boolean = false,
+    private val sourceVersionProven: Boolean = false,
 ) : StorageTransferProvider {
     init {
         require(DocumentsContract.isTreeUri(treeUri)) { "SAF transfer requires a tree URI" }
@@ -38,6 +39,7 @@ class SafStorageProvider(
         if (hasReadGrant) add(TransferCapability.READ_SEQUENTIAL)
         if (hasWriteGrant) {
             add(TransferCapability.DELETE)
+            if (sourceVersionProven) add(TransferCapability.MOVE_SOURCE)
             if (finalizationProven) {
                 add(TransferCapability.CREATE_CHILD)
                 add(TransferCapability.WRITE_SEQUENTIAL)
@@ -52,8 +54,11 @@ class SafStorageProvider(
         entry: StorageEntry,
         requestedName: String,
     ): StorageResult<StorageEntry> {
-        val ref = checkedRef(entry.ref)
-            ?: return StorageResult.Failure(StorageError.StaleReference)
+        val ref = try {
+            checkedRef(entry.ref)
+        } catch (_: SecurityException) {
+            return StorageResult.Failure(StorageError.PermissionDenied)
+        } ?: return StorageResult.Failure(StorageError.StaleReference)
         if (ref.documentId == rootDocumentId || StorageCapability.RENAME !in entry.capabilities) {
             return StorageResult.Failure(StorageError.Unsupported)
         }
@@ -88,8 +93,11 @@ class SafStorageProvider(
     }
 
     override suspend fun delete(entry: StorageEntry): StorageResult<Unit> {
-        val ref = checkedRef(entry.ref)
-            ?: return StorageResult.Failure(StorageError.StaleReference)
+        val ref = try {
+            checkedRef(entry.ref)
+        } catch (_: SecurityException) {
+            return StorageResult.Failure(StorageError.PermissionDenied)
+        } ?: return StorageResult.Failure(StorageError.StaleReference)
         if (ref.documentId == rootDocumentId || StorageCapability.DELETE !in entry.capabilities) {
             return StorageResult.Failure(StorageError.Unsupported)
         }
@@ -122,7 +130,12 @@ class SafStorageProvider(
     override suspend fun listChildren(directory: EntryRef): StorageResult<List<StorageEntry>> {
         val ref = directory as? SafEntryRef
             ?: return StorageResult.Failure(StorageError.StaleReference)
-        if (ref.providerId != id || ref.treeUri != treeUri || !isWithinSelectedTree(ref.documentId)) {
+        val withinTree = try {
+            isWithinSelectedTree(ref.documentId)
+        } catch (_: SecurityException) {
+            return StorageResult.Failure(StorageError.PermissionDenied)
+        }
+        if (ref.providerId != id || ref.treeUri != treeUri || !withinTree) {
             return StorageResult.Failure(StorageError.StaleReference)
         }
 
@@ -150,21 +163,32 @@ class SafStorageProvider(
         }
     }
 
-    override suspend fun encodeDurableLocator(ref: EntryRef): StorageResult<com.omnifile.operations.DurableLocator> =
+    override suspend fun encodeDurableLocator(ref: EntryRef): StorageResult<com.omnifile.operations.DurableLocator> = try {
         checkedRef(ref)?.let { StorageResult.Success(locatorFor(it.documentId)) }
             ?: StorageResult.Failure(StorageError.StaleReference)
+    } catch (_: SecurityException) {
+        StorageResult.Failure(StorageError.PermissionDenied)
+    }
 
     override suspend fun resolveDurableLocator(
         locator: com.omnifile.operations.DurableLocator,
     ): StorageResult<StorageEntry> {
-        val parts = decodeLocator(locator) ?: return StorageResult.Failure(StorageError.StaleReference)
+        val parts = try {
+            decodeLocator(locator) ?: return StorageResult.Failure(StorageError.StaleReference)
+        } catch (_: SecurityException) {
+            return StorageResult.Failure(StorageError.PermissionDenied)
+        }
         return queryEntry(documentUri(parts.documentId), null, parts.documentId)
     }
 
     override suspend fun inspectTransfer(
         locator: com.omnifile.operations.DurableLocator,
     ): StorageResult<TransferFileFacts> {
-        val parts = decodeLocator(locator) ?: return StorageResult.Failure(StorageError.StaleReference)
+        val parts = try {
+            decodeLocator(locator) ?: return StorageResult.Failure(StorageError.StaleReference)
+        } catch (_: SecurityException) {
+            return StorageResult.Failure(StorageError.PermissionDenied)
+        }
         return when (val result = queryEntry(documentUri(parts.documentId), null, parts.documentId)) {
             is StorageResult.Success -> {
                 val entry = result.value
@@ -175,12 +199,16 @@ class SafStorageProvider(
                         sizeBytes = entry.sizeBytes,
                         // A document ID is not content versioning, but it lets us
                         // detect replacement/rename while optional metadata is absent.
-                        versionToken = listOf(
-                            parts.documentId,
-                            entry.sizeBytes ?: "unknown",
-                            entry.modifiedAtEpochMillis ?: "unknown",
-                            entry.mimeType ?: "unknown",
-                        ).joinToString(":"),
+                        versionToken = if (sourceVersionProven) {
+                            listOf(
+                                parts.documentId,
+                                entry.sizeBytes ?: "unknown",
+                                entry.modifiedAtEpochMillis ?: "unknown",
+                                entry.mimeType ?: "unknown",
+                            ).joinToString(":")
+                        } else {
+                            null
+                        },
                     ),
                 )
             }
@@ -191,7 +219,11 @@ class SafStorageProvider(
     override suspend fun openSequentialRead(
         locator: com.omnifile.operations.DurableLocator,
     ): StorageResult<SequentialReadHandle> {
-        val parts = decodeLocator(locator) ?: return StorageResult.Failure(StorageError.StaleReference)
+        val parts = try {
+            decodeLocator(locator) ?: return StorageResult.Failure(StorageError.StaleReference)
+        } catch (_: SecurityException) {
+            return StorageResult.Failure(StorageError.PermissionDenied)
+        }
         val entry = when (val result = queryEntry(documentUri(parts.documentId), null, parts.documentId)) {
             is StorageResult.Success -> result.value
             is StorageResult.Failure -> return result
@@ -232,7 +264,11 @@ class SafStorageProvider(
         intendedFinalName: String,
         operationId: String,
     ): StorageResult<com.omnifile.operations.DurableLocator> {
-        val parts = decodeLocator(destinationParent) ?: return StorageResult.Failure(StorageError.StaleReference)
+        val parts = try {
+            decodeLocator(destinationParent) ?: return StorageResult.Failure(StorageError.StaleReference)
+        } catch (_: SecurityException) {
+            return StorageResult.Failure(StorageError.PermissionDenied)
+        }
         val parent = when (val result = queryEntry(documentUri(parts.documentId), null, parts.documentId)) {
             is StorageResult.Success -> result.value
             is StorageResult.Failure -> return result
@@ -298,7 +334,11 @@ class SafStorageProvider(
         operationId: String?,
     ): StorageResult<SequentialWriteHandle> {
         if (append) return StorageResult.Failure(StorageError.Unsupported)
-        val parts = decodeLocator(partial) ?: return StorageResult.Failure(StorageError.StaleReference)
+        val parts = try {
+            decodeLocator(partial) ?: return StorageResult.Failure(StorageError.StaleReference)
+        } catch (_: SecurityException) {
+            return StorageResult.Failure(StorageError.PermissionDenied)
+        }
         val entry = when (val result = queryEntry(documentUri(parts.documentId), null, parts.documentId)) {
             is StorageResult.Success -> result.value
             is StorageResult.Failure -> return result
@@ -339,8 +379,16 @@ class SafStorageProvider(
         intendedFinalName: String,
         operationId: String?,
     ): StorageResult<FinalizationResult> {
-        val partialParts = decodeLocator(partial) ?: return StorageResult.Failure(StorageError.StaleReference)
-        val parentParts = decodeLocator(destinationParent) ?: return StorageResult.Failure(StorageError.StaleReference)
+        val partialParts = try {
+            decodeLocator(partial) ?: return StorageResult.Failure(StorageError.StaleReference)
+        } catch (_: SecurityException) {
+            return StorageResult.Failure(StorageError.PermissionDenied)
+        }
+        val parentParts = try {
+            decodeLocator(destinationParent) ?: return StorageResult.Failure(StorageError.StaleReference)
+        } catch (_: SecurityException) {
+            return StorageResult.Failure(StorageError.PermissionDenied)
+        }
         if (!isValidSingleComponent(intendedFinalName) || partialParts.treeUri != parentParts.treeUri) {
             return StorageResult.Failure(StorageError.StaleReference)
         }
@@ -415,7 +463,11 @@ class SafStorageProvider(
     }
 
     override suspend fun deleteDurableSource(source: com.omnifile.operations.DurableLocator): StorageResult<Unit> {
-        val parts = decodeLocator(source) ?: return StorageResult.Failure(StorageError.StaleReference)
+        val parts = try {
+            decodeLocator(source) ?: return StorageResult.Failure(StorageError.StaleReference)
+        } catch (_: SecurityException) {
+            return StorageResult.Failure(StorageError.PermissionDenied)
+        }
         val entry = when (val result = queryEntry(documentUri(parts.documentId), null, parts.documentId)) {
             is StorageResult.Success -> result.value
             is StorageResult.Failure -> return result
@@ -452,7 +504,11 @@ class SafStorageProvider(
         partial: com.omnifile.operations.DurableLocator,
         operationId: String?,
     ): StorageResult<Unit> {
-        val parts = decodeLocator(partial) ?: return StorageResult.Failure(StorageError.StaleReference)
+        val parts = try {
+            decodeLocator(partial) ?: return StorageResult.Failure(StorageError.StaleReference)
+        } catch (_: SecurityException) {
+            return StorageResult.Failure(StorageError.PermissionDenied)
+        }
         val entry = when (val result = queryEntry(documentUri(parts.documentId), null, parts.documentId)) {
             is StorageResult.Success -> result.value
             is StorageResult.Failure -> return result
@@ -569,6 +625,8 @@ class SafStorageProvider(
             documentUri(rootDocumentId),
             documentUri(documentId),
         )
+    } catch (_: SecurityException) {
+        throw SecurityException("SAF grant is unavailable")
     } catch (_: Exception) {
         false
     }
@@ -604,7 +662,10 @@ class SafStorageProvider(
             }
             if (documentId != rootDocumentId && hasWriteGrant) {
                 if (flags and DocumentsContract.Document.FLAG_SUPPORTS_RENAME != 0) add(StorageCapability.RENAME)
-                if (flags and DocumentsContract.Document.FLAG_SUPPORTS_DELETE != 0) add(StorageCapability.DELETE)
+                if (flags and DocumentsContract.Document.FLAG_SUPPORTS_DELETE != 0) {
+                    add(StorageCapability.DELETE)
+                    if (sourceVersionProven && !isDirectory) add(StorageCapability.MOVE_SOURCE)
+                }
             }
         }
         return StorageEntry(
@@ -626,7 +687,7 @@ class SafStorageProvider(
 
     private fun isOperationPartial(name: String, operationId: String? = null): Boolean {
         if (!name.startsWith(".omnifile-") || !name.endsWith(".partial")) return false
-        if (operationId == null) return true
+        if (operationId == null) return false
         val safeOperationId = operationId.replace(Regex("[^A-Za-z0-9._-]"), "_")
         return name == ".omnifile-$safeOperationId.partial"
     }

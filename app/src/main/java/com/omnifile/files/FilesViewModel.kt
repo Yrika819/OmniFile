@@ -85,6 +85,7 @@ class FilesViewModel(
     private var operationJob: Job? = null
     private var destinationJob: Job? = null
     private var destinationNavigation = mutableListOf<StorageEntry>()
+    private var destinationProviderId: ProviderId? = null
     private var pendingTransfer: PendingTransfer? = null
     private var requestToken = 0L
     private val nextMutationOwner = AtomicLong(0L)
@@ -139,6 +140,7 @@ class FilesViewModel(
 
     fun selectDestinationLocal() {
         if (pendingTransfer == null) return
+        destinationProviderId = localProviderId
         destinationNavigation.clear()
         loadDestinationRoot(localProviderId)
     }
@@ -149,6 +151,7 @@ class FilesViewModel(
             val provider = safProviderFor(uri)
             repository.register(provider)
             (provider as? StorageTransferProvider)?.let { operationManager?.registerProvider(it) }
+            destinationProviderId = provider.id
             destinationNavigation.clear()
             loadDestinationRoot(provider.id)
         } catch (_: SecurityException) {
@@ -232,6 +235,14 @@ class FilesViewModel(
     }
 
     fun retry() {
+        if (pendingTransfer != null) {
+            if (destinationNavigation.isNotEmpty()) {
+                loadDestinationDirectory(destinationNavigation.last())
+            } else {
+                destinationProviderId?.let(::loadDestinationRoot)
+            }
+            return
+        }
         when {
             navigation.isNotEmpty() -> loadChildren(navigation.last())
             selectedProviderId != null -> loadRoot(selectedProviderId!!)
@@ -289,6 +300,7 @@ class FilesViewModel(
 
     private fun loadDestinationRoot(providerId: ProviderId) {
         val pending = pendingTransfer ?: return
+        destinationProviderId = providerId
         val token = ++requestToken
         destinationJob?.cancel()
         destinationJob = lifecycleScope.launch(Dispatchers.IO) {
@@ -390,6 +402,7 @@ class FilesViewModel(
     fun cancelDestinationPicker() {
         val pending = pendingTransfer ?: return
         pendingTransfer = null
+        destinationProviderId = null
         destinationNavigation.clear()
         loadChildren(pending.sourceLocation)
     }

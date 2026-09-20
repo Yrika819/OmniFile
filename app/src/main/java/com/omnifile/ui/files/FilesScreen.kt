@@ -77,7 +77,7 @@ fun FilesScreen(
         it.kind == EntryKind.FILE && it.supports(StorageCapability.READ_SEQUENTIAL)
     }
     val canCopy = regularFilesOnly
-    val canMove = regularFilesOnly && selectedEntries.all { it.supports(StorageCapability.DELETE) }
+    val canMove = regularFilesOnly && selectedEntries.all { it.supports(StorageCapability.MOVE_SOURCE) }
     val canRename = selectedEntries.size == 1 && selectedEntries.single().supports(StorageCapability.RENAME)
     val canDelete = selectedEntries.isNotEmpty() && selectedEntries.all { it.supports(StorageCapability.DELETE) }
     val destinationCanAccept = state is FilesUiState.DestinationPicker &&

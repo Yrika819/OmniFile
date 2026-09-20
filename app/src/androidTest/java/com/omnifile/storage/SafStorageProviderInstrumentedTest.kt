@@ -283,6 +283,7 @@ class SafStorageProviderInstrumentedTest {
         treeUri = TestDocumentsProvider.ROOT_URI,
         id = id,
         finalizationProven = true,
+        sourceVersionProven = true,
     )
 
     private fun readAll(handle: SequentialReadHandle): ByteArray {

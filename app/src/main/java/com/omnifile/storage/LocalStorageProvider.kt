@@ -78,6 +78,7 @@ class LocalStorageProvider(
         TransferCapability.WRITE_SEQUENTIAL,
         TransferCapability.FINALIZE,
         TransferCapability.DELETE,
+        TransferCapability.MOVE_SOURCE,
     )
 
     override suspend fun encodeDurableLocator(ref: EntryRef): StorageResult<com.omnifile.operations.DurableLocator> = guarded {
@@ -279,7 +280,7 @@ class LocalStorageProvider(
     private fun isOperationPartial(path: Path, operationId: String? = null): Boolean {
         val name = path.fileName?.toString() ?: return false
         if (!name.startsWith(".omnifile-") || !name.endsWith(".partial")) return false
-        if (operationId == null) return true
+        if (operationId == null) return false
         val safeOperationId = operationId.replace(Regex("[^A-Za-z0-9._-]"), "_")
         return name == ".omnifile-$safeOperationId.partial"
     }
@@ -333,6 +334,7 @@ class LocalStorageProvider(
             if (normalized != rootDirectory) {
                 if (canDelete(normalized, attributes)) {
                     add(StorageCapability.DELETE)
+                    if (attributes.isRegularFile) add(StorageCapability.MOVE_SOURCE)
                 }
             }
         }

@@ -1,6 +1,7 @@
 package com.omnifile.operations
 
 import com.omnifile.storage.ProviderId
+import java.util.Base64
 
 /** Durable state; runtime jobs and UI lifetimes are deliberately absent. */
 enum class OperationType {
@@ -66,28 +67,42 @@ data class DurableLocator(
 }
 
 object FinalizationRecord {
-    private const val PREFIX = "finalization-v1"
+    private const val LEGACY_PREFIX = "finalization-v1"
+    private const val PREFIX = "finalization-v2"
 
     fun encode(locator: DurableLocator): String = listOf(
         PREFIX,
-        locator.providerId.value,
-        locator.encoding,
-        locator.value,
-    ).joinToString("\u001f")
+        encodePart(locator.providerId.value),
+        encodePart(locator.encoding),
+        encodePart(locator.value),
+    ).joinToString(".")
 
     fun decode(description: String?): DurableLocator? {
         val parts = description?.split("\u001f") ?: return null
-        if (parts.size != 4 || parts[0] != PREFIX) return null
+        if (parts.size == 4 && parts[0] == LEGACY_PREFIX) {
+            return durableLocator(parts[1], parts[2], parts[3])
+        }
+        val encoded = description.split(".")
+        if (encoded.size != 4 || encoded[0] != PREFIX) return null
         return try {
-            DurableLocator(
-                providerId = ProviderId(parts[1]),
-                encoding = parts[2],
-                value = parts[3],
+            durableLocator(
+                decodePart(encoded[1]),
+                decodePart(encoded[2]),
+                decodePart(encoded[3]),
             )
         } catch (_: IllegalArgumentException) {
             null
         }
     }
+
+    private fun durableLocator(providerId: String, encoding: String, value: String): DurableLocator =
+        DurableLocator(ProviderId(providerId), encoding, value)
+
+    private fun encodePart(value: String): String =
+        Base64.getUrlEncoder().withoutPadding().encodeToString(value.toByteArray(Charsets.UTF_8))
+
+    private fun decodePart(value: String): String =
+        String(Base64.getUrlDecoder().decode(value), Charsets.UTF_8)
 }
 
 data class OperationSnapshot(

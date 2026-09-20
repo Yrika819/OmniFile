@@ -67,9 +67,19 @@ class SafTreeGrantStore(
         return legacyUri?.let { uri -> grantFor(uri) }?.let(::listOf).orEmpty()
     }
 
-    fun restoredReadTree(): Uri? = restoredGrants().firstOrNull { it.canRead }?.uri
+    /** Restores the broadest readable tree when DocumentsUI has also persisted a child destination. */
+    fun restoredReadTree(): Uri? = restoredGrants()
+        .filter { it.canRead }
+        .minByOrNull { treeDepth(it.uri) }
+        ?.uri
 
     fun restoredWriteTree(): Uri? = restoredGrants().firstOrNull { it.canWrite }?.uri
+
+    private fun treeDepth(uri: Uri): Int = try {
+        DocumentsContract.getTreeDocumentId(uri).count { it == '/' }
+    } catch (_: IllegalArgumentException) {
+        Int.MAX_VALUE
+    }
 
     private fun currentGrant(uri: Uri): Int? = contentResolver.persistedUriPermissions
         .firstOrNull { it.uri == uri }

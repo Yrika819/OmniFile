@@ -40,7 +40,7 @@ class OperationManager(
             )
             if (!source.transferCapabilities.contains(com.omnifile.storage.TransferCapability.READ_SEQUENTIAL) ||
                 !destination.transferCapabilities.containsAll(requiredDestination) ||
-                type == OperationType.MOVE && !source.transferCapabilities.contains(com.omnifile.storage.TransferCapability.DELETE)
+                type == OperationType.MOVE && !source.transferCapabilities.contains(com.omnifile.storage.TransferCapability.MOVE_SOURCE)
             ) {
                 return StorageResult.Failure(StorageError.Unsupported)
             }
@@ -51,7 +51,11 @@ class OperationManager(
             if (sourceEntry.kind != EntryKind.FILE || StorageCapability.READ_SEQUENTIAL !in sourceEntry.capabilities) {
                 return StorageResult.Failure(StorageError.Unsupported)
             }
-            if (type == OperationType.MOVE && StorageCapability.DELETE !in sourceEntry.capabilities) {
+            if (type == OperationType.MOVE && (
+                    StorageCapability.DELETE !in sourceEntry.capabilities ||
+                        StorageCapability.MOVE_SOURCE !in sourceEntry.capabilities
+                )
+            ) {
                 return StorageResult.Failure(StorageError.Unsupported)
             }
             val destinationEntry = when (val result = destination.resolveDurableLocator(item.destinationParent)) {
@@ -125,6 +129,9 @@ class OperationManager(
             operation.stage == TransferStage.FINALIZING
         ) {
             return operation
+        }
+        if (operation.stage == TransferStage.FINALIZING && operation.finalizationDescription != null) {
+            return reconcileFinalizing(operation)
         }
         if (operation.state == OperationState.RETRYABLE_FAILURE && operation.stage == TransferStage.SOURCE_DELETING) {
             val pending = repository.transition(
@@ -219,29 +226,40 @@ class OperationManager(
                     )
                     attemptSourceDeletion(pending)
                 }
-                operation.stage == TransferStage.FINALIZING -> {
-                    when (val reconciled = reconcileFinalizing(operation)) {
-                        is StorageResult.Success -> reconciled.value
-                        is StorageResult.Failure -> fail(operation, reconciled.error)
-                    }
-                }
-                operation.errorCode == OperationErrorCode.AMBIGUOUS_FINALIZATION -> operation
+                operation.errorCode == OperationErrorCode.AMBIGUOUS_FINALIZATION &&
+                    operation.stage == TransferStage.FINALIZING -> operation
+                operation.stage == TransferStage.FINALIZING -> reconcileFinalizing(operation)
                 else -> execute(operation.operationId)
             }
         }
 
     suspend fun requestCancellation(operationId: String): Boolean = repository.requestCancellation(operationId)
 
-    private suspend fun reconcileFinalizing(operation: OperationSnapshot): StorageResult<OperationSnapshot> {
-        val verified = verifyDurableDestination(operation)
-        if (verified is StorageResult.Failure) return verified
+    private suspend fun reconcileFinalizing(operation: OperationSnapshot): OperationSnapshot {
+        when (val verified = verifyDurableDestination(operation)) {
+            is StorageResult.Failure -> {
+                if (operation.state == OperationState.INTERRUPTED ||
+                    operation.errorCode == OperationErrorCode.AMBIGUOUS_FINALIZATION
+                ) {
+                    return operation
+                }
+                return repository.recordFailure(
+                    operationId = operation.operationId,
+                    nextState = OperationState.INTERRUPTED,
+                    stage = TransferStage.FINALIZING,
+                    errorCode = OperationErrorCode.AMBIGUOUS_FINALIZATION,
+                    errorMessage = "Finalization is ambiguous and needs reconciliation.",
+                )
+            }
+            is StorageResult.Success -> Unit
+        }
         val completed = repository.transition(
             operation.operationId,
             OperationState.DESTINATION_COMPLETE,
             TransferStage.DESTINATION_COMPLETE,
             destinationCompletionEstablished = true,
         )
-        return StorageResult.Success(finishDestination(completed))
+        return finishDestination(completed)
     }
 
     private suspend fun finishDestination(operation: OperationSnapshot): OperationSnapshot {
@@ -341,7 +359,8 @@ class OperationManager(
         } catch (error: IllegalStateException) {
             return StorageResult.Failure(StorageError.IoFailure(error.message))
         } ?: return StorageResult.Failure(StorageError.IoFailure("Unable to verify unknown destination size"))
-        if (operation.expectedBytes != null && observedBytes != operation.expectedBytes) {
+        val expectedDestinationBytes = operation.expectedBytes ?: operation.bytesCompleted
+        if (observedBytes != expectedDestinationBytes) {
             return StorageResult.Failure(StorageError.AmbiguousFinalization)
         }
         return StorageResult.Success(Unit)

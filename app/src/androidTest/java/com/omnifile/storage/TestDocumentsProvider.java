@@ -255,12 +255,12 @@ public final class TestDocumentsProvider extends DocumentsProvider {
         ioCompletion = new CountDownLatch(1);
     }
 
-    private static void throwFailure(String failure, String documentId) throws FileNotFoundException {
+    private static void throwFailure(String failure, String documentId, String operation) throws FileNotFoundException {
         if (failure == null) return;
         if (FAILURE_SECURITY.equals(failure)) throw new SecurityException("controlled permission failure");
         if (FAILURE_NOT_FOUND.equals(failure)) throw new FileNotFoundException(documentId);
         if (FAILURE_UNSUPPORTED.equals(failure)) throw new UnsupportedOperationException("controlled unsupported operation");
-        if (FAILURE_IO.equals(failure)) throw new IllegalStateException("controlled I/O failure");
+        if (FAILURE_IO.equals(failure)) throw new IllegalStateException("controlled " + operation + " failure");
     }
 
     private static String configuredFailure(String value) {
@@ -289,6 +289,7 @@ public final class TestDocumentsProvider extends DocumentsProvider {
     @Override
     public Cursor queryDocument(String documentId, String[] projection) {
         if (providerUnavailable) throw new IllegalStateException("controlled provider unavailable");
+        documentId = normalizeDocumentId(documentId);
         MatrixCursor cursor = new MatrixCursor(DOCUMENT_COLUMNS);
         addNode(cursor, NODES.get(documentId));
         return cursor;
@@ -297,6 +298,7 @@ public final class TestDocumentsProvider extends DocumentsProvider {
     @Override
     public Cursor queryChildDocuments(String parentDocumentId, String[] projection, String sortOrder) {
         if (providerUnavailable) throw new IllegalStateException("controlled provider unavailable");
+        parentDocumentId = normalizeDocumentId(parentDocumentId);
         MatrixCursor cursor = new MatrixCursor(DOCUMENT_COLUMNS);
         List<Node> children = new ArrayList<>();
         for (Node node : NODES.values()) {
@@ -307,20 +309,32 @@ public final class TestDocumentsProvider extends DocumentsProvider {
         return cursor;
     }
 
+    private static String normalizeDocumentId(String value) {
+        if (value == null || !value.startsWith("content://")) return value;
+        try {
+            return android.net.Uri.decode(DocumentsContract.getDocumentId(android.net.Uri.parse(value)));
+        } catch (IllegalArgumentException ignored) {
+            return value;
+        }
+    }
+
     @Override
     public boolean isChildDocument(String parentDocumentId, String childDocumentId) {
         if (providerUnavailable) throw new IllegalStateException("controlled provider unavailable");
-        return NODES.containsKey(childDocumentId)
-                && (parentDocumentId.equals(childDocumentId)
-                || childDocumentId.startsWith(parentDocumentId + "/"));
+        String normalizedParent = normalizeDocumentId(parentDocumentId);
+        String normalizedChild = normalizeDocumentId(childDocumentId);
+        return NODES.containsKey(normalizedChild)
+                && (normalizedParent.equals(normalizedChild)
+                || normalizedChild.startsWith(normalizedParent + "/"));
     }
 
     @Override
     public String createDocument(String parentDocumentId, String mimeType, String displayName) throws FileNotFoundException {
         if (providerUnavailable) throw new IllegalStateException("controlled provider unavailable");
+        parentDocumentId = normalizeDocumentId(parentDocumentId);
         createCalls++;
         if (FAILURE_NULL.equals(configuredCreateFailure)) return null;
-        throwFailure(configuredCreateFailure, parentDocumentId);
+        throwFailure(configuredCreateFailure, parentDocumentId, "create");
         Node parent = NODES.get(parentDocumentId);
         if (parent == null) throw new FileNotFoundException(parentDocumentId);
         if (parent.mimeType == null || !DocumentsContract.Document.MIME_TYPE_DIR.equals(parent.mimeType)) {
@@ -339,13 +353,14 @@ public final class TestDocumentsProvider extends DocumentsProvider {
                 | DocumentsContract.Document.FLAG_SUPPORTS_RENAME
                 | DocumentsContract.Document.FLAG_SUPPORTS_DELETE;
         NODES.put(id, new Node(id, parentDocumentId, displayName, mimeType, null, 5000L, flags, new byte[0], false));
-        return DocumentsContract.buildDocumentUriUsingTree(ROOT_URI, id).toString();
+        return id;
     }
 
     @Override
     public ParcelFileDescriptor openDocument(String documentId, String mode, CancellationSignal signal)
             throws FileNotFoundException {
         if (providerUnavailable) throw new IllegalStateException("controlled provider unavailable");
+        documentId = normalizeDocumentId(documentId);
         Node node = NODES.get(documentId);
         if (node == null) throw new FileNotFoundException(documentId);
         boolean write = mode.contains("w");
@@ -353,7 +368,7 @@ public final class TestDocumentsProvider extends DocumentsProvider {
         if (appliesTo(configured, documentId)) {
             String failure = configuredFailure(configured);
             if (FAILURE_NULL.equals(failure)) return null;
-            throwFailure(failure, documentId);
+            throwFailure(failure, documentId, write ? "write" : "read");
         }
         if (write && (node.flags & DocumentsContract.Document.FLAG_SUPPORTS_WRITE) == 0) {
             throw new UnsupportedOperationException("write is not supported");
@@ -420,7 +435,7 @@ public final class TestDocumentsProvider extends DocumentsProvider {
                     }
                 }
                 if (appliesTo(configuredWriteFailure, node.id)) {
-                    throwFailure(configuredFailure(configuredWriteFailure), node.id);
+                    throwFailure(configuredFailure(configuredWriteFailure), node.id, "write");
                 }
                 node.content = bytes.toByteArray();
                 node.modifiedAt = node.modifiedAt + 1L;
@@ -435,6 +450,7 @@ public final class TestDocumentsProvider extends DocumentsProvider {
 
     @Override
     public String renameDocument(String documentId, String displayName) throws FileNotFoundException {
+        documentId = normalizeDocumentId(documentId);
         renameCalls++;
         Node node = NODES.get(documentId);
         if (node == null) throw new FileNotFoundException(documentId);
@@ -442,7 +458,7 @@ public final class TestDocumentsProvider extends DocumentsProvider {
             throw new UnsupportedOperationException("Rename is not supported");
         }
         if (configuredRenameFailureSource != null && configuredRenameFailureSource.equals(documentId)) {
-            throwFailure(configuredFailure(configuredRenameFailure), documentId);
+            throwFailure(configuredFailure(configuredRenameFailure), documentId, "rename");
         }
         String returnedId = documentId;
         String returnedName = displayName;
@@ -472,6 +488,7 @@ public final class TestDocumentsProvider extends DocumentsProvider {
 
     @Override
     public void deleteDocument(String documentId) throws FileNotFoundException {
+        documentId = normalizeDocumentId(documentId);
         deleteCalls++;
         Node node = NODES.get(documentId);
         if (node == null) throw new FileNotFoundException(documentId);
@@ -483,7 +500,7 @@ public final class TestDocumentsProvider extends DocumentsProvider {
                 NODES.remove(documentId);
                 throw new IllegalStateException("controlled ambiguous delete acknowledgement");
             }
-            throwFailure(configuredFailure(configuredDeleteFailure), documentId);
+            throwFailure(configuredFailure(configuredDeleteFailure), documentId, "delete");
         }
         NODES.remove(documentId);
     }

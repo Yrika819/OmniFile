@@ -26,6 +26,8 @@ enum class StorageCapability {
     WRITE,
     RENAME,
     DELETE,
+    /** Source mutation/version proof is strong enough for destructive Move. */
+    MOVE_SOURCE,
 }
 
 data class StorageEntry(
@@ -83,6 +85,7 @@ enum class TransferCapability {
     RESUME_WRITE,
     FINALIZE,
     DELETE,
+    MOVE_SOURCE,
 }
 
 data class TransferFileFacts(

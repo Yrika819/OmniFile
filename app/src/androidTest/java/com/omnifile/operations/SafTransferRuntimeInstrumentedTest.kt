@@ -67,7 +67,7 @@ class SafTransferRuntimeInstrumentedTest {
     @Test
     fun localToSafCopyAndMoveUseDurableFinalizationBeforeSourceDelete() = runBlocking {
         val local = LocalStorageProvider(localRoot, ProviderId("local-runtime"))
-        val saf = SafStorageProvider(resolver, TestDocumentsProvider.ROOT_URI, ProviderId("saf-runtime"), finalizationProven = true)
+        val saf = SafStorageProvider(resolver, TestDocumentsProvider.ROOT_URI, ProviderId("saf-runtime"), finalizationProven = true, sourceVersionProven = true)
         val manager = OperationManager(OperationStore(database.operationDao()), mapOf(local.id to local, saf.id to saf))
         val localCopy = localRoot.resolve("local-copy.txt")
         val localMove = localRoot.resolve("local-move.txt")
@@ -98,7 +98,7 @@ class SafTransferRuntimeInstrumentedTest {
     @Test
     fun safToLocalCopyAndMoveUseDurableSourceDeleteOrdering() = runBlocking {
         val local = LocalStorageProvider(localRoot, ProviderId("local-runtime"))
-        val saf = SafStorageProvider(resolver, TestDocumentsProvider.ROOT_URI, ProviderId("saf-runtime"), finalizationProven = true)
+        val saf = SafStorageProvider(resolver, TestDocumentsProvider.ROOT_URI, ProviderId("saf-runtime"), finalizationProven = true, sourceVersionProven = true)
         val manager = OperationManager(OperationStore(database.operationDao()), mapOf(local.id to local, saf.id to saf))
         val localRootEntry = local.root().requireSuccess()
         val safRoot = saf.root().requireSuccess()
@@ -123,7 +123,7 @@ class SafTransferRuntimeInstrumentedTest {
 
     @Test
     fun safToSafCopyAndMoveDoNotAssumeNativeMove() = runBlocking {
-        val saf = SafStorageProvider(resolver, TestDocumentsProvider.ROOT_URI, ProviderId("saf-runtime"), finalizationProven = true)
+        val saf = SafStorageProvider(resolver, TestDocumentsProvider.ROOT_URI, ProviderId("saf-runtime"), finalizationProven = true, sourceVersionProven = true)
         val manager = OperationManager(OperationStore(database.operationDao()), mapOf(saf.id to saf))
         val root = saf.root().requireSuccess()
         val folder = saf.listChildren(root.ref).requireSuccess().single { it.kind == EntryKind.DIRECTORY && it.displayName == "Folder A" }
