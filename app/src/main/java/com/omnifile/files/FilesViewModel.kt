@@ -99,6 +99,8 @@ class FilesViewModel(
         get() = selectedEntries.isNotEmpty()
     val isMutationInFlight: Boolean
         get() = _mutationInFlight.value
+    val isDestinationPicker: Boolean
+        get() = pendingTransfer != null
 
     fun selectLocal() {
         clearSelection()
@@ -112,6 +114,7 @@ class FilesViewModel(
         try {
             val provider = safProviderFor(uri)
             repository.register(provider)
+            (provider as? StorageTransferProvider)?.let { operationManager?.registerProvider(it) }
             selectedProviderId = provider.id
             navigation.clear()
             loadRoot(provider.id)
@@ -132,6 +135,27 @@ class FilesViewModel(
 
     fun restorePersistedSaf() {
         restoredSafUri()?.let(::selectSaf)
+    }
+
+    fun selectDestinationLocal() {
+        if (pendingTransfer == null) return
+        destinationNavigation.clear()
+        loadDestinationRoot(localProviderId)
+    }
+
+    fun selectDestinationSaf(uri: Uri) {
+        if (pendingTransfer == null) return
+        try {
+            val provider = safProviderFor(uri)
+            repository.register(provider)
+            (provider as? StorageTransferProvider)?.let { operationManager?.registerProvider(it) }
+            destinationNavigation.clear()
+            loadDestinationRoot(provider.id)
+        } catch (_: SecurityException) {
+            _uiState.value = FilesUiState.Error(StorageError.PermissionDenied, null, emptyList())
+        } catch (_: IllegalArgumentException) {
+            _uiState.value = FilesUiState.Error(StorageError.StaleReference, null, emptyList())
+        }
     }
 
     fun openDirectory(entry: StorageEntry) {
@@ -258,9 +282,45 @@ class FilesViewModel(
 
     fun openDestinationDirectory(entry: StorageEntry) {
         val pending = pendingTransfer ?: return
-        if (entry.kind != EntryKind.DIRECTORY || entry.ref.providerId != pending.sourceLocation.ref.providerId) return
+        if (entry.kind != EntryKind.DIRECTORY) return
         destinationNavigation += entry
         loadDestinationDirectory(entry)
+    }
+
+    private fun loadDestinationRoot(providerId: ProviderId) {
+        val pending = pendingTransfer ?: return
+        val token = ++requestToken
+        destinationJob?.cancel()
+        destinationJob = lifecycleScope.launch(Dispatchers.IO) {
+            when (val rootResult = repository.root(providerId)) {
+                is StorageResult.Success -> {
+                    if (token != requestToken || pendingTransfer == null) return@launch
+                    destinationNavigation.clear()
+                    destinationNavigation += rootResult.value
+                    when (val childrenResult = repository.children(rootResult.value)) {
+                        is StorageResult.Success -> if (token == requestToken) {
+                            _uiState.value = FilesUiState.DestinationPicker(
+                                rootResult.value,
+                                childrenResult.value,
+                                destinationNavigation.map { it.displayName },
+                                pending.type,
+                                pending.entries.size,
+                            )
+                        }
+                        is StorageResult.Failure -> if (token == requestToken) {
+                            _uiState.value = FilesUiState.Error(
+                                childrenResult.error,
+                                rootResult.value,
+                                destinationNavigation.map { it.displayName },
+                            )
+                        }
+                    }
+                }
+                is StorageResult.Failure -> if (token == requestToken) {
+                    _uiState.value = FilesUiState.Error(rootResult.error, null, emptyList())
+                }
+            }
+        }
     }
 
     private fun loadDestinationDirectory(entry: StorageEntry) {
@@ -285,19 +345,30 @@ class FilesViewModel(
     fun confirmDestination() {
         val pending = pendingTransfer ?: return
         val destination = destinationNavigation.lastOrNull() ?: return
-        val provider = repository.transferProvider(destination.ref.providerId) ?: return
+        val destinationProvider = repository.transferProvider(destination.ref.providerId) ?: return
         operationJob?.cancel()
         operationJob = lifecycleScope.launch(Dispatchers.IO) {
-            val destinationLocator = when (val result = provider.encodeDurableLocator(destination.ref)) {
+            val destinationLocator = when (val result = destinationProvider.encodeDurableLocator(destination.ref)) {
                 is StorageResult.Success -> result.value
-                is StorageResult.Failure -> return@launch
-            }
-            val items = pending.entries.mapNotNull { entry ->
-                val source = when (val result = provider.encodeDurableLocator(entry.ref)) {
-                    is StorageResult.Success -> result.value
-                    is StorageResult.Failure -> return@mapNotNull null
+                is StorageResult.Failure -> {
+                    _uiState.value = FilesUiState.Error(result.error, destination, destinationNavigation.map { it.displayName })
+                    return@launch
                 }
-                OperationManager.EnqueueItem(source, destinationLocator, entry.displayName, entry.sizeBytes, null)
+            }
+            val items = mutableListOf<OperationManager.EnqueueItem>()
+            for (entry in pending.entries) {
+                val sourceProvider = repository.transferProvider(entry.ref.providerId)
+                val source = sourceProvider?.let { provider ->
+                    when (val result = provider.encodeDurableLocator(entry.ref)) {
+                        is StorageResult.Success -> result.value
+                        is StorageResult.Failure -> null
+                    }
+                }
+                if (source == null) {
+                    _uiState.value = FilesUiState.Error(StorageError.Unsupported, destination, destinationNavigation.map { it.displayName })
+                    return@launch
+                }
+                items += OperationManager.EnqueueItem(source, destinationLocator, entry.displayName, entry.sizeBytes, null)
             }
             when (val result = operationManager?.enqueue(pending.type, items)) {
                 is StorageResult.Success -> {
@@ -308,7 +379,10 @@ class FilesViewModel(
                     onOperationsCreated(result.value)
                     loadChildren(pending.sourceLocation)
                 }
-                is StorageResult.Failure, null -> Unit
+                is StorageResult.Failure -> {
+                    _uiState.value = FilesUiState.Error(result.error, destination, destinationNavigation.map { it.displayName })
+                }
+                null -> Unit
             }
         }
     }

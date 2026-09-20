@@ -2,13 +2,13 @@ package com.omnifile
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.compose.foundation.layout.Column
-import androidx.room.Room
+import android.provider.DocumentsContract
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
@@ -17,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.room.Room
 import com.omnifile.files.FilesRepository
 import com.omnifile.files.FilesUiState
 import com.omnifile.files.FilesViewModel
@@ -39,9 +40,16 @@ class MainActivity : ComponentActivity() {
     private lateinit var operationManager: OperationManager
     private lateinit var operationsViewModel: OperationsViewModel
 
-    private val treePicker = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-        if (uri != null && grantStore.persistReadGrant(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)) {
-            filesViewModel.selectSaf(uri)
+    private val treePicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val returned = result.data ?: return@registerForActivityResult
+        val uri = returned.data ?: return@registerForActivityResult
+        if (result.resultCode != RESULT_OK || !DocumentsContract.isTreeUri(uri)) return@registerForActivityResult
+        if (grantStore.persistGrant(uri, returned.flags)) {
+            if (filesViewModel.isDestinationPicker) {
+                filesViewModel.selectDestinationSaf(uri)
+            } else {
+                filesViewModel.selectSaf(uri)
+            }
         }
     }
 
@@ -59,6 +67,16 @@ class MainActivity : ComponentActivity() {
         ).build()
         val operationStore = OperationStore(operationDatabase.operationDao())
         operationManager = OperationManager(operationStore, mapOf(localProviderId to localProvider))
+        grantStore.restoredGrants().forEach { grant ->
+            val provider = SafStorageProvider(
+                contentResolver = contentResolver,
+                treeUri = grant.uri,
+                id = SafStorageProvider.providerIdFor(grant.uri),
+                grantFlags = grant.modeFlags,
+            )
+            repository.register(provider)
+            operationManager.registerProvider(provider)
+        }
         operationsViewModel = ViewModelProvider(this, OperationsViewModelFactory {
             OperationsViewModel(operationStore, operationManager)
         })[OperationsViewModel::class.java]
@@ -66,7 +84,16 @@ class MainActivity : ComponentActivity() {
             FilesViewModel(
                 repository = repository,
                 localProviderId = localProviderId,
-                safProviderFor = { uri -> SafStorageProvider(contentResolver, uri, ProviderId("saf-tree")) },
+                safProviderFor = { uri ->
+                    val grant = grantStore.grantFor(uri)
+                        ?: throw SecurityException("No persisted SAF grant")
+                    SafStorageProvider(
+                        contentResolver,
+                        uri,
+                        SafStorageProvider.providerIdFor(uri),
+                        grant.modeFlags,
+                    )
+                },
                 restoredSafUri = grantStore::restoredReadTree,
                 operationManager = operationManager,
                 onOperationsCreated = { operationsViewModel.refresh() },
@@ -92,12 +119,12 @@ class MainActivity : ComponentActivity() {
                         FilesScreen(
                             modifier = Modifier.weight(1f),
                             state = state,
-                        onSelectLocal = filesViewModel::selectLocal,
-                        onPickTree = { treePicker.launch(null) },
-                        onOpenDirectory = filesViewModel::openDirectory,
-                        onEnterSelection = filesViewModel::enterSelection,
-                        onToggleSelection = filesViewModel::toggleSelection,
-                        onClearSelection = filesViewModel::clearSelection,
+                            onSelectLocal = filesViewModel::selectLocal,
+                            onPickTree = ::launchTreePicker,
+                            onOpenDirectory = filesViewModel::openDirectory,
+                            onEnterSelection = filesViewModel::enterSelection,
+                            onToggleSelection = filesViewModel::toggleSelection,
+                            onClearSelection = filesViewModel::clearSelection,
                             onRenameSelected = filesViewModel::renameSelected,
                             onDeleteSelected = filesViewModel::deleteSelected,
                             onCopySelected = filesViewModel::copySelectedToCurrentDirectory,
@@ -105,6 +132,8 @@ class MainActivity : ComponentActivity() {
                             onOpenDestinationDirectory = filesViewModel::openDestinationDirectory,
                             onConfirmDestination = filesViewModel::confirmDestination,
                             onCancelDestination = filesViewModel::cancelDestinationPicker,
+                            onSelectLocalDestination = filesViewModel::selectDestinationLocal,
+                            onPickDestinationTree = ::launchTreePicker,
                             mutationInFlight = mutationInFlight,
                             onBack = filesViewModel::handleBack,
                             onRetry = filesViewModel::retry,
@@ -116,8 +145,21 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-            LaunchedEffect(Unit) { filesViewModel.restorePersistedSaf() }
+            LaunchedEffect(Unit) {
+                filesViewModel.restorePersistedSaf()
+                operationManager.reconcileNonTerminal()
+                operationsViewModel.refresh()
+            }
         }
+    }
+
+    private fun launchTreePicker() {
+        val accessFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+            Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION or
+            if (filesViewModel.isDestinationPicker) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0
+        treePicker.launch(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+            addFlags(accessFlags)
+        })
     }
 
     override fun onDestroy() {

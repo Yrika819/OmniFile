@@ -20,6 +20,7 @@ enum class EntryKind {
 
 enum class StorageCapability {
     LIST_CHILDREN,
+    CREATE_CHILD,
     READ_SEQUENTIAL,
     READ_SEEKABLE,
     WRITE,
@@ -57,6 +58,7 @@ sealed interface StorageError {
     data class IoFailure(val detail: String?) : StorageError
     data object Cancelled : StorageError
     data object AmbiguousFinalization : StorageError
+    data object AmbiguousSourceDeletion : StorageError
 }
 
 data class DeleteItemResult(
@@ -127,17 +129,22 @@ interface StorageTransferProvider : StorageProvider {
     suspend fun openSequentialWrite(
         partial: com.omnifile.operations.DurableLocator,
         append: Boolean,
+        operationId: String? = null,
     ): StorageResult<SequentialWriteHandle>
 
     suspend fun finalizeOperationPartial(
         partial: com.omnifile.operations.DurableLocator,
         destinationParent: com.omnifile.operations.DurableLocator,
         intendedFinalName: String,
+        operationId: String? = null,
     ): StorageResult<FinalizationResult>
 
     suspend fun deleteDurableSource(source: com.omnifile.operations.DurableLocator): StorageResult<Unit>
 
-    suspend fun deleteOperationPartial(partial: com.omnifile.operations.DurableLocator): StorageResult<Unit>
+    suspend fun deleteOperationPartial(
+        partial: com.omnifile.operations.DurableLocator,
+        operationId: String? = null,
+    ): StorageResult<Unit>
 }
 
 interface StorageProvider {

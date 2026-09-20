@@ -62,6 +62,8 @@ fun FilesScreen(
     onOpenDestinationDirectory: (StorageEntry) -> Unit = {},
     onConfirmDestination: () -> Unit = {},
     onCancelDestination: () -> Unit = {},
+    onSelectLocalDestination: () -> Unit = {},
+    onPickDestinationTree: () -> Unit = {},
     mutationInFlight: Boolean,
     onBack: () -> Unit,
     onRetry: () -> Unit,
@@ -78,6 +80,10 @@ fun FilesScreen(
     val canMove = regularFilesOnly && selectedEntries.all { it.supports(StorageCapability.DELETE) }
     val canRename = selectedEntries.size == 1 && selectedEntries.single().supports(StorageCapability.RENAME)
     val canDelete = selectedEntries.isNotEmpty() && selectedEntries.all { it.supports(StorageCapability.DELETE) }
+    val destinationCanAccept = state is FilesUiState.DestinationPicker &&
+        state.location.kind == EntryKind.DIRECTORY &&
+        state.location.supports(StorageCapability.CREATE_CHILD) &&
+        state.location.supports(StorageCapability.WRITE)
 
     Scaffold(
         modifier = modifier,
@@ -103,6 +109,7 @@ fun FilesScreen(
                     if (state is FilesUiState.DestinationPicker) {
                         TextButton(
                             modifier = Modifier.testTag("files.destination.confirm"),
+                            enabled = destinationCanAccept,
                             onClick = onConfirmDestination,
                         ) { Text("Use this folder") }
                     } else if (selection != null && mutationInFlight) {
@@ -141,6 +148,21 @@ fun FilesScreen(
                 .fillMaxSize()
                 .padding(paddingValues),
         ) {
+            if (state is FilesUiState.DestinationPicker) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    TextButton(
+                        modifier = Modifier.testTag("files.destination.local"),
+                        onClick = onSelectLocalDestination,
+                    ) { Text("Local") }
+                    TextButton(
+                        modifier = Modifier.testTag("files.destination.saf"),
+                        onClick = onPickDestinationTree,
+                    ) { Text("SAF folder") }
+                }
+            }
             when (state) {
                 FilesUiState.SourceSelection -> SourceSelection(onSelectLocal, onPickTree)
                 is FilesUiState.Loading -> LoadingState(state.location)

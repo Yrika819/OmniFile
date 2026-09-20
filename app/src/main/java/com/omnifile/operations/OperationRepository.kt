@@ -20,6 +20,7 @@ interface OperationRepository {
         errorCode: OperationErrorCode,
         errorMessage: String?,
     ): OperationSnapshot
+    suspend fun recordFinalization(operationId: String, finalLocator: DurableLocator)
     suspend fun updateProgress(operationId: String, bytesCompleted: Long)
     suspend fun requestCancellation(operationId: String): Boolean
 }

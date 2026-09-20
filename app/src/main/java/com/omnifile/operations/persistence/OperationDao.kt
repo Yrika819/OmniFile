@@ -75,6 +75,18 @@ interface OperationDao {
 
     @Query("""
         UPDATE operations
+        SET finalizationDescription = :description,
+            updatedAtEpochMillis = :updatedAtEpochMillis
+        WHERE operationId = :operationId
+    """)
+    suspend fun recordFinalization(
+        operationId: String,
+        description: String,
+        updatedAtEpochMillis: Long,
+    ): Int
+
+    @Query("""
+        UPDATE operations
         SET bytesCompleted = :bytesCompleted,
             updatedAtEpochMillis = :updatedAtEpochMillis
         WHERE operationId = :operationId

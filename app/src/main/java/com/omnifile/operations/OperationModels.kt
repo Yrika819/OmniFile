@@ -51,6 +51,7 @@ enum class OperationErrorCode {
     CANCELLED,
     RETRYABLE_INTERRUPTION,
     AMBIGUOUS_FINALIZATION,
+    AMBIGUOUS_SOURCE_DELETION,
 }
 
 data class DurableLocator(
@@ -61,6 +62,31 @@ data class DurableLocator(
     init {
         require(encoding.isNotBlank()) { "Locator encoding must not be blank" }
         require(value.isNotBlank()) { "Locator value must not be blank" }
+    }
+}
+
+object FinalizationRecord {
+    private const val PREFIX = "finalization-v1"
+
+    fun encode(locator: DurableLocator): String = listOf(
+        PREFIX,
+        locator.providerId.value,
+        locator.encoding,
+        locator.value,
+    ).joinToString("\u001f")
+
+    fun decode(description: String?): DurableLocator? {
+        val parts = description?.split("\u001f") ?: return null
+        if (parts.size != 4 || parts[0] != PREFIX) return null
+        return try {
+            DurableLocator(
+                providerId = ProviderId(parts[1]),
+                encoding = parts[2],
+                value = parts[3],
+            )
+        } catch (_: IllegalArgumentException) {
+            null
+        }
     }
 }
 

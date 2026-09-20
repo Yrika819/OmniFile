@@ -7,6 +7,7 @@ import com.omnifile.storage.SequentialWriteHandle
 import com.omnifile.storage.StorageError
 import com.omnifile.storage.StorageResult
 import com.omnifile.storage.StorageTransferProvider
+import java.io.IOException
 
 /**
  * Provider-neutral regular-file transfer. It never owns durable operation truth;
@@ -32,7 +33,7 @@ class TransferEngine(
         onCheckpoint: suspend (Long) -> Unit,
     ): TransferExecution {
         request.existingPartial?.let { existing ->
-            when (val deleted = destinationProvider.deleteOperationPartial(existing)) {
+            when (val deleted = destinationProvider.deleteOperationPartial(existing, request.operationId)) {
                 is StorageResult.Success -> Unit
                 is StorageResult.Failure -> if (deleted.error != StorageError.NotFound) {
                     return TransferExecution.Failed(deleted.error, existing)
@@ -43,10 +44,10 @@ class TransferEngine(
             is StorageResult.Success -> result.value
             is StorageResult.Failure -> return TransferExecution.Failed(result.error, null)
         }
-        if (sourceFacts.kind != EntryKind.FILE || sourceFacts.sizeBytes == null) {
+        if (sourceFacts.kind != EntryKind.FILE) {
             return TransferExecution.Failed(StorageError.Unsupported, null)
         }
-        if (request.expectedBytes != null && request.expectedBytes != sourceFacts.sizeBytes) {
+        if (request.expectedBytes != null && sourceFacts.sizeBytes != null && request.expectedBytes != sourceFacts.sizeBytes) {
             return TransferExecution.Failed(StorageError.SourceChanged, null)
         }
 
@@ -54,15 +55,30 @@ class TransferEngine(
             is StorageResult.Success -> result.value
             is StorageResult.Failure -> return TransferExecution.Failed(result.error, null)
         }
-        val existing = when (val result = destinationProvider.listChildren(destinationParent.ref)) {
-            is StorageResult.Success -> result.value.firstOrNull { it.displayName == request.intendedFinalName }
+        if (destinationParent.kind != EntryKind.DIRECTORY) {
+            return TransferExecution.Failed(StorageError.Unsupported, null)
+        }
+        val destinationChildren = when (val result = destinationProvider.listChildren(destinationParent.ref)) {
+            is StorageResult.Success -> result.value
             is StorageResult.Failure -> return TransferExecution.Failed(result.error, null)
         }
-        if (existing != null) {
+        if (destinationChildren.any { it.displayName == request.intendedFinalName }) {
             return TransferExecution.Failed(StorageError.NameConflict(request.intendedFinalName), null)
         }
 
-        val partial = when (val result = destinationProvider.createOperationPartial(
+        val discoveredPartial = if (request.existingPartial == null) {
+            destinationChildren
+                .firstOrNull { it.displayName == partialName(request.operationId) }
+                ?.let { entry ->
+                    when (val encoded = destinationProvider.encodeDurableLocator(entry.ref)) {
+                        is StorageResult.Success -> encoded.value
+                        is StorageResult.Failure -> return TransferExecution.Failed(encoded.error, null)
+                    }
+                }
+        } else {
+            null
+        }
+        val partial = discoveredPartial ?: when (val result = destinationProvider.createOperationPartial(
             request.destinationParent,
             request.intendedFinalName,
             request.operationId,
@@ -79,6 +95,7 @@ class TransferEngine(
             copy(
                 sourceProvider = sourceProvider,
                 destinationProvider = destinationProvider,
+                operationId = request.operationId,
                 source = request.source,
                 partial = partial,
                 expectedBytes = sourceFacts.sizeBytes,
@@ -89,6 +106,16 @@ class TransferEngine(
             return TransferExecution.Cancelled(partial, cancelled.bytesCompleted)
         } catch (failure: TransferFailure) {
             return TransferExecution.Failed(failure.error, partial)
+        } catch (error: SecurityException) {
+            return TransferExecution.Failed(StorageError.PermissionDenied, partial)
+        } catch (error: UnsupportedOperationException) {
+            return TransferExecution.Failed(StorageError.Unsupported, partial)
+        } catch (error: IllegalArgumentException) {
+            return TransferExecution.Failed(StorageError.StaleReference, partial)
+        } catch (error: IOException) {
+            return TransferExecution.Failed(StorageError.IoFailure(error.message), partial)
+        } catch (error: IllegalStateException) {
+            return TransferExecution.Failed(StorageError.IoFailure(error.message), partial)
         }
         faultInjector.failureAt(TransferFaultBoundary.AFTER_TRANSFER, bytesCompleted)?.let {
             return TransferExecution.Failed(it, partial)
@@ -105,7 +132,20 @@ class TransferEngine(
             is StorageResult.Success -> result.value
             is StorageResult.Failure -> return TransferExecution.Failed(result.error, partial)
         }
-        if (partialFacts.kind != EntryKind.FILE || partialFacts.sizeBytes != sourceFacts.sizeBytes) {
+        val partialBytes = try {
+            when {
+                partialFacts.kind != EntryKind.FILE -> return TransferExecution.Failed(StorageError.Unsupported, partial)
+                partialFacts.sizeBytes != null -> partialFacts.sizeBytes
+                else -> countBytes(destinationProvider, partial)
+            }
+        } catch (error: SecurityException) {
+            return TransferExecution.Failed(StorageError.PermissionDenied, partial)
+        } catch (error: IOException) {
+            return TransferExecution.Failed(StorageError.IoFailure(error.message), partial)
+        } catch (error: IllegalStateException) {
+            return TransferExecution.Failed(StorageError.IoFailure(error.message), partial)
+        }
+        if (partialBytes != bytesCompleted) {
             return TransferExecution.Failed(StorageError.IoFailure("Partial verification size mismatch"), partial)
         }
         faultInjector.failureAt(TransferFaultBoundary.AFTER_VERIFY, bytesCompleted)?.let {
@@ -117,6 +157,7 @@ class TransferEngine(
             partial,
             request.destinationParent,
             request.intendedFinalName,
+            operationId = request.operationId,
         )) {
             is StorageResult.Success -> when (val finalization = result.value) {
                 is FinalizationResult.Finalized -> finalization.finalLocator
@@ -126,15 +167,32 @@ class TransferEngine(
             is StorageResult.Failure -> return TransferExecution.Failed(result.error, partial)
         }
         faultInjector.failureAt(TransferFaultBoundary.AFTER_FINALIZE, bytesCompleted)?.let {
-            return TransferExecution.Failed(it, finalLocator)
+            return TransferExecution.Failed(it, null, finalLocator)
         }
 
         val finalFacts = when (val result = destinationProvider.inspectTransfer(finalLocator)) {
             is StorageResult.Success -> result.value
-            is StorageResult.Failure -> return TransferExecution.Failed(result.error, finalLocator)
+            is StorageResult.Failure -> return TransferExecution.Failed(result.error, null, finalLocator)
         }
-        if (finalFacts.kind != EntryKind.FILE || finalFacts.sizeBytes != sourceFacts.sizeBytes) {
-            return TransferExecution.Failed(StorageError.IoFailure("Final verification size mismatch"), finalLocator)
+        val finalBytes = try {
+            when {
+                finalFacts.kind != EntryKind.FILE -> return TransferExecution.Failed(StorageError.Unsupported, null, finalLocator)
+                finalFacts.sizeBytes != null -> finalFacts.sizeBytes
+                else -> countBytes(destinationProvider, finalLocator)
+            }
+        } catch (error: SecurityException) {
+            return TransferExecution.Failed(StorageError.PermissionDenied, null, finalLocator)
+        } catch (error: IOException) {
+            return TransferExecution.Failed(StorageError.IoFailure(error.message), null, finalLocator)
+        } catch (error: IllegalStateException) {
+            return TransferExecution.Failed(StorageError.IoFailure(error.message), null, finalLocator)
+        }
+        if (finalBytes != bytesCompleted) {
+            return TransferExecution.Failed(
+                StorageError.IoFailure("Final verification size mismatch"),
+                null,
+                finalLocator,
+            )
         }
         return TransferExecution.DestinationComplete(finalLocator, bytesCompleted)
     }
@@ -142,9 +200,10 @@ class TransferEngine(
     private suspend fun copy(
         sourceProvider: StorageTransferProvider,
         destinationProvider: StorageTransferProvider,
+        operationId: String,
         source: DurableLocator,
         partial: DurableLocator,
-        expectedBytes: Long,
+        expectedBytes: Long?,
         isCancellationRequested: suspend () -> Boolean,
         onCheckpoint: suspend (Long) -> Unit,
     ): Long {
@@ -152,7 +211,7 @@ class TransferEngine(
             is StorageResult.Success -> result.value
             is StorageResult.Failure -> throw TransferFailure(result.error)
         }
-        val writer = when (val result = destinationProvider.openSequentialWrite(partial, append = false)) {
+        val writer = when (val result = destinationProvider.openSequentialWrite(partial, append = false, operationId = operationId)) {
             is StorageResult.Success -> result.value
             is StorageResult.Failure -> {
                 reader.close()
@@ -178,7 +237,9 @@ class TransferEngine(
                     while (nextCheckpoint <= completed) nextCheckpoint += checkpointBytes
                 }
             }
-            if (completed != expectedBytes) throw TransferFailure(StorageError.IoFailure("Transferred byte count mismatch"))
+            if (expectedBytes != null && completed != expectedBytes) {
+                throw TransferFailure(StorageError.IoFailure("Transferred byte count mismatch"))
+            }
             writer.flush()
             onCheckpoint(completed)
             return completed
@@ -187,6 +248,30 @@ class TransferEngine(
             reader.close()
         }
     }
+
+    private suspend fun countBytes(
+        provider: StorageTransferProvider,
+        locator: DurableLocator,
+    ): Long {
+        val reader = when (val result = provider.openSequentialRead(locator)) {
+            is StorageResult.Success -> result.value
+            is StorageResult.Failure -> throw TransferFailure(result.error)
+        }
+        val buffer = ByteArray(bufferSize)
+        var count = 0L
+        try {
+            while (true) {
+                val read = reader.read(buffer, 0, buffer.size)
+                if (read < 0) return count
+                if (read > 0) count += read.toLong()
+            }
+        } finally {
+            reader.close()
+        }
+    }
+
+    private fun partialName(operationId: String): String =
+        ".omnifile-${operationId.replace(Regex("[^A-Za-z0-9._-]"), "_")}.partial"
 
     data class TransferRequest(
         val operationId: String,
@@ -200,7 +285,11 @@ class TransferEngine(
     sealed interface TransferExecution {
         data class DestinationComplete(val finalLocator: DurableLocator, val bytesCompleted: Long) : TransferExecution
         data class Cancelled(val partial: DurableLocator, val bytesCompleted: Long) : TransferExecution
-        data class Failed(val error: StorageError, val partial: DurableLocator?) : TransferExecution
+        data class Failed(
+            val error: StorageError,
+            val partial: DurableLocator?,
+            val finalizedDestination: DurableLocator? = null,
+        ) : TransferExecution
     }
 
     enum class TransferFaultBoundary {
@@ -227,4 +316,3 @@ class TransferEngine(
         const val DEFAULT_CHECKPOINT_BYTES = 8L * 1024L * 1024L
     }
 }
-

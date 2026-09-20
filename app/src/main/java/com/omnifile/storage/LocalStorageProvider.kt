@@ -155,10 +155,11 @@ class LocalStorageProvider(
     override suspend fun openSequentialWrite(
         partial: com.omnifile.operations.DurableLocator,
         append: Boolean,
+        operationId: String?,
     ): StorageResult<SequentialWriteHandle> = guarded {
         if (append) throw UnsupportedOperationException("Local true resume is not yet proven")
         val path = resolveDurablePath(partial)
-        if (!isOperationPartial(path)) throw StaleReferenceException
+        if (!isOperationPartial(path, operationId)) throw StaleReferenceException
         val attributes = Files.readAttributes(path, BasicFileAttributes::class.java, LinkOption.NOFOLLOW_LINKS)
         if (!attributes.isRegularFile || attributes.isSymbolicLink) {
             throw UnsupportedOperationException("Only operation-owned regular files are writable")
@@ -176,13 +177,14 @@ class LocalStorageProvider(
         partial: com.omnifile.operations.DurableLocator,
         destinationParent: com.omnifile.operations.DurableLocator,
         intendedFinalName: String,
+        operationId: String?,
     ): StorageResult<FinalizationResult> = guarded {
         if (!isValidSingleComponent(intendedFinalName)) {
             throw IllegalArgumentException("Invalid destination name")
         }
         val partialPath = resolveDurablePath(partial)
         val parent = resolveDurablePath(destinationParent)
-        if (partialPath.parent != parent || !isOperationPartial(partialPath)) {
+        if (partialPath.parent != parent || !isOperationPartial(partialPath, operationId)) {
             throw StaleReferenceException
         }
         val attributes = Files.readAttributes(partialPath, BasicFileAttributes::class.java, LinkOption.NOFOLLOW_LINKS)
@@ -223,9 +225,10 @@ class LocalStorageProvider(
 
     override suspend fun deleteOperationPartial(
         partial: com.omnifile.operations.DurableLocator,
+        operationId: String?,
     ): StorageResult<Unit> = guarded {
         val path = resolveDurablePath(partial)
-        if (!isOperationPartial(path)) throw StaleReferenceException
+        if (!isOperationPartial(path, operationId)) throw StaleReferenceException
         withSecureParent(path) { secureParent, name ->
             val attributes = childAttributes(secureParent, name)
             if (!attributes.isRegularFile || attributes.isSymbolicLink) {
@@ -234,6 +237,21 @@ class LocalStorageProvider(
             secureParent.deleteFile(name)
         }
     }
+
+    suspend fun openSequentialWrite(
+        partial: com.omnifile.operations.DurableLocator,
+        append: Boolean,
+    ): StorageResult<SequentialWriteHandle> = openSequentialWrite(partial, append, null)
+
+    suspend fun finalizeOperationPartial(
+        partial: com.omnifile.operations.DurableLocator,
+        destinationParent: com.omnifile.operations.DurableLocator,
+        intendedFinalName: String,
+    ): StorageResult<FinalizationResult> = finalizeOperationPartial(partial, destinationParent, intendedFinalName, null)
+
+    suspend fun deleteOperationPartial(
+        partial: com.omnifile.operations.DurableLocator,
+    ): StorageResult<Unit> = deleteOperationPartial(partial, null)
 
     private fun locatorFor(path: Path): com.omnifile.operations.DurableLocator {
         val normalized = path.toAbsolutePath().normalize()
@@ -258,9 +276,12 @@ class LocalStorageProvider(
         return resolved
     }
 
-    private fun isOperationPartial(path: Path): Boolean {
+    private fun isOperationPartial(path: Path, operationId: String? = null): Boolean {
         val name = path.fileName?.toString() ?: return false
-        return name.startsWith(".omnifile-") && name.endsWith(".partial")
+        if (!name.startsWith(".omnifile-") || !name.endsWith(".partial")) return false
+        if (operationId == null) return true
+        val safeOperationId = operationId.replace(Regex("[^A-Za-z0-9._-]"), "_")
+        return name == ".omnifile-$safeOperationId.partial"
     }
 
     private fun isValidSingleComponent(name: String): Boolean =
@@ -303,6 +324,8 @@ class LocalStorageProvider(
         val capabilities = buildSet {
             if (directory) {
                 add(StorageCapability.LIST_CHILDREN)
+                add(StorageCapability.CREATE_CHILD)
+                add(StorageCapability.WRITE)
             } else if (attributes.isRegularFile) {
                 add(StorageCapability.READ_SEQUENTIAL)
                 add(StorageCapability.READ_SEEKABLE)

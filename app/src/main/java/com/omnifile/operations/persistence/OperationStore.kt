@@ -93,6 +93,17 @@ class OperationStore(
         return requireNotNull(find(operationId))
     }
 
+    override suspend fun recordFinalization(
+        operationId: String,
+        finalLocator: com.omnifile.operations.DurableLocator,
+    ) {
+        check(dao.recordFinalization(
+            operationId = operationId,
+            description = com.omnifile.operations.FinalizationRecord.encode(finalLocator),
+            updatedAtEpochMillis = nowEpochMillis(),
+        ) == 1) { "Unknown operation: $operationId" }
+    }
+
     override suspend fun updateProgress(operationId: String, bytesCompleted: Long) {
         require(bytesCompleted >= 0L) { "Completed bytes cannot be negative" }
         check(dao.updateProgress(operationId, bytesCompleted, nowEpochMillis()) == 1) {

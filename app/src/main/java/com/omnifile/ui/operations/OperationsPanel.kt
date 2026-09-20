@@ -35,9 +35,11 @@ fun OperationsPanel(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("${operation.type}: ${operation.intendedFinalName}")
+                    val progress = operation.expectedBytes?.let {
+                        "${operation.bytesCompleted} B / $it B"
+                    } ?: "${operation.bytesCompleted} B · size unknown"
                     Text(
-                        "${operation.state} · ${operation.bytesCompleted} B" +
-                            (operation.expectedBytes?.let { " / $it B" } ?: ""),
+                        "${operation.state} · $progress",
                         style = MaterialTheme.typography.bodySmall,
                     )
                     operation.errorMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
