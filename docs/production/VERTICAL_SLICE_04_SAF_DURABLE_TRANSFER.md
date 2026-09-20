@@ -2,89 +2,127 @@
 
 ## Status
 
-`OMNIFILE_CORE_V1_VS04_INCOMPLETE — SAF DESTINATION FINALIZATION AND SAF MOVE REMAIN UNSUPPORTED; REVOCATION/DESTRUCTIVE-MOVE EVIDENCE DEFERRED`
+`OMNIFILE_CORE_V1_VS04_INCOMPLETE — FINAL PIXEL COMPOSE/UI RERUN PENDING WHILE DEVICE IS LOCKED`
 
-This document records the final verified state of the current VS04 worktree. SAF destination finalization is intentionally not globally trusted. The only SAF route claimed supported in production is sequential SAF source to Local destination Copy, using a currently persisted grant and the provider semantics verified below.
+VS04 hardening is implemented and the two prior final-review code findings are closed. The final supported production matrix remains conservative: sequential SAF source → Local Copy is supported for the verified grant/provider path; SAF destination finalization, SAF Move, and SAF → SAF remain Unsupported.
 
-## Base, branch, and schema
+The latest Pixel run was blocked only for Compose/UI interaction because the Pixel entered `mDreamingLockscreen=true`. The device was not unlocked or bypassed. Controlled provider runtime and non-UI SAF runtime remained executable and passed.
 
-- Published VS03 base SHA: `a95b3e28f47954b879b389ce6d5a5f17d4704407`
+## Base, branch, and current revision
+
+- Published VS03 base: `a95b3e28f47954b879b389ce6d5a5f17d4704407`
 - VS04 branch: `development/core-v1-saf-transfer-v1`
 - VS04 worktree: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1`
-- Runtime-verified pre-commit HEAD: `d6a82896b074cfbf2a5f958c086e462906157d0`
+- Hardening commit: `19b73f7 fix(storage): close saf interruption and tree restoration blockers`
 - Room schema: version `1`; unchanged; no migration required
-- Android runtime: Pixel 7a, Android 16/API 36
-- Stable device serial: `adb-35241JEHN08768-sNRKBY._adb-tls-connect._tcp`
+- Device: Pixel 7a, Android 16/API 36
+- Stable serial: `adb-35241JEHN08768-sNRKBY._adb-tls-connect._tcp`
 
-## Final route matrix
+## Final production route matrix
 
 | Route | Production claim | Evidence and boundary |
 |---|---|---|
-| Local → Local Copy/Move | Supported | VS03 production route; final full instrumentation remained green. |
-| SAF → Local Copy | Supported, sequential Copy only | Controlled provider runtime `18/18`; final APK real Pixel Copy `41 B`, source retained, Local output and terminal `COMPLETE` verified. This does not imply universal SAF provider support beyond the grant/provider capability checks. |
-| SAF → Local Move | Unsupported | `sourceVersionProven=false` for production SAF. Move is not advertised/enqueued without a provider-scoped source version proof. The earlier pre-gate real Move is evidence only, not a final support claim. |
-| Local → SAF Copy | Unsupported | `finalizationProven=false`; destination picker `Use this folder` remained disabled for SAF. No source deletion or direct final-name write is allowed. |
-| Local → SAF Move | Unsupported | Same destination finalization gate, plus destructive source deletion requires a completed SAF destination. |
-| SAF → SAF Copy | Unsupported | SAF destination finalization is not proven; no route is advertised. |
-| SAF → SAF Move | Unsupported | SAF destination finalization and SAF source mutation/delete proof are not sufficient. |
+| Local → Local Copy/Move | Supported | VS03 durable route retained; host and instrumentation regression paths remain green. |
+| SAF → Local Copy | Supported, sequential Copy only | Controlled provider and durable SAF runtime pass; prior real Pixel Copy completed `41 B`, source retained, Local destination reached `COMPLETE`. Claim is bounded to current persisted readable grant and provider capability path. |
+| SAF → Local Move | Unsupported | Production `sourceVersionProven=false`; `MOVE_SOURCE` is not advertised/enqueued without provider-scoped mutation/version proof. |
+| Local → SAF Copy | Unsupported | `finalizationProven=false`; SAF destination confirmation remains disabled. No direct write to intended final name is allowed. |
+| Local → SAF Move | Unsupported | SAF destination finalization is unsupported, and destructive source deletion requires durable destination completion. |
+| SAF → SAF Copy | Unsupported | SAF destination finalization is not proven. |
+| SAF → SAF Move | Unsupported | Destination finalization plus SAF source mutation/delete proof are not sufficient. |
 
-Unsupported routes are capability-gated in the existing Files/destination-picker UI; no separate SAF operation UI or generic finalization trust was added.
+No route was enabled merely because a `ContentResolver` operation could be opened. Unsupported routes remain capability-gated in Files and the destination picker.
 
-## Durable SAF locator
+## Durable SAF locator and identity
 
 Encoding: `saf-document-v1`.
 
-The versioned payload contains URL-safe, unpadded Base64 tokens for:
+The locator contains the exact selected tree URI string and provider document ID in a versioned, URL-safe payload. The provider ID is derived from the selected tree URI. A locator is not a path, display name, `DocumentFile`, `ContentResolver`, descriptor, or stream.
 
-1. the selected tree URI string;
-2. the current provider document ID.
+Re-resolution validates provider ID, exact tree URI, authority, locator encoding, current persisted grant, and selected-tree containment. Provider-returned document identity is used after rename/finalization where that route is enabled. A stale partial locator is never promoted to final destination truth.
 
-The provider ID is derived from SHA-256 of the selected tree URI. The locator is not a path, display name, `DocumentFile`, `ContentResolver`, descriptor, or stream. Decode and re-resolution validate the provider ID, exact selected-tree URI, authority, and provider child containment. Provider-returned document identity is used where finalization is supported by a provider; stale partial identity is never promoted to final truth.
+Finalization records use escaped/versioned `finalization-v2`; legacy `finalization-v1` decoding remains for compatibility.
 
-Finalization records use the escaped/versioned `finalization-v2` encoding with legacy `finalization-v1` decoding retained. This prevents delimiter-bearing locator fields from corrupting restart truth.
+## Provider interruption classification
 
-## Persisted permission policy and security evidence
+The prior final-review Major finding was that provider disappearance during containment could be converted to `StaleReference` and then `NOT_FOUND`. That path is closed.
 
-- Production constructs `ACTION_OPEN_DOCUMENT_TREE`.
+`StorageError.ProviderUnavailable` is now a distinct storage result. It is emitted when provider containment/query cannot answer, rather than when the provider positively answers that a document is outside the selected tree.
+
+Classification contract:
+
+- provider unavailable / provider transport failure → `ProviderUnavailable`; retryable durable operation state;
+- revoked/missing grant → `PermissionDenied`; source deletion is never inferred;
+- query returns no in-tree document → `NotFound`; this is the only positive missing-document result in the controlled contract;
+- valid document exists outside the selected tree or locator identity is mismatched → `StaleReference`;
+- ordinary provider I/O failure → `IoFailure`.
+
+`ProviderUnavailable` maps to `PROVIDER_UNAVAILABLE` and a retryable operation state. It never maps to `NOT_FOUND`, `COMPLETE`, source absence, or source deletion.
+
+When destination completion has already been recorded, a provider observation outage enters finalization reconciliation rather than returning to `TRANSFERRING`. When the outage occurs during `SOURCE_DELETE_PENDING`, the operation remains retryable with source deletion pending. Recovery does not recopy or create a second destination.
+
+The Files error path renders a stable retry-oriented message instead of exposing the raw enum name.
+
+## Persisted grant and selected-tree policy
+
+Production uses `ACTION_OPEN_DOCUMENT_TREE`.
+
 - Source browsing requests read plus persistable permission.
-- Destination picker adds write permission only when destination selection is requested.
-- Only read/write bits actually present in the returned Intent flags are passed to `takePersistableUriPermission` and stored.
-- Returned data must be `RESULT_OK`, a tree URI, content scheme, and non-blank authority.
-- On restart, grants are rebuilt from `ContentResolver.persistedUriPermissions`; stored preferences do not override platform truth.
-- Readable grants are restored with the shallowest tree document depth so a persisted child destination does not replace the selected broad root.
-- Missing/revoked grants are classified as permission loss at the SAF adapter boundary; they do not prove source deletion and do not authorize broad storage permission.
-- Authority/tree/document containment is checked before accepting a locator, returned identity, rename result, or cleanup target.
+- Destination selection adds write only while a destination picker is active.
+- Only read/write bits present in the returned Intent are passed to `takePersistableUriPermission`.
+- Returned data must be `RESULT_OK`, a tree URI, content scheme, and nonblank authority.
+- Platform `ContentResolver.persistedUriPermissions` remains the authority for current access; an app preference never grants access.
+- A successful source picker result records `selected-read-tree-uri-v1` only after the current persisted grant is re-read and confirmed readable.
+- A destination picker result persists the grant but does not replace the selected source marker.
+- On restore, a valid exact marker wins regardless of platform permission enumeration order.
+- If the marker is revoked or absent, a unique shallowest readable tree is used as the safe broad-root fallback.
+- If unrelated readable grants tie at the shallowest depth, no tree is auto-selected; the user must select a source again. Platform list order is not treated as intent.
 
-Real Pixel persisted grant evidence:
+The prior final-review Minor finding about equal-depth restoration is closed by the marker and deterministic fallback policy. Host tests cover selecting A, later selecting B, reversed grant enumeration, revoked marker fallback, write-only grants, and unique broad-root fallback.
 
-- Provider package/class: `com.android.externalstorage/.ExternalStorageProvider`
+Real Pixel grant evidence from the disposable tree:
+
+- Provider: `com.android.externalstorage/.ExternalStorageProvider`
 - Authority: `com.android.externalstorage.documents`
 - Broad tree: `content://com.android.externalstorage.documents/tree/primary%3AOmniFile-SAF-Test`
 - Destination tree: `content://com.android.externalstorage.documents/tree/primary%3AOmniFile-SAF-Test%2Fdestination`
-- `dumpsys activity permissions`: both grants showed `mode=0x3`, `persistable=0x3`, `persisted=0x3`, `[prefix]`
-- The final APK restored `OmniFile-SAF-Test` rather than the child `destination` tree.
+- Observed permission state: `mode=0x3`, `persistable=0x3`, `persisted=0x3`, `[prefix]`
+- Prior production restart restored the broad `OmniFile-SAF-Test` tree rather than the child destination tree.
 
-## Capability and support rules
+Real grant revocation and equal-depth DocumentsUI interaction were not repeated during the locked-device overnight run. Deterministic controlled/host evidence is the primary evidence for those interruption and restoration cases.
 
-SAF capabilities are derived from current provider flags and current persisted grant mode, not object type alone:
+## Capability and finalization gates
+
+SAF capabilities derive from current grant flags and provider document flags, not object type alone:
 
 - source: sequential read;
-- destination parent: create child and write only when destination finalization is proven for that provider;
-- partial/final destination: provider write/rename/delete capabilities are separately checked;
-- Move source: delete plus a provider-scoped source version proof.
+- destination parent: create/write only when destination finalization is proven for that provider;
+- partial/final destination: write, rename, inspect, and delete are independently checked;
+- Move source: delete plus provider-scoped source-version proof.
 
-Provider flags are advertised capabilities, not proof that an operation succeeded. Runtime failures remain typed and durable. Production defaults remain:
+Production defaults remain:
 
 ```text
 finalizationProven = false
 sourceVersionProven = false
 ```
 
-Controlled tests opt into deterministic proofs only inside the controlled provider fixture. No authority-name-only global trust decision was introduced.
+Controlled tests may opt into deterministic proofs only inside the controlled provider fixture. No authority-name-only global trust decision was introduced.
+
+The generic destination lifecycle remains implemented behind the disabled gate:
+
+```text
+create operation-owned SAF partial
+  -> bounded sequential write
+  -> verify observed bytes
+  -> provider finalization
+  -> verify returned identity and parent containment
+  -> persist returned final locator
+  -> only then allow source deletion for Move
+```
+
+Partial names are operation-bound: `.omnifile-<sanitized-operation-id>.partial`. Cleanup requires exact durable operation ownership and an operation ID; name resemblance alone never authorizes deletion. Conflicts do not overwrite existing user data.
 
 ## Supported SAF → Local Copy lifecycle
-
-The supported one-sided route is:
 
 ```text
 resolve persisted SAF locator
@@ -93,93 +131,58 @@ resolve persisted SAF locator
   -> create operation-owned Local partial
   -> bounded transfer and verification
   -> Local finalization
-  -> durably record destination complete
+  -> durably record destination completion
   -> retain SAF source for Copy
 ```
 
-The Local destination uses the already-proven VS03 durable finalization semantics. SAF source deletion is not part of this supported route.
+SAF source deletion is not part of the supported route.
 
-## Destination partial/finalization policy
+## Metadata, streaming, cancellation, and recovery
 
-The generic SAF destination lifecycle remains implemented behind a conservative gate:
-
-```text
-create operation-owned SAF partial
-  -> bounded sequential transfer
-  -> verify observed bytes
-  -> provider rename/finalization
-  -> verify returned identity and parent containment
-  -> persist returned final locator
-  -> only then allow Move source deletion
-```
-
-Partial names are collision-resistant and operation-bound: `.omnifile-<sanitized-operation-id>.partial`. Cleanup requires exact durable operation ownership; operation ID is required for partial access and cleanup; name resemblance alone never authorizes deletion. Intended final-name conflicts are detected without overwriting existing user data.
-
-Controlled provider tests prove both same-URI and changed-URI rename, sanitized returned names, conflict preservation, ambiguous acknowledgement, and owned-partial cleanup. The real Pixel provider was not allowed to reach create/rename because generic SAF finalization is intentionally unsupported. Therefore no real-provider final URI/documentId change is claimed, and `finalizationProven` remains false.
-
-## Transfer and metadata behavior
-
-- Buffer: bounded `256 KiB`.
-- Advisory checkpoint: `8 MiB`.
-- SAF sequential descriptors may be pipe-like/non-seekable; true offset resume is not advertised.
-- Unknown size remains unknown. Transfer proceeds to EOF and compares observed bytes against durable transfer facts where available; missing proof fails closed.
-- Progress does not invent `0/0`; unknown-size operations use indeterminate/size-unknown presentation and keep verification/finalization stages visible.
-
-## Cancellation, conflict, and restart
-
+- Transfer buffer: bounded `256 KiB`.
+- Advisory checkpoint cadence: `8 MiB`.
+- Pipe-like/non-seekable SAF descriptors are supported for sequential reads/writes in the controlled provider.
+- True offset resume is not advertised.
+- Unknown size remains unknown; transfer proceeds sequentially and verification compares observed durable bytes.
+- Progress uses indeterminate/unknown-size semantics rather than inventing `0 B` total.
 - Cancellation does not finalize incomplete output or delete a Move source.
-- Only exact operation-owned partials may be cleaned.
-- Existing destination data is not overwritten; conflict remains durable and the source remains.
-- Restart does not blindly replay destructive stages.
-- Persisted finalization records are reconciled before replay; repeated ambiguous finalization does not issue an illegal self-transition.
-- Unknown-size destination verification compares durable observed bytes before destructive completion.
-- Final destination locators are revalidated before source deletion in any future provider-scoped Move.
+- Restart reconciles persisted finalization before replay and never blindly duplicates a destination.
+- Ambiguous finalization remains interruption/reconciliation truth.
+- Provider outage during source deletion leaves `SOURCE_DELETE_PENDING`/retryable truth; source deletion is attempted only after destination completion is established.
 
-## Controlled DocumentsProvider evidence
+## Controlled DocumentsProvider runtime evidence
 
-The existing controlled `TestDocumentsProvider` was extended rather than replaced. The final direct AndroidJUnitRunner execution was:
+The existing `TestDocumentsProvider` was extended rather than replaced. Final direct AndroidJUnitRunner evidence on the Pixel:
 
 ```text
-Tests run: 18
-Failures: 0
-Skipped: 0
-Result: OK
+SafStorageProviderInstrumentedTest: 17/17 OK
+SafStorageProviderInstrumentedTest + SafTransferRuntimeInstrumentedTest: 20/20 OK
 ```
 
-Target classes:
+Coverage includes:
 
-- `com.omnifile.storage.SafStorageProviderInstrumentedTest`
-- `com.omnifile.operations.SafTransferRuntimeInstrumentedTest`
-
-Runtime coverage includes:
-
-- sequential SAF read/write;
+- sequential read/write;
 - pipe/non-seekable descriptors;
 - unknown size;
-- operation-owned partial creation and ownership;
+- operation-owned partial creation and cleanup;
+- provider unavailable before resolution and child listing;
+- provider recovery;
+- true in-tree NotFound;
+- permission failure;
+- stale identity/tree boundaries;
 - create/read/write/rename/delete failures;
 - conflict preservation;
 - same-identity and changed-identity rename;
 - provider-sanitized final name;
-- stale tree reference and read-only grant gating;
-- provider disappearance/interruption and ambiguous finalization behavior represented by the harness;
-- SAF→Local, Local→SAF, and SAF→SAF state/order fixtures;
-- source-delete ordering and durable reconciliation cases covered by the controlled fixture.
+- ambiguous finalization;
+- SAF→Local, controlled Local→SAF, and controlled SAF→SAF order fixtures;
+- Move source-delete ordering and reconciliation.
 
-The final full direct runner execution was:
-
-```text
-Tests run: 29
-Failures: 0
-Skipped: 0
-Result: OK
-```
-
-This included scaffold/startup, Local transfer, Room, controlled SAF, and Compose UI tests.
+The controlled harness’s `isChildDocument` treats containment as an identity-boundary answer, not an existence query, so an in-tree deleted ID reaches `queryDocument` and can produce truthful `NotFound` rather than framework-level permission denial.
 
 ## Real Pixel evidence
 
-Dedicated disposable tree:
+Disposable tree used:
 
 ```text
 OmniFile-SAF-Test/
@@ -188,72 +191,76 @@ OmniFile-SAF-Test/
   destination/
 ```
 
-Provider: Android system `ExternalStorageProvider` described above.
+Earlier final production APK evidence on the same Pixel/provider established:
 
-Final APK flow:
+- normal DocumentsUI tree grant acquisition;
+- selected SAF source restoration;
+- SAF source visible at `41 B`;
+- Copy enabled and Move disabled;
+- SAF destination `Use this folder` disabled;
+- SAF→Local Copy reached `COMPLETE · 41 B / 41 B`;
+- SAF source remained after Copy;
+- repeated Copy against existing Local destination became `CONFLICTED · 0 B / 41 B` without overwrite;
+- fresh Copy completed after deleting only the disposable Local output.
 
-- Normal DocumentsUI tree selection and Android confirmation were used; no grant database, root, or fabricated permission was used.
-- Files restored the selected SAF source tree and displayed `vs04-source.txt` at `41 B`.
-- SAF source selection showed Copy enabled and Move disabled because `MOVE_SOURCE` requires `sourceVersionProven`.
-- Destination picker showed SAF folder option, but SAF `Use this folder` was disabled because `finalizationProven=false`.
-- SAF→Local Copy completed through the production UI as `COMPLETE · 41 B / 41 B`.
-- Source remained visible after Copy.
-- Local `files` showed the copied `vs04-source.txt` at `41 B`.
-- An initial repeated Copy against the existing Local destination correctly became `CONFLICTED · 0 B / 41 B`; the existing destination was not overwritten. After deleting only that disposable Local output through the app, a fresh final-APK Copy completed.
-- No real Local→SAF or SAF→SAF destination transfer was attempted because the production gate correctly prevented it.
-- No final production SAF Move is claimed. The earlier pre-source-version-gate real Move is retained only as historical evidence and is not acceptance evidence for this tree.
+No real Local→SAF or SAF→SAF destination operation was attempted because production finalization is intentionally unsupported. No final production SAF Move is claimed.
 
-The platform shell could read the disposable SAF source and observed SHA-256 `f2b879a7cf52d51ebcd3b69afd6ae4fee06520bfbf91de88aeca97b5b2aab766`; Android 16 disallowed `run-as` inspection of the app-private destination, so destination content equality is established by the production transfer verification plus the exact UI byte count, not by bypassing app sandbox policy.
+The current final APK was installed successfully, but the Pixel then reported `mDreamingLockscreen=true`. The final Compose class returned four `No compose hierarchies found` failures because the device was locked/dreaming. Unlocking, root, grant database edits, and permission bypass were not used.
 
 ## Room/schema impact
 
-No schema change. Existing generic locator fields and finalization description carry versioned Local/SAF payloads. Existing VS03 active and terminal operations remain on Room schema version 1.
+No schema change. Room remains schema version `1`. Versioned locators and finalization descriptions fit existing generic fields.
 
-## Verification counts and artifacts
+## Verification counts, builds, and artifacts
 
-Environment: Android Studio JBR `25.0.3`, SDK `/Users/yuta/Library/Android/sdk`, serialized Gradle policy:
+Environment:
 
 ```text
---no-daemon --max-workers=1 -Dkotlin.compiler.execution.strategy=in-process --dependency-verification=strict
+Android Studio JBR 25.0.3
+SDK /Users/yuta/Library/Android/sdk
+--no-daemon --max-workers=1
+-Dorg.gradle.java.home=/Applications/Android Studio.app/Contents/jbr/Contents/Home
+-Dkotlin.compiler.execution.strategy=in-process
+--dependency-verification=strict
 ```
 
-Fresh final host verification on the final runtime-fix tree:
+Fresh current tree results:
 
-- `:app:testDebugUnitTest`: `63 passed, 0 failed, 0 errors, 0 skipped`
-- `:app:lintDebug`: PASS, `0 errors`, `22 warnings`
+- `:app:testDebugUnitTest`: `69 tests; 0 failures; 0 errors; 0 skipped`
+- `:app:lintDebug`: PASS; `0 errors`
 - `:app:assembleDebug`: PASS
 - `:app:assembleDebugAndroidTest`: PASS
-- strict dependency verification: PASS for every invocation above
+- strict dependency verification: PASS for all Gradle invocations
 
-APK SHA-256:
+Final APK SHA-256:
 
 ```text
 app-debug.apk
-3bec4009382cd59310ff437f8b9136baf54b549f128f3a74812aef6ed7c3243d
+4aab8d502161a5deddbd8d9451ce73fd5acac72a88e8a998e6eeb66a9bcd40f1
 
 app-debug-androidTest.apk
-058b2cc83270360f591866a0cd7a1e9b747edbe332f7c5b62677ded7023382ec
+6881e010dc1a0455a967c1e13885aa72a6ac79b209ede489e15a93976b216814
 ```
 
 ## Reviews and security closure
 
-- Architecture Review A: historical report retained; conservative destination/source gates remain in force.
-- Post-runtime Review B/C generation 0: `tmp/reviews/2026-09-20-code-review-post-runtime-bc.md`; findings were addressed or made irrelevant to the supported route by the current code and gate.
-- Post-runtime Review E generation 0: `tmp/reviews/2026-09-20-code-review-post-runtime-e.md`; destination retry and permission classification fixes are present in the current tree; remaining revocation/device-error rendering evidence is documented as a gap.
-- Generation-1 post-runtime reports: `tmp/reviews/2026-09-21-code-review-postruntimebc-gen1.md` and `tmp/reviews/2026-09-21-code-review-postruntimee-gen1.md`.
-- Final whole-diff code review: `tmp/reviews/2026-09-21-code-review-final-vs04.md` — `Changes requested` for provider-unavailable classification and equal-depth grant selection.
-- Final user-visible regression review: `tmp/reviews/2026-09-21-user-visible-regression-final.md` — `Discuss` for the same two interruption/restoration gaps.
-- `android-intent-security`: picker result validation, read/write masking, persistable grant handling, restoration, and tree containment reviewed.
-- `debug`: used for Gradle KSP stall and SAF provider/finalization/restart ambiguity; exact daemon PID `21500` was terminated only after inspection; no temporary debug probes remain.
+- Prior final whole-diff review: `tmp/reviews/2026-09-21-code-review-final-vs04.md` — old F1/F2 findings superseded by current hardening.
+- Current post-hardening code review: `tmp/reviews/2026-09-21-code-review-post-hardening-7d2c9a41.md` — `Pass with caveat`; no unresolved code findings; one locked-device UI test gap.
+- Current post-hardening regression review: `tmp/reviews/2026-09-21-user-visible-regression-post-hardening-7d2c9a41.md` — `Discuss` only for locked-device final UI evidence.
+- `android-intent-security`: picker construction, returned URI/flags, read/write masking, persistable grant validation, restoration, and containment reviewed.
+- `debug`: used for SAF provider/error ambiguity, controlled provider evidence, and Gradle/Kotlin daemon stalls. No temporary debug probes remain.
+- `testing-setup`: existing JUnit4, Compose instrumentation, Room, and controlled DocumentsProvider harness were extended; no unnecessary dependency was added.
+- `edge-to-edge`: no new layout/inset surface was introduced by the hardening delta.
 
 ## Explicit remaining gates and deferred work
 
-- Generic SAF destination finalization remains Unsupported until a provider-scoped proof mechanism exists and real provider create/write/rename/returned-identity semantics are proven.
-- SAF→Local Move remains Unsupported until a provider-scoped source version proof rules out source mutation before deletion.
-- SAF grant revocation during an active operation and after process recreation remains a controlled/real evidence follow-up; provider-unavailable classification and equal-depth selected-tree restoration are final review blockers for closure. No destructive SAF route is enabled by these gaps.
+- Final physical Compose/UI rerun after normal user unlock remains pending.
+- Real persisted-grant revocation through normal user interaction remains deferred; controlled provider/host evidence is green.
+- Generic SAF destination finalization remains Unsupported until provider-scoped create/write/rename/returned-identity proof is established.
+- SAF→Local Move remains Unsupported until provider-scoped source-version proof is established.
 - SAF→SAF remains Unsupported because it depends on destination finalization and source-delete proof.
-- No directory, archive, background, WorkManager, UIDT, FGS, cloud, root, or non-SAF work was started.
+- No directory, archive, WorkManager, UIDT, FGS, cloud, root, media, search expansion, Share, or VS05 work was started.
 
 ## Next production frontier
 
-The next safe frontier is provider-scoped SAF source version proof and deterministic persisted-grant revocation/restart evidence. Destination finalization must remain opt-in and provider-semantic-aware; route count must not be increased by weakening durable safety invariants.
+The next safe frontier is provider-scoped SAF source-version proof plus normal-user persisted-grant revocation/restart evidence. Destination finalization must remain opt-in and provider-semantic-aware; route count must not be increased by weakening durable safety invariants.
