@@ -13,6 +13,7 @@ object OperationStateMachine {
         OperationState.TRANSFERRING to setOf(
             OperationState.VERIFYING,
             OperationState.INTERRUPTED,
+            OperationState.CONFLICTED,
             OperationState.RETRYABLE_FAILURE,
             OperationState.FAILED,
             OperationState.CANCELLED,

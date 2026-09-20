@@ -32,6 +32,26 @@ class OperationManagerTest {
     }
 
     @Test
+    fun destinationConflictBecomesDurableConflictWithoutOverwritingExistingFile() = runBlocking {
+        withLocalFixture { root, provider, sourceLocator, destinationLocator ->
+            Files.write(root.resolve("copy.txt"), byteArrayOf(9))
+            val repository = InMemoryRepository()
+            val manager = OperationManager(repository, mapOf(provider.id to provider))
+            val id = manager.enqueue(
+                OperationType.COPY,
+                listOf(OperationManager.EnqueueItem(sourceLocator, destinationLocator, "copy.txt", 4L, null)),
+            ).requireSuccess().single()
+
+            val conflicted = manager.execute(id)
+
+            assertEquals(OperationState.CONFLICTED, conflicted.state)
+            assertTrue(Files.exists(root.resolve("source.txt")))
+            assertTrue(Files.exists(root.resolve(".omnifile-$id.partial").normalize()).not())
+            assertEquals(listOf(9.toByte()), Files.readAllBytes(root.resolve("copy.txt")).toList())
+        }
+    }
+
+    @Test
     fun moveNeverDeletesSourceWhenTransferFaultsAfterPartialCreation() = runBlocking {
         withLocalFixture { root, provider, sourceLocator, destinationLocator ->
             val repository = InMemoryRepository()
@@ -96,7 +116,7 @@ class OperationManagerTest {
         override suspend fun create(snapshot: OperationSnapshot) { records[snapshot.operationId] = snapshot }
         override suspend fun find(operationId: String) = records[operationId]
         override suspend fun findNonTerminal() = records.values.filterNot { OperationStateMachine.isTerminal(it.state) }
-        override suspend fun findRecent(limit: Int) = records.values.takeLast(limit).reversed()
+        override suspend fun findRecent(limit: Int) = records.values.toList().takeLast(limit).reversed()
         override suspend fun transition(
             operationId: String,
             nextState: OperationState,

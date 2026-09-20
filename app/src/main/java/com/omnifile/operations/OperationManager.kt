@@ -188,14 +188,20 @@ class OperationManager(
             return repository.transition(operation.operationId, OperationState.COMPLETE, TransferStage.COMPLETE)
         }
         val sourceProvider = requireNotNull(providers[operation.source.providerId])
+        val deletePending = repository.transition(
+            operation.operationId,
+            OperationState.SOURCE_DELETE_PENDING,
+            TransferStage.SOURCE_DELETING,
+            sourceDeleteState = SourceDeleteState.PENDING,
+        )
         return when (val deleted = sourceProvider.deleteDurableSource(operation.source)) {
             is StorageResult.Success -> repository.transition(
-                operation.operationId,
+                deletePending.operationId,
                 OperationState.COMPLETE,
                 TransferStage.COMPLETE,
                 sourceDeleteState = SourceDeleteState.DELETED,
             )
-            is StorageResult.Failure -> fail(operation, deleted.error)
+            is StorageResult.Failure -> fail(deletePending, deleted.error)
         }
     }
 

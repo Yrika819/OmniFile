@@ -39,6 +39,7 @@ android {
     }
 
     sourceSets["androidTest"].java.srcDirs("src/androidTest/java")
+    sourceSets["androidTest"].assets.srcDir("$projectDir/schemas")
 
     ksp {
         arg("room.schemaLocation", "$projectDir/schemas")

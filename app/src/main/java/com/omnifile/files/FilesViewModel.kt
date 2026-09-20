@@ -299,8 +299,8 @@ class FilesViewModel(
                     pendingTransfer = null
                     destinationNavigation.clear()
                     clearSelection()
-                    onOperationsCreated(result.value)
                     result.value.forEach { operationManager?.execute(it) }
+                    onOperationsCreated(result.value)
                     loadChildren(pending.sourceLocation)
                 }
                 is StorageResult.Failure, null -> Unit

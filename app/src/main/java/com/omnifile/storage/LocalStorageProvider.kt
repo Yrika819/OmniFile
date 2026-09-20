@@ -12,6 +12,7 @@ import java.nio.file.LinkOption
 import java.nio.file.NoSuchFileException
 import java.nio.file.NotDirectoryException
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.nio.file.SecureDirectoryStream
 import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.BasicFileAttributeView
@@ -191,11 +192,18 @@ class LocalStorageProvider(
         val finalPath = parent.resolve(intendedFinalName)
         try {
             withSecureParent(partialPath) { secureParent, partialName ->
-                secureParent.move(partialName, secureParent, Path.of(intendedFinalName))
+                val finalName = Paths.get(intendedFinalName)
+                try {
+                    childAttributes(secureParent, finalName)
+                    throw FileAlreadyExistsException(finalPath.toString())
+                } catch (_: NoSuchFileException) {
+                    // The descriptor-relative check preserves the no-overwrite contract.
+                }
+                secureParent.move(partialName, secureParent, finalName)
             }
             FinalizationResult.Finalized(locatorFor(finalPath))
         } catch (_: FileAlreadyExistsException) {
-            throw FileAlreadyExistsException(finalPath.toString())
+            throw FileAlreadyExistsException(intendedFinalName)
         }
     }
 
@@ -241,7 +249,7 @@ class LocalStorageProvider(
         if (locator.providerId != id || locator.encoding != LOCAL_LOCATOR_ENCODING) {
             throw StaleReferenceException
         }
-        val relative = Path.of(locator.value)
+        val relative = Paths.get(locator.value)
         if (relative.isAbsolute || locator.value.isBlank()) throw StaleReferenceException
         val resolved = rootDirectory.resolve(relative).normalize()
         if (!isWithinRoot(resolved)) throw StaleReferenceException

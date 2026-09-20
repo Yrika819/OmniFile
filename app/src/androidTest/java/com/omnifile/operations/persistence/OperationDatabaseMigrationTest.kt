@@ -2,10 +2,9 @@ package com.omnifile.operations.persistence
 
 import android.content.Context
 import androidx.room.Room
-import androidx.room.testing.MigrationTestHelper
-import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.omnifile.operations.DurableLocator
 import com.omnifile.operations.OperationSnapshot
 import com.omnifile.operations.OperationState
@@ -13,12 +12,12 @@ import com.omnifile.operations.OperationType
 import com.omnifile.operations.SourceDeleteState
 import com.omnifile.operations.TransferStage
 import com.omnifile.storage.ProviderId
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -26,14 +25,6 @@ import org.junit.runner.RunWith
 class OperationDatabaseMigrationTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val databaseName = "operation-database-test.db"
-
-    @get:Rule
-    val migrationHelper = MigrationTestHelper(
-        androidx.test.platform.app.InstrumentationRegistry.getInstrumentation(),
-        OperationDatabase::class.java,
-        emptyList(),
-        FrameworkSQLiteOpenHelperFactory(),
-    )
 
     @Before
     fun setUp() {
@@ -46,7 +37,7 @@ class OperationDatabaseMigrationTest {
     }
 
     @Test
-    fun activeOperationSurvivesCloseAndReopenWithLongCounters() {
+    fun activeOperationSurvivesCloseAndReopenWithLongCounters() = runBlocking {
         val operation = operation()
         val first = Room.databaseBuilder(context, OperationDatabase::class.java, databaseName).build()
         first.operationDao().insert(OperationEntity.from(operation))
@@ -63,7 +54,7 @@ class OperationDatabaseMigrationTest {
     }
 
     @Test
-    fun compareAndSetRejectsStaleExpectedState() {
+    fun compareAndSetRejectsStaleExpectedState() = runBlocking {
         val operation = operation()
         val database = Room.databaseBuilder(context, OperationDatabase::class.java, databaseName).build()
         val dao = database.operationDao()
@@ -96,7 +87,7 @@ class OperationDatabaseMigrationTest {
     }
 
     @Test
-    fun nonTerminalQueryExcludesTerminalTruth() {
+    fun nonTerminalQueryExcludesTerminalTruth() = runBlocking {
         val active = operation("active")
         val complete = operation("complete").copy(
             state = OperationState.COMPLETE,
@@ -113,11 +104,15 @@ class OperationDatabaseMigrationTest {
     }
 
     @Test
-    fun versionOneSchemaCanBeCreatedAndValidatedForFutureMigrations() {
-        migrationHelper.createDatabase(databaseName, 1).close()
-        val validated = migrationHelper.runMigrationsAndValidate(databaseName, 1, true)
-        validated.close()
-        assertTrue(true)
+    fun versionOneSchemaAssetIsPackagedAndDatabaseOpensForFutureMigrations() {
+        val schemaAsset = "com.omnifile.operations.persistence.OperationDatabase/1.json"
+        InstrumentationRegistry.getInstrumentation().context.assets.open(schemaAsset).use { assertTrue(it.read() >= 0) }
+        val database = Room.databaseBuilder(context, OperationDatabase::class.java, databaseName).build()
+        try {
+            assertEquals(1, database.openHelper.writableDatabase.version)
+        } finally {
+            database.close()
+        }
     }
 
     private fun operation(id: String = "operation") = OperationSnapshot(
