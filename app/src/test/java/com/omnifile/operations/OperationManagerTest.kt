@@ -77,6 +77,64 @@ class OperationManagerTest {
     }
 
     @Test
+    fun providerUnavailableBeforeExecutionIsRetryableAndRecoveryDoesNotDuplicateDestination() = runBlocking {
+        withLocalFixture { root, provider, sourceLocator, destinationLocator ->
+            val repository = InMemoryRepository()
+            val injected = InjectingProvider(provider)
+            val manager = OperationManager(repository, mapOf(injected.id to injected))
+            val id = manager.enqueue(
+                OperationType.COPY,
+                listOf(OperationManager.EnqueueItem(sourceLocator, destinationLocator, "recovered.txt", 4L, null)),
+            ).requireSuccess().single()
+
+            injected.unavailable = true
+            val unavailable = manager.execute(id)
+
+            assertEquals(OperationState.RETRYABLE_FAILURE, unavailable.state)
+            assertEquals(OperationErrorCode.PROVIDER_UNAVAILABLE, unavailable.errorCode)
+            assertTrue(Files.exists(root.resolve("source.txt")))
+            assertFalse(Files.exists(root.resolve("recovered.txt")))
+
+            injected.unavailable = false
+            val recovered = manager.execute(id)
+
+            assertEquals(OperationState.COMPLETE, recovered.state)
+            assertEquals(1, injected.partialCreates)
+            assertEquals(byteArrayOf(1, 2, 3, 4).toList(), Files.readAllBytes(root.resolve("recovered.txt")).toList())
+        }
+    }
+
+    @Test
+    fun providerUnavailableDuringSourceDeleteLeavesPendingStateAndRecoveryDoesNotRecopy() = runBlocking {
+        withLocalFixture { root, provider, sourceLocator, destinationLocator ->
+            val repository = InMemoryRepository()
+            val injected = InjectingProvider(provider, failNextDelete = true)
+            val manager = OperationManager(repository, mapOf(injected.id to injected))
+            val id = manager.enqueue(
+                OperationType.MOVE,
+                listOf(OperationManager.EnqueueItem(sourceLocator, destinationLocator, "pending.txt", 4L, null)),
+            ).requireSuccess().single()
+
+            val pending = manager.execute(id)
+
+            assertEquals(OperationState.RETRYABLE_FAILURE, pending.state)
+            assertEquals(TransferStage.SOURCE_DELETING, pending.stage)
+            assertEquals(SourceDeleteState.PENDING, pending.sourceDeleteState)
+            assertEquals(OperationErrorCode.PROVIDER_UNAVAILABLE, pending.errorCode)
+            assertTrue(Files.exists(root.resolve("source.txt")))
+            assertEquals(byteArrayOf(1, 2, 3, 4).toList(), Files.readAllBytes(root.resolve("pending.txt")).toList())
+
+            val recovered = manager.execute(id)
+
+            assertEquals(OperationState.COMPLETE, recovered.state)
+            assertEquals(SourceDeleteState.DELETED, recovered.sourceDeleteState)
+            assertFalse(Files.exists(root.resolve("source.txt")))
+            assertEquals(1, injected.partialCreates)
+            assertEquals(byteArrayOf(1, 2, 3, 4).toList(), Files.readAllBytes(root.resolve("pending.txt")).toList())
+        }
+    }
+
+    @Test
     fun missingProviderIsReportedAsPermissionFailureBeforeDurableRecord() = runBlocking {
         val repository = InMemoryRepository()
         val sourceRoot = Files.createTempDirectory("omnifile-route")
@@ -108,6 +166,38 @@ class OperationManagerTest {
             block(root, provider, sourceLocator, destinationLocator)
         } finally {
             root.toFile().deleteRecursively()
+        }
+    }
+
+    private class InjectingProvider(
+        private val delegate: StorageTransferProvider,
+        var unavailable: Boolean = false,
+        private var failNextDelete: Boolean = false,
+    ) : StorageTransferProvider by delegate {
+        var partialCreates: Int = 0
+
+        override suspend fun inspectTransfer(locator: DurableLocator): StorageResult<com.omnifile.storage.TransferFileFacts> =
+            if (unavailable) StorageResult.Failure(StorageError.ProviderUnavailable)
+            else delegate.inspectTransfer(locator)
+
+        override suspend fun createOperationPartial(
+            destinationParent: DurableLocator,
+            intendedFinalName: String,
+            operationId: String,
+        ): StorageResult<DurableLocator> = delegate.createOperationPartial(
+            destinationParent,
+            intendedFinalName,
+            operationId,
+        ).also { result ->
+            if (result is StorageResult.Success) partialCreates += 1
+        }
+
+        override suspend fun deleteDurableSource(source: DurableLocator): StorageResult<Unit> {
+            if (failNextDelete) {
+                failNextDelete = false
+                return StorageResult.Failure(StorageError.ProviderUnavailable)
+            }
+            return delegate.deleteDurableSource(source)
         }
     }
 

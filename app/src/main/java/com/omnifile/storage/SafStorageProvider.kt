@@ -56,6 +56,8 @@ class SafStorageProvider(
     ): StorageResult<StorageEntry> {
         val ref = try {
             checkedRef(entry.ref)
+        } catch (_: ProviderUnavailableException) {
+            return StorageResult.Failure(StorageError.ProviderUnavailable)
         } catch (_: SecurityException) {
             return StorageResult.Failure(StorageError.PermissionDenied)
         } ?: return StorageResult.Failure(StorageError.StaleReference)
@@ -95,6 +97,8 @@ class SafStorageProvider(
     override suspend fun delete(entry: StorageEntry): StorageResult<Unit> {
         val ref = try {
             checkedRef(entry.ref)
+        } catch (_: ProviderUnavailableException) {
+            return StorageResult.Failure(StorageError.ProviderUnavailable)
         } catch (_: SecurityException) {
             return StorageResult.Failure(StorageError.PermissionDenied)
         } ?: return StorageResult.Failure(StorageError.StaleReference)
@@ -132,6 +136,8 @@ class SafStorageProvider(
             ?: return StorageResult.Failure(StorageError.StaleReference)
         val withinTree = try {
             isWithinSelectedTree(ref.documentId)
+        } catch (_: ProviderUnavailableException) {
+            return StorageResult.Failure(StorageError.ProviderUnavailable)
         } catch (_: SecurityException) {
             return StorageResult.Failure(StorageError.PermissionDenied)
         }
@@ -146,6 +152,10 @@ class SafStorageProvider(
                 while (cursor.moveToNext()) children += cursor.toEntry(ref)
             }
             StorageResult.Success(children.sortedBy { it.displayName })
+        } catch (_: ProviderUnavailableException) {
+            StorageResult.Failure(StorageError.ProviderUnavailable)
+        } catch (_: StaleReferenceException) {
+            StorageResult.Failure(StorageError.StaleReference)
         } catch (error: OperationCanceledException) {
             StorageResult.Failure(StorageError.Cancelled)
         } catch (error: CancellationException) {
@@ -175,6 +185,8 @@ class SafStorageProvider(
     ): StorageResult<StorageEntry> {
         val parts = try {
             decodeLocator(locator) ?: return StorageResult.Failure(StorageError.StaleReference)
+        } catch (_: ProviderUnavailableException) {
+            return StorageResult.Failure(StorageError.ProviderUnavailable)
         } catch (_: SecurityException) {
             return StorageResult.Failure(StorageError.PermissionDenied)
         }
@@ -186,6 +198,8 @@ class SafStorageProvider(
     ): StorageResult<TransferFileFacts> {
         val parts = try {
             decodeLocator(locator) ?: return StorageResult.Failure(StorageError.StaleReference)
+        } catch (_: ProviderUnavailableException) {
+            return StorageResult.Failure(StorageError.ProviderUnavailable)
         } catch (_: SecurityException) {
             return StorageResult.Failure(StorageError.PermissionDenied)
         }
@@ -221,6 +235,8 @@ class SafStorageProvider(
     ): StorageResult<SequentialReadHandle> {
         val parts = try {
             decodeLocator(locator) ?: return StorageResult.Failure(StorageError.StaleReference)
+        } catch (_: ProviderUnavailableException) {
+            return StorageResult.Failure(StorageError.ProviderUnavailable)
         } catch (_: SecurityException) {
             return StorageResult.Failure(StorageError.PermissionDenied)
         }
@@ -266,6 +282,8 @@ class SafStorageProvider(
     ): StorageResult<com.omnifile.operations.DurableLocator> {
         val parts = try {
             decodeLocator(destinationParent) ?: return StorageResult.Failure(StorageError.StaleReference)
+        } catch (_: ProviderUnavailableException) {
+            return StorageResult.Failure(StorageError.ProviderUnavailable)
         } catch (_: SecurityException) {
             return StorageResult.Failure(StorageError.PermissionDenied)
         }
@@ -336,6 +354,8 @@ class SafStorageProvider(
         if (append) return StorageResult.Failure(StorageError.Unsupported)
         val parts = try {
             decodeLocator(partial) ?: return StorageResult.Failure(StorageError.StaleReference)
+        } catch (_: ProviderUnavailableException) {
+            return StorageResult.Failure(StorageError.ProviderUnavailable)
         } catch (_: SecurityException) {
             return StorageResult.Failure(StorageError.PermissionDenied)
         }
@@ -381,11 +401,15 @@ class SafStorageProvider(
     ): StorageResult<FinalizationResult> {
         val partialParts = try {
             decodeLocator(partial) ?: return StorageResult.Failure(StorageError.StaleReference)
+        } catch (_: ProviderUnavailableException) {
+            return StorageResult.Failure(StorageError.ProviderUnavailable)
         } catch (_: SecurityException) {
             return StorageResult.Failure(StorageError.PermissionDenied)
         }
         val parentParts = try {
             decodeLocator(destinationParent) ?: return StorageResult.Failure(StorageError.StaleReference)
+        } catch (_: ProviderUnavailableException) {
+            return StorageResult.Failure(StorageError.ProviderUnavailable)
         } catch (_: SecurityException) {
             return StorageResult.Failure(StorageError.PermissionDenied)
         }
@@ -465,6 +489,8 @@ class SafStorageProvider(
     override suspend fun deleteDurableSource(source: com.omnifile.operations.DurableLocator): StorageResult<Unit> {
         val parts = try {
             decodeLocator(source) ?: return StorageResult.Failure(StorageError.StaleReference)
+        } catch (_: ProviderUnavailableException) {
+            return StorageResult.Failure(StorageError.ProviderUnavailable)
         } catch (_: SecurityException) {
             return StorageResult.Failure(StorageError.PermissionDenied)
         }
@@ -506,6 +532,8 @@ class SafStorageProvider(
     ): StorageResult<Unit> {
         val parts = try {
             decodeLocator(partial) ?: return StorageResult.Failure(StorageError.StaleReference)
+        } catch (_: ProviderUnavailableException) {
+            return StorageResult.Failure(StorageError.ProviderUnavailable)
         } catch (_: SecurityException) {
             return StorageResult.Failure(StorageError.PermissionDenied)
         }
@@ -579,6 +607,8 @@ class SafStorageProvider(
         StorageResult.Failure(StorageError.StaleReference)
     } catch (error: IOException) {
         StorageResult.Failure(StorageError.IoFailure(error.message))
+    } catch (_: ProviderUnavailableException) {
+        StorageResult.Failure(StorageError.ProviderUnavailable)
     } catch (_: StaleReferenceException) {
         StorageResult.Failure(StorageError.StaleReference)
     } catch (error: IllegalStateException) {
@@ -595,7 +625,9 @@ class SafStorageProvider(
     private fun decodeLocator(locator: com.omnifile.operations.DurableLocator): SafLocatorParts? {
         if (locator.providerId != id || locator.encoding != SafDurableLocatorCodec.ENCODING) return null
         val parts = SafDurableLocatorCodec.decode(locator.value) ?: return null
-        if (parts.treeUri != treeUri.toString() || !isWithinSelectedTree(parts.documentId)) return null
+        // Query the document before containment validation so an empty query is
+        // a truthful NotFound result rather than a stale-reference guess.
+        if (parts.treeUri != treeUri.toString()) return null
         return parts
     }
 
@@ -612,8 +644,7 @@ class SafStorageProvider(
     private fun canonicalDocumentId(uri: Uri): String? {
         if (uri.scheme != ContentResolver.SCHEME_CONTENT || uri.authority != treeUri.authority) return null
         return try {
-            val documentId = DocumentsContract.getDocumentId(uri)
-            documentId.takeIf(::isWithinSelectedTree)
+            DocumentsContract.getDocumentId(uri).takeIf { it.isNotBlank() }
         } catch (_: IllegalArgumentException) {
             null
         }
@@ -625,15 +656,25 @@ class SafStorageProvider(
             documentUri(rootDocumentId),
             documentUri(documentId),
         )
+    } catch (error: CancellationException) {
+        throw error
     } catch (_: SecurityException) {
         throw SecurityException("SAF grant is unavailable")
-    } catch (_: Exception) {
+    } catch (_: IllegalArgumentException) {
         false
+    } catch (error: Exception) {
+        // A provider exception means containment is unknown. It must never be
+        // converted to the valid negative answer used for stale references.
+        throw ProviderUnavailableException(error)
     }
 
     private fun query(uri: Uri, block: (Cursor) -> Unit) {
-        contentResolver.query(uri, PROJECTION, null, null, null)?.use(block)
-            ?: throw IOException("Provider returned no cursor")
+        try {
+            contentResolver.query(uri, PROJECTION, null, null, null)?.use(block)
+                ?: throw IOException("Provider returned no cursor")
+        } catch (error: IllegalStateException) {
+            throw ProviderUnavailableException(error)
+        }
     }
 
     private fun Cursor.toEntry(
@@ -719,6 +760,8 @@ class SafStorageProvider(
             DocumentsContract.Document.COLUMN_FLAGS,
         )
     }
+
+    private class ProviderUnavailableException(cause: Throwable) : RuntimeException(cause)
 
     private object StaleReferenceException : RuntimeException()
 }

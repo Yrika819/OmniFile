@@ -44,8 +44,11 @@ class MainActivity : ComponentActivity() {
         val returned = result.data ?: return@registerForActivityResult
         val uri = returned.data ?: return@registerForActivityResult
         if (result.resultCode != RESULT_OK || !DocumentsContract.isTreeUri(uri)) return@registerForActivityResult
-        if (grantStore.persistGrant(uri, returned.flags)) {
-            if (filesViewModel.isDestinationPicker) {
+        val destinationPicker = filesViewModel.isDestinationPicker
+        if (grantStore.persistGrant(uri, returned.flags) &&
+            (destinationPicker || grantStore.rememberSelectedReadTree(uri))
+        ) {
+            if (destinationPicker) {
                 filesViewModel.selectDestinationSaf(uri)
             } else {
                 filesViewModel.selectSaf(uri)

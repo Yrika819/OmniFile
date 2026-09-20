@@ -323,9 +323,12 @@ public final class TestDocumentsProvider extends DocumentsProvider {
         if (providerUnavailable) throw new IllegalStateException("controlled provider unavailable");
         String normalizedParent = normalizeDocumentId(parentDocumentId);
         String normalizedChild = normalizeDocumentId(childDocumentId);
-        return NODES.containsKey(normalizedChild)
-                && (normalizedParent.equals(normalizedChild)
-                || normalizedChild.startsWith(normalizedParent + "/"));
+        // Containment is an identity-boundary question, not an existence
+        // query. An in-tree but deleted document must pass this check so that
+        // queryDocument() can return an empty cursor and the adapter can report
+        // truthful NotFound instead of framework-level permission denial.
+        return normalizedParent.equals(normalizedChild)
+                || normalizedChild.startsWith(normalizedParent + "/");
     }
 
     @Override

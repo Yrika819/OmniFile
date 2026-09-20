@@ -139,6 +139,7 @@ class OperationManager(
                 OperationState.SOURCE_DELETE_PENDING,
                 TransferStage.SOURCE_DELETING,
                 sourceDeleteState = SourceDeleteState.PENDING,
+                destinationCompletionEstablished = true,
             )
             return attemptSourceDeletion(pending)
         }
@@ -223,6 +224,7 @@ class OperationManager(
                         OperationState.SOURCE_DELETE_PENDING,
                         TransferStage.SOURCE_DELETING,
                         sourceDeleteState = SourceDeleteState.PENDING,
+                        destinationCompletionEstablished = true,
                     )
                     attemptSourceDeletion(pending)
                 }
@@ -243,12 +245,13 @@ class OperationManager(
                 ) {
                     return operation
                 }
+                val observationError = finalizationObservationError(verified.error)
                 return repository.recordFailure(
                     operationId = operation.operationId,
                     nextState = OperationState.INTERRUPTED,
                     stage = TransferStage.FINALIZING,
-                    errorCode = OperationErrorCode.AMBIGUOUS_FINALIZATION,
-                    errorMessage = "Finalization is ambiguous and needs reconciliation.",
+                    errorCode = observationError.toOperationErrorCode(),
+                    errorMessage = observationError.toUserMessage(),
                 )
             }
             is StorageResult.Success -> Unit
@@ -264,7 +267,19 @@ class OperationManager(
 
     private suspend fun finishDestination(operation: OperationSnapshot): OperationSnapshot {
         when (val verified = verifyDurableDestination(operation)) {
-            is StorageResult.Failure -> return fail(operation, verified.error)
+            is StorageResult.Failure -> {
+                // A final locator already exists at this point. Do not send a
+                // verification outage back through TRANSFERRING, where replay
+                // could create a duplicate destination.
+                val observationError = finalizationObservationError(verified.error)
+                return repository.recordFailure(
+                    operationId = operation.operationId,
+                    nextState = OperationState.INTERRUPTED,
+                    stage = TransferStage.FINALIZING,
+                    errorCode = observationError.toOperationErrorCode(),
+                    errorMessage = observationError.toUserMessage(),
+                )
+            }
             is StorageResult.Success -> Unit
         }
         if (operation.type == OperationType.COPY) {
@@ -368,6 +383,7 @@ class OperationManager(
 
     private fun finalizationObservationError(error: StorageError): StorageError = when (error) {
         StorageError.PermissionDenied -> StorageError.PermissionDenied
+        StorageError.ProviderUnavailable -> StorageError.ProviderUnavailable
         StorageError.Cancelled -> StorageError.Cancelled
         is StorageError.IoFailure -> error
         else -> StorageError.AmbiguousFinalization
@@ -410,6 +426,7 @@ class OperationManager(
             StorageError.AmbiguousFinalization -> OperationState.INTERRUPTED
             StorageError.AmbiguousSourceDeletion,
             StorageError.PermissionDenied,
+            StorageError.ProviderUnavailable,
             is StorageError.IoFailure -> OperationState.RETRYABLE_FAILURE
             else -> OperationState.FAILED
         }
@@ -439,6 +456,7 @@ class OperationManager(
 
 private fun StorageError.toOperationErrorCode(): OperationErrorCode = when (this) {
     StorageError.PermissionDenied -> OperationErrorCode.PERMISSION_DENIED
+    StorageError.ProviderUnavailable -> OperationErrorCode.PROVIDER_UNAVAILABLE
     StorageError.NotFound, StorageError.StaleReference -> OperationErrorCode.NOT_FOUND
     StorageError.SourceChanged -> OperationErrorCode.SOURCE_CHANGED
     is StorageError.NameConflict -> OperationErrorCode.DESTINATION_CONFLICT
@@ -452,6 +470,7 @@ private fun StorageError.toOperationErrorCode(): OperationErrorCode = when (this
 
 private fun StorageError.toUserMessage(): String = when (this) {
     StorageError.PermissionDenied -> "Permission denied by the storage provider."
+    StorageError.ProviderUnavailable -> "The storage provider is temporarily unavailable. Retry when it is available again."
     StorageError.NotFound, StorageError.StaleReference -> "The source or destination is no longer available."
     StorageError.SourceChanged -> "The source changed during transfer."
     is StorageError.NameConflict -> "The destination already contains ${requestedName}."

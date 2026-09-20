@@ -87,7 +87,10 @@ object OperationStateMachine {
             require(type == OperationType.MOVE) {
                 "Copy cannot enter source-delete pending"
             }
-            require(from == OperationState.DESTINATION_COMPLETE) {
+            require(
+                from == OperationState.DESTINATION_COMPLETE ||
+                    from == OperationState.RETRYABLE_FAILURE && destinationCompletionEstablished,
+            ) {
                 "Source deletion requires durable destination completion"
             }
             require(sourceDeleteState == SourceDeleteState.PENDING) {

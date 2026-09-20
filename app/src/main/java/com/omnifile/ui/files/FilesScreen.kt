@@ -183,7 +183,7 @@ fun FilesScreen(
                     onToggleSelection = onToggleSelection,
                 )
                 is FilesUiState.Empty -> EmptyState(state.breadcrumb)
-                is FilesUiState.Error -> ErrorState(state.error.toString(), state.location, state.breadcrumb, onRetry)
+                is FilesUiState.Error -> ErrorState(storageErrorMessage(state.error), state.location, state.breadcrumb, onRetry)
             }
         }
     }
@@ -307,6 +307,12 @@ private fun EmptyState(breadcrumb: List<String>) {
         Text(breadcrumb.joinToString(" / "), style = MaterialTheme.typography.labelLarge)
         Text("This folder is empty.")
     }
+}
+
+private fun storageErrorMessage(error: com.omnifile.storage.StorageError): String = when (error) {
+    com.omnifile.storage.StorageError.ProviderUnavailable ->
+        "The storage provider is temporarily unavailable. Retry when it is available again."
+    else -> error.toString()
 }
 
 @Composable

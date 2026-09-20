@@ -46,6 +46,8 @@ sealed interface StorageError {
     data object PermissionDenied : StorageError
     data object SourceChanged : StorageError
     data object StaleReference : StorageError
+    /** The provider could not answer; this is not proof that the document is absent. */
+    data object ProviderUnavailable : StorageError
     data object Unsupported : StorageError
     data class InvalidName(
         val requestedName: String,

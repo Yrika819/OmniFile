@@ -265,6 +265,68 @@ class SafStorageProviderInstrumentedTest {
     }
 
     @Test
+    fun providerUnavailableNotFoundPermissionAndStaleIdentityRemainDistinct() = runBlocking {
+        val provider = testProvider()
+        val root = provider.root().requireSuccess()
+        val file = provider.listChildren(root.ref).requireSuccess().single { it.displayName == "alpha.txt" }
+        val locator = provider.encodeDurableLocator(file.ref).requireSuccess()
+
+        TestDocumentsProvider.setProviderUnavailable(true)
+        assertEquals(
+            StorageError.ProviderUnavailable,
+            provider.resolveDurableLocator(locator).failure().error,
+        )
+        assertEquals(
+            StorageError.ProviderUnavailable,
+            provider.listChildren(root.ref).failure().error,
+        )
+        assertEquals(
+            StorageError.ProviderUnavailable,
+            provider.openSequentialRead(locator).failure().error,
+        )
+
+        TestDocumentsProvider.setProviderUnavailable(false)
+        assertEquals("alpha.txt", provider.resolveDurableLocator(locator).requireSuccess().displayName)
+
+        assertEquals(StorageResult.Success(Unit), provider.delete(file))
+        assertEquals(StorageError.NotFound, provider.resolveDurableLocator(locator).failure().error)
+
+        TestDocumentsProvider.reset()
+        TestDocumentsProvider.configureReadFailure("root/alpha", TestDocumentsProvider.FAILURE_SECURITY)
+        val permissionProvider = testProvider()
+        val permissionRoot = permissionProvider.root().requireSuccess()
+        val permissionFile = permissionProvider.listChildren(permissionRoot.ref).requireSuccess()
+            .single { it.displayName == "alpha.txt" }
+        val permissionLocator = permissionProvider.encodeDurableLocator(permissionFile.ref).requireSuccess()
+        assertEquals(
+            StorageError.PermissionDenied,
+            permissionProvider.openSequentialRead(permissionLocator).failure().error,
+        )
+
+        val staleProvider = testProvider(id = ProviderId("different-provider"))
+        assertEquals(
+            StorageError.StaleReference,
+            staleProvider.resolveDurableLocator(locator).failure().error,
+        )
+    }
+
+    @Test
+    fun providerUnavailableDuringChildListingRecoversWithoutThrowingStaleSentinel() = runBlocking {
+        val provider = testProvider()
+        val root = provider.root().requireSuccess()
+
+        TestDocumentsProvider.setProviderUnavailable(true)
+        val unavailable = provider.listChildren(root.ref)
+        assertEquals(StorageError.ProviderUnavailable, unavailable.failure().error)
+
+        TestDocumentsProvider.setProviderUnavailable(false)
+        assertEquals(
+            listOf("Folder A", "alpha.txt", "empty"),
+            provider.listChildren(root.ref).requireSuccess().map { it.displayName },
+        )
+    }
+
+    @Test
     fun destinationConflictDoesNotOverwriteAndOwnedPartialRemainsAddressable() = runBlocking {
         val provider = testProvider()
         val root = provider.root().requireSuccess()

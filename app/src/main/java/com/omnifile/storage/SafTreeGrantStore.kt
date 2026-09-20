@@ -67,19 +67,22 @@ class SafTreeGrantStore(
         return legacyUri?.let { uri -> grantFor(uri) }?.let(::listOf).orEmpty()
     }
 
-    /** Restores the broadest readable tree when DocumentsUI has also persisted a child destination. */
-    fun restoredReadTree(): Uri? = restoredGrants()
-        .filter { it.canRead }
-        .minByOrNull { treeDepth(it.uri) }
-        ?.uri
+    /** Records explicit source-tree intent without granting access by preference alone. */
+    fun rememberSelectedReadTree(uri: Uri): Boolean {
+        val grant = grantFor(uri) ?: return false
+        if (!grant.canRead) return false
+        return preferences.edit()
+            .putString(KEY_SELECTED_READ_TREE_URI, uri.toString())
+            .commit()
+    }
+
+    /** Restores explicit source intent, then a unique broad readable tree. */
+    fun restoredReadTree(): Uri? {
+        val remembered = preferences.getString(KEY_SELECTED_READ_TREE_URI, null)?.let(Uri::parse)
+        return selectRestoredReadTree(restoredGrants(), remembered)
+    }
 
     fun restoredWriteTree(): Uri? = restoredGrants().firstOrNull { it.canWrite }?.uri
-
-    private fun treeDepth(uri: Uri): Int = try {
-        DocumentsContract.getTreeDocumentId(uri).count { it == '/' }
-    } catch (_: IllegalArgumentException) {
-        Int.MAX_VALUE
-    }
 
     private fun currentGrant(uri: Uri): Int? = contentResolver.persistedUriPermissions
         .firstOrNull { it.uri == uri }
@@ -112,5 +115,33 @@ class SafTreeGrantStore(
         private const val PREFERENCES_NAME = "saf-tree-grants"
         private const val KEY_TREE_GRANTS = "tree-grants-v1"
         private const val KEY_LEGACY_TREE_URI = "selected-tree-uri"
+        private const val KEY_SELECTED_READ_TREE_URI = "selected-read-tree-uri-v1"
     }
+}
+
+
+/**
+ * Restores only a currently readable, explicitly remembered tree. Without a
+ * remembered tree, a unique shallowest tree is safe to restore; an equal-depth
+ * tie is intentionally left for explicit user selection rather than resolved by
+ * platform permission enumeration order.
+ */
+internal fun selectRestoredReadTree(
+    grants: List<PersistedTreeGrant>,
+    rememberedUri: Uri?,
+    depthOf: (Uri) -> Int = ::treeDepthForSelection,
+): Uri? {
+    val readable = grants.filter { it.canRead }
+    rememberedUri?.let { remembered ->
+        readable.firstOrNull { it.uri.toString() == remembered.toString() }?.let { return it.uri }
+    }
+    val minimumDepth = readable.minOfOrNull { depthOf(it.uri) } ?: return null
+    val candidates = readable.filter { depthOf(it.uri) == minimumDepth }
+    return candidates.singleOrNull()?.uri
+}
+
+private fun treeDepthForSelection(uri: Uri): Int = try {
+    DocumentsContract.getTreeDocumentId(uri).count { it == '/' }
+} catch (_: IllegalArgumentException) {
+    Int.MAX_VALUE
 }
