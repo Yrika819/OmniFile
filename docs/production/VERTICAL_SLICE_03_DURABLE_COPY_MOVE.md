@@ -1,6 +1,6 @@
 # OmniFile VS03 — Durable Copy/Move
 
-Status: **IMPLEMENTED / HOST-VERIFIED / PIXEL-INSTRUMENTED — FINAL REVIEW AND PUSH PENDING**
+Status: **IMPLEMENTED / VERIFIED DEVELOPMENT BRANCH — PICKER-CONFIRMED SUCCESS UI PATH PENDING**
 
 ## Scope and base
 
@@ -148,6 +148,12 @@ The Gradle `connectedDebugAndroidTest` task was also attempted. One API-36 emula
 
 ## Review and remaining closure work
 
-Existing staged review artifacts remain under `tmp/reviews/` for Reviews A-E, final code review, and the previous regression review. A fresh final code-review report and a fresh VS02->VS03 regression-review report are required after this closure delta; both must account for the exact evidence limitations above.
+Final closure reports:
 
-Remaining intentionally unsupported work: SAF transfer implementation, directory Copy/Move, background continuation, WorkManager/UIDT/FGS selection, archives, and unrelated media/cloud/root features.
+- Code review: `tmp/reviews/2026-09-20-code-review-report-c759ea76.md` — no code findings; one Minor picker-success UI test gap; recommendation `Discuss`.
+- Regression review: `tmp/reviews/2026-09-20-user-visible-regression-report-f0046938.md` — no confirmed user-visible regressions; recommendation `Discuss` because picker-success UI coverage remains incomplete.
+- Earlier Reviews A-E and prior final review remain preserved under `tmp/reviews/` as review lineage.
+
+Remaining closure gate: one disposable picker-confirmed successful UI Copy/Move run with terminal Operations refresh. Cancellation runtime and process-death runtime evidence remain deferred.
+
+Remaining intentionally unsupported product work: SAF transfer implementation, directory Copy/Move, background continuation, WorkManager/UIDT/FGS selection, archives, and unrelated media/cloud/root features.
