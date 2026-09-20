@@ -77,7 +77,7 @@ class OperationManagerTest {
     }
 
     @Test
-    fun unsupportedRouteIsRejectedBeforeDurableRecord() = runBlocking {
+    fun missingProviderIsReportedAsPermissionFailureBeforeDurableRecord() = runBlocking {
         val repository = InMemoryRepository()
         val sourceRoot = Files.createTempDirectory("omnifile-route")
         try {
@@ -87,7 +87,7 @@ class OperationManagerTest {
                 OperationType.COPY,
                 listOf(OperationManager.EnqueueItem(locator, locator, "copy.txt", 0L, null)),
             )
-            assertEquals(StorageError.Unsupported, result.failure().error)
+            assertEquals(StorageError.PermissionDenied, result.failure().error)
             assertTrue(repository.records.isEmpty())
         } finally {
             sourceRoot.toFile().deleteRecursively()
@@ -136,6 +136,11 @@ class OperationManagerTest {
         }
         override suspend fun recordPartial(operationId: String, partial: DurableLocator) {
             records[operationId] = requireNotNull(records[operationId]).copy(partialDestination = partial)
+        }
+        override suspend fun recordFinalization(operationId: String, finalLocator: DurableLocator) {
+            records[operationId] = requireNotNull(records[operationId]).copy(
+                finalizationDescription = FinalizationRecord.encode(finalLocator),
+            )
         }
         override suspend fun recordFailure(
             operationId: String,
