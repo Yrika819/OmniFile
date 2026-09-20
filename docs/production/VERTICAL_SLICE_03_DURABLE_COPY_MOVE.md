@@ -1,6 +1,6 @@
 # OmniFile VS03 — Durable Copy/Move
 
-Status: **IMPLEMENTED / VERIFIED DEVELOPMENT BRANCH — PICKER-CONFIRMED SUCCESS UI PATH PENDING**
+Status: **IMPLEMENTED / VERIFIED DEVELOPMENT BRANCH — PICKER-CONFIRMED SUCCESS UI PATH CLOSED**
 
 ## Scope and base
 
@@ -130,10 +130,12 @@ The Gradle `connectedDebugAndroidTest` task was also attempted. One API-36 emula
 - Disposable Pixel Local browse displayed the app-owned `profileInstalled` file.
 - Long-press selection exposed Copy, Move, and Delete.
 - Actual Android Back exited selection mode while remaining in the directory; it did not navigate away on the first Back.
-- Copy launched `COPY destination`; Back returned to the selected source without enqueueing.
+- Copy launched `COPY destination`; the visible picker `‹` action cancelled back to the selected source without enqueueing. The actual Android Back event navigated from the source directory to its parent while preserving the pending operation, then the sibling destination directory was selected.
+- Picker-confirmed Copy E2E on Pixel 7a/API 36: fixture `vs03-ui-e2e/source/copy-source.bin` (131,072 bytes, SHA-256 `c094f75a988b470c822f157431f2b920bd750803225be7d89374eced4a070147`) was confirmed into `vs03-ui-e2e/destination/`; exactly one durable Copy was created; Operations rendered `COPY: copy-source.bin` and `COMPLETE · 131072 B / 131072 B`; source remained; destination content/size/digest matched; no operation-owned partial remained.
+- Picker-confirmed Move E2E on the same Pixel fixture: `vs03-ui-e2e/source/move-source.bin` (196,608 bytes, SHA-256 `514f399022a29131bc305b95b1ccb55980e56b954beda23d8a1db3870ebff0ad`) was confirmed into the sibling destination; exactly one durable Move was created; Operations rendered `MOVE: move-source.bin` and `COMPLETE · 196608 B / 196608 B`; destination content/size/digest matched; source was absent only after completion; no operation-owned partial remained.
 - The first same-folder Copy confirmation reproduced a real crash (`TRANSFERRING -> CONFLICTED` was missing from the state machine). The conflict transition, durable `SOURCE_DELETE_PENDING` Move ordering, and post-execution Operations refresh were repaired. Focused/host tests passed, and the repaired Pixel conflict repeat kept `MainActivity` alive and rendered `Operations`, `COPY: profileInstalled`, `CONFLICTED`, and the durable conflict message. No overwrite occurred and no personal data was touched.
-- Pixel test APKs and app APK were uninstalled after the runtime run.
-- Pixel instrumentation directly proved successful Room-backed Local Copy and Move completion, including source preservation/deletion ordering. A picker-confirmed successful UI Copy/Move run, cancellation runtime, and process-death runtime remain unclaimed.
+- The temporary Pixel fixture was removed after verification; temporary instrumentation and app/test packages were uninstalled.
+- Pixel instrumentation directly proved successful Room-backed Local Copy and Move completion, including source preservation/deletion ordering. The picker-confirmed successful UI Copy/Move and terminal Operations refresh gate is now closed. Cancellation UI runtime and process-death runtime remain deferred.
 
 ## APK evidence
 
@@ -142,7 +144,7 @@ The Gradle `connectedDebugAndroidTest` task was also attempted. One API-36 emula
 - Version name/code: `0.1.0` / `1`
 - minSdk: `31`
 - targetSdk: `36`
-- APK SHA-256: `9fb0d868241a811e84c1806f89e125979fd885a0a26307d75ba41215fabb838c`
+- APK SHA-256: `b1fef032f9ad75b75ddd0dd03f7555359f76ebfea77eba382d5d6be53b16e3d6`
 - Native libraries: `libandroidx.graphics.path.so` for `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`.
 - Android-test APK contains `assets/com.omnifile.operations.persistence.OperationDatabase/1.json`.
 
@@ -150,10 +152,12 @@ The Gradle `connectedDebugAndroidTest` task was also attempted. One API-36 emula
 
 Final closure reports:
 
-- Code review: `tmp/reviews/2026-09-20-code-review-report-c759ea76.md` — no code findings; one Minor picker-success UI test gap; recommendation `Discuss`.
-- Regression review: `tmp/reviews/2026-09-20-user-visible-regression-report-f0046938.md` — no confirmed user-visible regressions; recommendation `Discuss` because picker-success UI coverage remains incomplete.
+- Historical code review: `tmp/reviews/2026-09-20-code-review-report-c759ea76.md` — no code findings; its then-open picker-success gap is superseded by the post-closure report.
+- Historical regression review: `tmp/reviews/2026-09-20-user-visible-regression-report-f0046938.md` — no confirmed regressions; its then-open picker-success gap is superseded by the post-closure report.
+- Post-closure code review: `tmp/reviews/2026-09-20-code-review-report-aef43ece.md` — 0 findings, recommendation `Pass`.
+- Post-closure regression review: `tmp/reviews/2026-09-20-user-visible-regression-report-2098b314.md` — 0 regressions, recommendation `Pass`.
 - Earlier Reviews A-E and prior final review remain preserved under `tmp/reviews/` as review lineage.
 
-Remaining closure gate: one disposable picker-confirmed successful UI Copy/Move run with terminal Operations refresh. Cancellation runtime and process-death runtime evidence remain deferred.
+Remaining closure gate: none for the supported Local regular-file -> Local regular-file slice. Cancellation runtime and process-death runtime evidence remain deferred and are not required for this closure.
 
 Remaining intentionally unsupported product work: SAF transfer implementation, directory Copy/Move, background continuation, WorkManager/UIDT/FGS selection, archives, and unrelated media/cloud/root features.
