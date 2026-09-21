@@ -84,6 +84,14 @@ class SafTreeGrantStore(
 
     fun restoredWriteTree(): Uri? = restoredGrants().firstOrNull { it.canWrite }?.uri
 
+    /** Returns remembered candidates for registry diagnostics; callers must revalidate every URI. */
+    fun candidateTreeUris(): List<Uri> {
+        val stored = preferences.getStringSet(KEY_TREE_GRANTS, emptySet()).orEmpty().mapNotNull { decode(it)?.uri }
+        val selected = preferences.getString(KEY_SELECTED_READ_TREE_URI, null)?.let(Uri::parse)
+        val legacy = preferences.getString(KEY_LEGACY_TREE_URI, null)?.let(Uri::parse)
+        return (stored + listOfNotNull(selected, legacy)).distinctBy { it.toString() }
+    }
+
     private fun currentGrant(uri: Uri): Int? = contentResolver.persistedUriPermissions
         .firstOrNull { it.uri == uri }
         ?.takeIf { DocumentsContract.isTreeUri(it.uri) }

@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import com.omnifile.search.SearchHit
 import com.omnifile.search.SearchScope
 import com.omnifile.search.SearchSubtreeFailure
+import com.omnifile.search.SearchRootFailure
 import com.omnifile.search.SearchUiState
 import com.omnifile.storage.EntryKind
 import com.omnifile.storage.StorageError
@@ -100,17 +101,19 @@ fun SearchScreen(
                 is SearchUiState.Searching -> SearchResults(
                     hits = state.hits,
                     failures = state.failures,
+                    rootFailures = state.rootFailures,
                     searching = true,
                     onOpenResult = onOpenResult,
                 )
                 is SearchUiState.Results -> SearchResults(
                     hits = state.hits,
                     failures = state.failures,
+                    rootFailures = state.rootFailures,
                     searching = false,
                     truncated = state.truncated,
                     onOpenResult = onOpenResult,
                 )
-                is SearchUiState.Error -> RootErrorState(state.rootError, state.hits, onOpenResult)
+                is SearchUiState.Error -> RootErrorState(state.rootError, state.hits, state.rootFailures, onOpenResult)
             }
         }
     }
@@ -158,10 +161,17 @@ private fun IdleState() {
 private fun SearchResults(
     hits: List<SearchHit>,
     failures: List<SearchSubtreeFailure>,
+    rootFailures: List<SearchRootFailure>,
     searching: Boolean,
     truncated: Boolean = false,
     onOpenResult: (SearchHit) -> Unit,
 ) {
+    if (rootFailures.isNotEmpty()) {
+        Text(
+            "Some storage sources could not be searched (${rootFailures.size}); results are incomplete.",
+            modifier = Modifier.padding(horizontal = 16.dp).testTag("search.partial.roots"),
+        )
+    }
     if (searching) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -206,10 +216,12 @@ private fun SearchResults(
 private fun RootErrorState(
     error: StorageError,
     hits: List<SearchHit>,
+    rootFailures: List<SearchRootFailure>,
     onOpenResult: (SearchHit) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(searchErrorMessage(error), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.testTag("search.error"))
+        if (rootFailures.isNotEmpty()) Text("${rootFailures.size} supported source(s) need attention before results are complete.")
         if (hits.isNotEmpty()) {
             Text("Previously found results remain available.")
             hits.forEachIndexed { index, hit -> SearchResultRow(index, hit, onOpenResult) }

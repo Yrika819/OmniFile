@@ -18,10 +18,10 @@ import kotlinx.coroutines.launch
 
 class SearchViewModel(
     private val listChildren: suspend (StorageEntry) -> StorageResult<List<StorageEntry>>,
-    private val rootsForScope: suspend (SearchScope) -> StorageResult<List<StorageEntry>> = { scope ->
+    private val resolveRoots: suspend (SearchScope) -> SearchRootResolution = { scope ->
         when (scope) {
-            SearchScope.ThisDevice -> StorageResult.Failure(StorageError.Unsupported)
-            is SearchScope.CurrentFolder -> StorageResult.Success(listOf(scope.directory))
+            SearchScope.ThisDevice -> SearchRootResolution(emptyList(), listOf(SearchRootFailure("unsupported", "This device", StorageError.Unsupported)))
+            is SearchScope.CurrentFolder -> SearchRootResolution(listOf(scope.directory))
         }
     },
     private val engine: SearchEngine = SearchEngine(),
@@ -37,6 +37,8 @@ class SearchViewModel(
     private var searchJob: Job? = null
 
     val state: StateFlow<SearchUiState> = _state.asStateFlow()
+    val query: String get() = currentQuery
+    val scope: SearchScope? get() = activeScope
 
     fun setScope(scope: SearchScope) {
         if (activeScope == scope) return
@@ -46,14 +48,19 @@ class SearchViewModel(
         _state.value = SearchUiState.Idle(scope)
     }
 
+    fun restoreRequest(scope: SearchScope, query: String) {
+        if (activeScope != scope) setScope(scope)
+        if (currentQuery == query && query.isNotBlank() && _state.value !is SearchUiState.Idle) return
+        if (query.isNotBlank()) queryChanged(query)
+    }
+
     fun queryChanged(rawQuery: String) {
         currentQuery = rawQuery
         generation += 1
         debounceJob?.cancel()
         searchJob?.cancel()
         val scope = activeScope ?: return
-        val normalized = SearchQuery.normalize(rawQuery)
-        if (normalized.isEmpty()) {
+        if (SearchQuery.normalize(rawQuery).isEmpty()) {
             _state.value = SearchUiState.Idle(activeScope)
             return
         }
@@ -67,8 +74,7 @@ class SearchViewModel(
 
     fun submitQuery() {
         val scope = activeScope ?: return
-        val normalized = SearchQuery.normalize(currentQuery)
-        if (normalized.isEmpty()) {
+        if (SearchQuery.normalize(currentQuery).isEmpty()) {
             queryChanged(currentQuery)
             return
         }
@@ -79,9 +85,7 @@ class SearchViewModel(
         startSearch(generation, currentQuery, scope)
     }
 
-    fun clearQuery() {
-        queryChanged("")
-    }
+    fun clearQuery() = queryChanged("")
 
     fun stop() {
         cancelActive()
@@ -93,25 +97,33 @@ class SearchViewModel(
     private fun startSearch(requestGeneration: Long, rawQuery: String, scope: SearchScope) {
         if (requestGeneration != generation || scope != activeScope) return
         searchJob = lifecycleScope.launch(Dispatchers.IO) {
+            var rootFailures = emptyList<SearchRootFailure>()
+            var resolvedRootCount = 0
             engine.search(
                 request = SearchRequest(scope, rawQuery),
-                roots = rootsForScope,
+                roots = { requestedScope ->
+                    val resolution = resolveRoots(requestedScope)
+                    rootFailures = resolution.failures
+                    resolvedRootCount = resolution.roots.size
+                    StorageResult.Success(resolution.roots)
+                },
                 children = listChildren,
             ).collect { emission ->
                 if (requestGeneration != generation || scope != activeScope) return@collect
                 when (emission) {
-                    is SearchEmission.Batch -> publishBatch(emission)
-                    is SearchEmission.Completed -> publishCompleted(emission, rawQuery, scope)
+                    is SearchEmission.Batch -> publishBatch(emission, rootFailures)
+                    is SearchEmission.Completed -> publishCompleted(emission, rawQuery, scope, rootFailures, resolvedRootCount)
                 }
             }
         }
     }
 
-    private fun publishBatch(batch: SearchEmission.Batch) {
+    private fun publishBatch(batch: SearchEmission.Batch, rootFailures: List<SearchRootFailure>) {
         val current = _state.value as? SearchUiState.Searching ?: return
         _state.value = current.copy(
             hits = current.hits + batch.hits,
             failures = current.failures + batch.failures,
+            rootFailures = rootFailures,
             entriesVisited = batch.entriesVisited,
             directoriesVisited = batch.directoriesVisited,
         )
@@ -121,14 +133,17 @@ class SearchViewModel(
         completed: SearchEmission.Completed,
         rawQuery: String,
         scope: SearchScope,
+        rootFailures: List<SearchRootFailure>,
+        resolvedRootCount: Int,
     ) {
-        if (completed.rootError != null) {
+        if (completed.rootError != null || (scope is SearchScope.ThisDevice && completed.hits.isEmpty() && rootFailures.isNotEmpty() && resolvedRootCount == 0)) {
             _state.value = SearchUiState.Error(
                 query = rawQuery,
                 scope = scope,
-                rootError = completed.rootError,
+                rootError = completed.rootError ?: rootFailures.first().error,
                 hits = completed.hits,
                 failures = completed.failures,
+                rootFailures = rootFailures,
             )
             return
         }
@@ -139,8 +154,9 @@ class SearchViewModel(
             failures = completed.failures,
             entriesVisited = completed.entriesVisited,
             directoriesVisited = completed.directoriesVisited,
-            complete = completed.complete,
+            complete = completed.complete && rootFailures.isEmpty(),
             truncated = completed.truncated,
+            rootFailures = rootFailures,
         )
     }
 

@@ -8,7 +8,7 @@ import com.omnifile.storage.StorageError
 
 /** Scope semantics are independent from the surface that opened Search. */
 sealed interface SearchScope {
-    /** Future app-shell Search default. VS05 does not execute this without explicit roots. */
+    /** All roots currently available through OmniFile's supported-root registry. */
     data object ThisDevice : SearchScope
 
     /** The directory is the search root; matches are descendants of this entry. */
@@ -17,37 +17,35 @@ sealed interface SearchScope {
         val directory: StorageEntry,
     ) : SearchScope {
         init {
-            require(directory.ref.providerId == providerId) {
-                "Search scope provider must match the directory provider"
-            }
-            require(directory.kind == EntryKind.DIRECTORY) {
-                "Search scope must start at a directory"
-            }
+            require(directory.ref.providerId == providerId) { "Search scope provider must match the directory provider" }
+            require(directory.kind == EntryKind.DIRECTORY) { "Search scope must start at a directory" }
         }
     }
 }
 
-data class SearchRequest(
-    val scope: SearchScope,
-    val query: String,
+data class SearchRootFailure(
+    val rootId: String,
+    val label: String,
+    val error: StorageError,
 )
+
+data class SearchRootResolution(
+    val roots: List<StorageEntry>,
+    val failures: List<SearchRootFailure> = emptyList(),
+)
+
+data class SearchRequest(val scope: SearchScope, val query: String)
 
 data class SearchHit(
     val entry: StorageEntry,
     /** Directory entries from the search root through the hit's containing directory. */
     val ancestors: List<StorageEntry>,
 ) {
-    val providerId: ProviderId
-        get() = entry.ref.providerId
-
-    val identity: EntryRef
-        get() = entry.ref
+    val providerId: ProviderId get() = entry.ref.providerId
+    val identity: EntryRef get() = entry.ref
 }
 
-data class SearchSubtreeFailure(
-    val directory: StorageEntry,
-    val error: StorageError,
-)
+data class SearchSubtreeFailure(val directory: StorageEntry, val error: StorageError)
 
 sealed interface SearchEmission {
     data class Batch(
@@ -69,15 +67,14 @@ sealed interface SearchEmission {
 }
 
 sealed interface SearchUiState {
-    data class Idle(
-        val scope: SearchScope? = null,
-    ) : SearchUiState
+    data class Idle(val scope: SearchScope? = null) : SearchUiState
 
     data class Searching(
         val query: String,
         val scope: SearchScope,
         val hits: List<SearchHit> = emptyList(),
         val failures: List<SearchSubtreeFailure> = emptyList(),
+        val rootFailures: List<SearchRootFailure> = emptyList(),
         val entriesVisited: Int = 0,
         val directoriesVisited: Int = 0,
     ) : SearchUiState
@@ -91,6 +88,7 @@ sealed interface SearchUiState {
         val directoriesVisited: Int,
         val complete: Boolean,
         val truncated: Boolean,
+        val rootFailures: List<SearchRootFailure> = emptyList(),
     ) : SearchUiState
 
     data class Error(
@@ -99,5 +97,6 @@ sealed interface SearchUiState {
         val rootError: StorageError,
         val hits: List<SearchHit> = emptyList(),
         val failures: List<SearchSubtreeFailure> = emptyList(),
+        val rootFailures: List<SearchRootFailure> = emptyList(),
     ) : SearchUiState
 }
