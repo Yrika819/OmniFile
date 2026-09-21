@@ -49,6 +49,11 @@ class MainActivity : ComponentActivity() {
     private lateinit var operationsViewModel: com.omnifile.operations.OperationsViewModel
     private var navigation by mutableStateOf(AppNavigationState())
 
+    // Media notification visibility grant; playback itself never gates on it.
+    private val notificationPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { }
+
     private val treePicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val returned = result.data ?: return@registerForActivityResult
         val uri = returned.data ?: return@registerForActivityResult
@@ -84,7 +89,14 @@ class MainActivity : ComponentActivity() {
         }
         navigation = AppNavigationState(restoredTopLevel, restoredDetail, restoredFilesOrigin)
 
-        operationsViewModel = ViewModelProvider(this, Factory { com.omnifile.operations.OperationsViewModel(app.operationStore, app.operationManager) })[com.omnifile.operations.OperationsViewModel::class.java]
+        operationsViewModel = ViewModelProvider(
+            this,
+            Factory {
+                com.omnifile.operations.OperationsViewModel(
+                    app.operationStore,
+                    app.operationManager
+                )
+            })[com.omnifile.operations.OperationsViewModel::class.java]
         filesViewModel = ViewModelProvider(this, Factory {
             FilesViewModel(
                 repository = app.repository,
@@ -110,6 +122,7 @@ class MainActivity : ComponentActivity() {
                                 rootLabels = snapshot.aggregationRoots.associate { it.entry.ref.identityKey to it.label },
                             )
                         }
+
                         is SearchScope.CurrentFolder -> com.omnifile.search.SearchRootResolution(
                             roots = listOf(scope.directory),
                             rootLabels = mapOf(scope.directory.ref.identityKey to scope.directory.displayName),
@@ -126,7 +139,10 @@ class MainActivity : ComponentActivity() {
         }
 
         if (navigation.topLevel == TopLevelDestination.SEARCH && navigation.detail == null) {
-            searchViewModel.restoreRequest(SearchScope.ThisDevice, savedInstanceState?.getString(KEY_SEARCH_QUERY).orEmpty())
+            searchViewModel.restoreRequest(
+                SearchScope.ThisDevice,
+                savedInstanceState?.getString(KEY_SEARCH_QUERY).orEmpty()
+            )
         }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -142,6 +158,7 @@ class MainActivity : ComponentActivity() {
             val filesState by filesViewModel.uiState.collectAsState()
             val searchState by searchViewModel.state.collectAsState()
             val homeState by homeViewModel.state.collectAsState()
+            val playbackState by app.playbackCoordinator.state.collectAsState()
             val operations by operationsViewModel.operations.collectAsState()
             val mutationInFlight by filesViewModel.mutationInFlight.collectAsState()
             val currentNavigation = navigation
@@ -161,9 +178,19 @@ class MainActivity : ComponentActivity() {
                                     DetailSurface.FILES -> FilesSurface(filesState, mutationInFlight)
                                     DetailSurface.CONTEXTUAL_SEARCH -> SearchSurface(searchState, contextual = true)
                                     null -> when (currentTop) {
-                                        TopLevelDestination.HOME -> HomeScreen(homeState, ::openRoot, ::launchTreePicker)
+                                        TopLevelDestination.HOME -> HomeScreen(
+                                            homeState,
+                                            ::openRoot,
+                                            ::launchTreePicker
+                                        )
+
                                         TopLevelDestination.SEARCH -> SearchSurface(searchState, contextual = false)
-                                        TopLevelDestination.MUSIC -> MusicScreen()
+                                        TopLevelDestination.MUSIC -> MusicScreen(
+                                            state = playbackState,
+                                            onPlayPause = app.playbackCoordinator::togglePlayPause,
+                                            onSeek = app.playbackCoordinator::seekTo,
+                                        )
+
                                         TopLevelDestination.SETTINGS -> SettingsScreen((homeState as? HomeUiState.Ready)?.snapshot)
                                     }
                                 }
@@ -197,6 +224,7 @@ class MainActivity : ComponentActivity() {
             onPickTree = ::launchTreePicker,
             onOpenDirectory = filesViewModel::openDirectory,
             onOpenSearch = ::openContextualSearch,
+            onPlayEntry = ::playEntry,
             onEnterSelection = filesViewModel::enterSelection,
             onToggleSelection = filesViewModel::toggleSelection,
             onClearSelection = filesViewModel::clearSelection,
@@ -224,6 +252,7 @@ class MainActivity : ComponentActivity() {
             onSubmitQuery = searchViewModel::submitQuery,
             onClearQuery = searchViewModel::clearQuery,
             onOpenResult = ::openSearchResult,
+            onPlayResult = { hit -> playEntry(hit.entry) },
         )
     }
 
@@ -249,6 +278,19 @@ class MainActivity : ComponentActivity() {
     private fun closeContextualSearch() {
         searchViewModel.stop()
         navigation = navigation.returnToFilesFromContextualSearch()
+    }
+
+    /** Single playback command shared by Files and Search. */
+    private fun playEntry(entry: com.omnifile.storage.StorageEntry) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !app.notificationPermissionRequested) {
+            app.notificationPermissionRequested = true
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+        app.playbackCoordinator.play(entry)
     }
 
     private fun openSearchResult(hit: com.omnifile.search.SearchHit) {
@@ -278,13 +320,14 @@ class MainActivity : ComponentActivity() {
             closeContextualSearch()
             true
         }
+
         null -> false
     }
 
     private fun launchTreePicker() {
         val accessFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
-            Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION or
-            if (filesViewModel.isDestinationPicker) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0
+                Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION or
+                if (filesViewModel.isDestinationPicker) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0
         treePicker.launch(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply { addFlags(accessFlags) })
     }
 
@@ -296,7 +339,8 @@ class MainActivity : ComponentActivity() {
         super.onSaveInstanceState(outState)
     }
 
-    private inline fun <reified T : Enum<T>> valueOfOrNull(value: String): T? = runCatching { enumValueOf<T>(value) }.getOrNull()
+    private inline fun <reified T : Enum<T>> valueOfOrNull(value: String): T? =
+        runCatching { enumValueOf<T>(value) }.getOrNull()
 
     companion object {
         private const val KEY_TOP_LEVEL = "omnifile.top-level"

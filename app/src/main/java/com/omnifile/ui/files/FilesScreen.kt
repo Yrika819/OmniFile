@@ -39,6 +39,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.omnifile.files.FilesSelectionState
 import com.omnifile.files.FilesUiState
+import com.omnifile.media.isPlaybackEligible
 import com.omnifile.storage.EntryKind
 import com.omnifile.storage.StorageCapability
 import com.omnifile.storage.StorageEntry
@@ -54,6 +55,7 @@ fun FilesScreen(
     onPickTree: () -> Unit,
     onOpenDirectory: (StorageEntry) -> Unit,
     onOpenSearch: () -> Unit = {},
+    onPlayEntry: (StorageEntry) -> Unit = {},
     onEnterSelection: (StorageEntry) -> Unit,
     onToggleSelection: (StorageEntry) -> Unit,
     onClearSelection: () -> Unit,
@@ -189,6 +191,7 @@ fun FilesScreen(
                     onOpenDirectory = onOpenDirectory,
                     onEnterSelection = onEnterSelection,
                     onToggleSelection = onToggleSelection,
+                    onPlayEntry = onPlayEntry,
                 )
                 is FilesUiState.Empty -> EmptyState(state.breadcrumb)
                 is FilesUiState.Error -> ErrorState(storageErrorMessage(state.error), state.location, state.breadcrumb, onRetry)
@@ -287,6 +290,7 @@ private fun EntryList(
     onOpenDirectory: (StorageEntry) -> Unit,
     onEnterSelection: (StorageEntry) -> Unit,
     onToggleSelection: (StorageEntry) -> Unit,
+    onPlayEntry: (StorageEntry) -> Unit = {},
 ) {
     Text(
         text = breadcrumb.joinToString(" / "),
@@ -304,6 +308,7 @@ private fun EntryList(
                 onOpenDirectory = onOpenDirectory,
                 onEnterSelection = onEnterSelection,
                 onToggleSelection = onToggleSelection,
+                onPlayEntry = onPlayEntry,
             )
         }
     }
@@ -347,6 +352,7 @@ private fun EntryRow(
     onOpenDirectory: (StorageEntry) -> Unit,
     onEnterSelection: (StorageEntry) -> Unit,
     onToggleSelection: (StorageEntry) -> Unit,
+    onPlayEntry: (StorageEntry) -> Unit = {},
 ) {
     val secondary = buildList {
         if (entry.kind == EntryKind.DIRECTORY) add("Folder")
@@ -382,6 +388,14 @@ private fun EntryRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(entry.displayName)
             if (secondary.isNotEmpty()) Text(secondary, style = MaterialTheme.typography.bodySmall)
+        }
+        // Explicit Play affordance for eligible single audio entries; normal row taps
+        // stay reserved for navigation/selection (and future Preview).
+        if (!selectionMode && entry.isPlaybackEligible) {
+            TextButton(
+                modifier = Modifier.testTag("files.play.${entry.displayName}"),
+                onClick = { onPlayEntry(entry) },
+            ) { Text("Play") }
         }
     }
     HorizontalDivider()

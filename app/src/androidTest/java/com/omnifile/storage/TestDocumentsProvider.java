@@ -48,6 +48,8 @@ public final class TestDocumentsProvider extends DocumentsProvider {
             DocumentsContract.Root.COLUMN_ICON,
     };
     private static final Map<String, Node> NODES = new LinkedHashMap<>();
+    // VS07: documents opened as real regular files (seekable) instead of pipes.
+    private static final Map<String, java.io.File> REGULAR_FILE_BACKING = new LinkedHashMap<>();
     private static int renameCalls;
     private static int deleteCalls;
     private static int createCalls;
@@ -111,6 +113,25 @@ public final class TestDocumentsProvider extends DocumentsProvider {
         writeFailureAfterBytes = -1;
         providerUnavailable = false;
         ioCompletion = new CountDownLatch(0);
+        REGULAR_FILE_BACKING.clear();
+    }
+
+    /** Adds a readable file document (pipe-backed sequential content by default). */
+    public static void addDocument(String id, String parentId, String displayName, String mimeType, byte[] content) {
+        int fileFlags = DocumentsContract.Document.FLAG_SUPPORTS_WRITE
+                | DocumentsContract.Document.FLAG_SUPPORTS_RENAME
+                | DocumentsContract.Document.FLAG_SUPPORTS_DELETE;
+        NODES.put(id, new Node(id, parentId, displayName, mimeType, null, 6000L, fileFlags,
+                content == null ? null : content.clone(), false));
+    }
+
+    /** VS07: when set, read-mode openDocument returns a real regular-file descriptor. */
+    public static void setRegularFileBacking(String documentId, java.io.File file) {
+        if (file == null) {
+            REGULAR_FILE_BACKING.remove(documentId);
+        } else {
+            REGULAR_FILE_BACKING.put(documentId, file);
+        }
     }
 
     public static void enableRootMutationFlags() {
@@ -376,9 +397,19 @@ public final class TestDocumentsProvider extends DocumentsProvider {
         if (write && (node.flags & DocumentsContract.Document.FLAG_SUPPORTS_WRITE) == 0) {
             throw new UnsupportedOperationException("write is not supported");
         }
-        if (!write && node.content == null) throw new UnsupportedOperationException("not a file");
+        if (!write && node.content == null && !REGULAR_FILE_BACKING.containsKey(documentId)) {
+            throw new UnsupportedOperationException("not a file");
+        }
         if (!write) {
             readOpenCalls++;
+            java.io.File backing = REGULAR_FILE_BACKING.get(documentId);
+            if (backing != null) {
+                try {
+                    return ParcelFileDescriptor.open(backing, ParcelFileDescriptor.MODE_READ_ONLY);
+                } catch (IOException error) {
+                    throw fileNotFound(error);
+                }
+            }
             return openReadPipe(node);
         }
         writeOpenCalls++;

@@ -17,6 +17,9 @@ class FilesRepository(providers: Map<ProviderId, StorageProvider>) {
     fun transferProvider(providerId: ProviderId): StorageTransferProvider? =
         providers[providerId] as? StorageTransferProvider
 
+    fun playbackSourceProvider(providerId: ProviderId): com.omnifile.storage.PlaybackSourceProvider? =
+        providers[providerId] as? com.omnifile.storage.PlaybackSourceProvider
+
     suspend fun root(providerId: ProviderId): StorageResult<StorageEntry> =
         providers[providerId]?.root() ?: StorageResult.Failure(StorageError.StaleReference)
 

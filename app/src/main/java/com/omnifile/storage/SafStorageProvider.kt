@@ -7,6 +7,8 @@ import android.net.Uri
 import android.os.OperationCanceledException
 import android.os.ParcelFileDescriptor
 import android.provider.DocumentsContract
+import android.system.Os
+import android.system.OsConstants
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.security.MessageDigest
@@ -26,7 +28,7 @@ class SafStorageProvider(
     private val grantFlags: Int = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
     private val finalizationProven: Boolean = false,
     private val sourceVersionProven: Boolean = false,
-) : StorageTransferProvider {
+) : StorageTransferProvider, PlaybackSourceProvider {
     init {
         require(DocumentsContract.isTreeUri(treeUri)) { "SAF transfer requires a tree URI" }
     }
@@ -65,7 +67,12 @@ class SafStorageProvider(
             return StorageResult.Failure(StorageError.Unsupported)
         }
         if (!isValidSingleComponent(requestedName)) {
-            return StorageResult.Failure(StorageError.InvalidName(requestedName, "Name must be a single path component"))
+            return StorageResult.Failure(
+                StorageError.InvalidName(
+                    requestedName,
+                    "Name must be a single path component"
+                )
+            )
         }
 
         return try {
@@ -131,6 +138,51 @@ class SafStorageProvider(
         }
     }
 
+    /**
+     * Resolves a readable SAF file to a `content://` transport with a truthful per-item
+     * seek probe: a regular-file descriptor proves SEEKABLE, a pipe/socket descriptor
+     * proves NOT_SEEKABLE, and an inconclusive probe stays UNKNOWN (playback may still
+     * be attempted; seek must not be offered).
+     */
+    override suspend fun resolvePlaybackSource(entry: StorageEntry): StorageResult<PlaybackSource> {
+        val ref = try {
+            checkedRef(entry.ref)
+        } catch (_: ProviderUnavailableException) {
+            return StorageResult.Failure(StorageError.ProviderUnavailable)
+        } catch (_: SecurityException) {
+            return StorageResult.Failure(StorageError.PermissionDenied)
+        } ?: return StorageResult.Failure(StorageError.StaleReference)
+        if (entry.kind != EntryKind.FILE || StorageCapability.READ_SEQUENTIAL !in entry.capabilities) {
+            return StorageResult.Failure(StorageError.Unsupported)
+        }
+        val uri = documentUri(ref.documentId)
+        val seekSupport = try {
+            contentResolver.openFileDescriptor(uri, "r")?.use { descriptor ->
+                val stat = Os.fstat(descriptor.fileDescriptor)
+                if (OsConstants.S_ISREG(stat.st_mode)) SeekSupport.SEEKABLE else SeekSupport.NOT_SEEKABLE
+            } ?: SeekSupport.UNKNOWN
+        } catch (error: SecurityException) {
+            return StorageResult.Failure(StorageError.PermissionDenied)
+        } catch (error: FileNotFoundException) {
+            return StorageResult.Failure(StorageError.NotFound)
+        } catch (_: OperationCanceledException) {
+            return StorageResult.Failure(StorageError.Cancelled)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            // An open-time provider exception is inconclusive capability
+            // evidence; the checked reference path above owns outage mapping.
+            SeekSupport.UNKNOWN
+        }
+        return StorageResult.Success(
+            PlaybackSource(
+                transportUri = uri.toString(),
+                seekSupport = seekSupport,
+                sourceLabel = "SAF folder",
+            ),
+        )
+    }
+
     override suspend fun listChildren(directory: EntryRef): StorageResult<List<StorageEntry>> {
         val ref = directory as? SafEntryRef
             ?: return StorageResult.Failure(StorageError.StaleReference)
@@ -173,12 +225,13 @@ class SafStorageProvider(
         }
     }
 
-    override suspend fun encodeDurableLocator(ref: EntryRef): StorageResult<com.omnifile.operations.DurableLocator> = try {
-        checkedRef(ref)?.let { StorageResult.Success(locatorFor(it.documentId)) }
-            ?: StorageResult.Failure(StorageError.StaleReference)
-    } catch (_: SecurityException) {
-        StorageResult.Failure(StorageError.PermissionDenied)
-    }
+    override suspend fun encodeDurableLocator(ref: EntryRef): StorageResult<com.omnifile.operations.DurableLocator> =
+        try {
+            checkedRef(ref)?.let { StorageResult.Success(locatorFor(it.documentId)) }
+                ?: StorageResult.Failure(StorageError.StaleReference)
+        } catch (_: SecurityException) {
+            StorageResult.Failure(StorageError.PermissionDenied)
+        }
 
     override suspend fun resolveDurableLocator(
         locator: com.omnifile.operations.DurableLocator,
@@ -226,6 +279,7 @@ class SafStorageProvider(
                     ),
                 )
             }
+
             is StorageResult.Failure -> result
         }
     }
@@ -254,7 +308,9 @@ class SafStorageProvider(
                 object : SequentialReadHandle {
                     private val input = ParcelFileDescriptor.AutoCloseInputStream(descriptor)
                     override val expectedBytes: Long? = entry.sizeBytes
-                    override fun read(buffer: ByteArray, offset: Int, length: Int): Int = input.read(buffer, offset, length)
+                    override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
+                        input.read(buffer, offset, length)
+
                     override fun close() = input.close()
                 },
             )
@@ -320,11 +376,13 @@ class SafStorageProvider(
                         } else {
                             StorageResult.Failure(StorageError.StaleReference)
                         }
+
                         is StorageResult.Failure -> children
                     }
                 } else {
                     StorageResult.Failure(StorageError.StaleReference)
                 }
+
                 is StorageResult.Failure -> entry
             }
         } catch (error: OperationCanceledException) {
@@ -375,7 +433,9 @@ class SafStorageProvider(
             StorageResult.Success(
                 object : SequentialWriteHandle {
                     private val output = ParcelFileDescriptor.AutoCloseOutputStream(descriptor)
-                    override fun write(buffer: ByteArray, offset: Int, length: Int) = output.write(buffer, offset, length)
+                    override fun write(buffer: ByteArray, offset: Int, length: Int) =
+                        output.write(buffer, offset, length)
+
                     override fun flush() = output.flush()
                     override fun close() = output.close()
                 },
@@ -416,14 +476,16 @@ class SafStorageProvider(
         if (!isValidSingleComponent(intendedFinalName) || partialParts.treeUri != parentParts.treeUri) {
             return StorageResult.Failure(StorageError.StaleReference)
         }
-        val partialEntry = when (val result = queryEntry(documentUri(partialParts.documentId), null, partialParts.documentId)) {
-            is StorageResult.Success -> result.value
-            is StorageResult.Failure -> return result
-        }
-        val parentEntry = when (val result = queryEntry(documentUri(parentParts.documentId), null, parentParts.documentId)) {
-            is StorageResult.Success -> result.value
-            is StorageResult.Failure -> return result
-        }
+        val partialEntry =
+            when (val result = queryEntry(documentUri(partialParts.documentId), null, partialParts.documentId)) {
+                is StorageResult.Success -> result.value
+                is StorageResult.Failure -> return result
+            }
+        val parentEntry =
+            when (val result = queryEntry(documentUri(parentParts.documentId), null, parentParts.documentId)) {
+                is StorageResult.Success -> result.value
+                is StorageResult.Failure -> return result
+            }
         if (partialEntry.kind != EntryKind.FILE || !isOperationPartial(partialEntry.displayName, operationId) ||
             parentEntry.kind != EntryKind.DIRECTORY
         ) {
@@ -463,8 +525,10 @@ class SafStorageProvider(
                     } else {
                         StorageResult.Success(FinalizationResult.Ambiguous)
                     }
+
                     is StorageResult.Failure -> StorageResult.Success(FinalizationResult.Ambiguous)
                 }
+
                 is StorageResult.Failure -> StorageResult.Success(FinalizationResult.Ambiguous)
             }
         } catch (error: OperationCanceledException) {
@@ -476,13 +540,23 @@ class SafStorageProvider(
         } catch (error: FileNotFoundException) {
             if (attempted) StorageResult.Success(FinalizationResult.Ambiguous) else StorageResult.Failure(StorageError.NotFound)
         } catch (error: UnsupportedOperationException) {
-            if (attempted) StorageResult.Success(FinalizationResult.Ambiguous) else StorageResult.Success(FinalizationResult.Unsupported)
+            if (attempted) StorageResult.Success(FinalizationResult.Ambiguous) else StorageResult.Success(
+                FinalizationResult.Unsupported
+            )
         } catch (error: IllegalArgumentException) {
             if (attempted) StorageResult.Success(FinalizationResult.Ambiguous) else StorageResult.Failure(StorageError.StaleReference)
         } catch (error: IOException) {
-            if (attempted) StorageResult.Success(FinalizationResult.Ambiguous) else StorageResult.Failure(StorageError.IoFailure(error.message))
+            if (attempted) StorageResult.Success(FinalizationResult.Ambiguous) else StorageResult.Failure(
+                StorageError.IoFailure(
+                    error.message
+                )
+            )
         } catch (error: IllegalStateException) {
-            if (attempted) StorageResult.Success(FinalizationResult.Ambiguous) else StorageResult.Failure(StorageError.IoFailure(error.message))
+            if (attempted) StorageResult.Success(FinalizationResult.Ambiguous) else StorageResult.Failure(
+                StorageError.IoFailure(
+                    error.message
+                )
+            )
         }
     }
 

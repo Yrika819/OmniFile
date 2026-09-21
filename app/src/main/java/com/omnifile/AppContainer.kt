@@ -36,6 +36,15 @@ class AppContainer(context: Context) {
         com.omnifile.storage.ProviderId("local-app-files"),
     )
     val repository = FilesRepository(mapOf(localProvider.id to localProvider))
+
+    /** Process-scoped guard for the one notification-permission prompt on first Play. */
+    var notificationPermissionRequested = false
+
+    /** Process-scoped single playback entry point; survives Activity recreation. */
+    val playbackCoordinator = com.omnifile.media.PlaybackCoordinator(
+        appContext,
+        repository::playbackSourceProvider,
+    )
     val operationDatabase: OperationDatabase = Room.databaseBuilder(
         appContext,
         OperationDatabase::class.java,

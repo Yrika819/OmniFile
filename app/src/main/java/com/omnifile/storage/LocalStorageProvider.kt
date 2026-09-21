@@ -21,7 +21,7 @@ import java.nio.file.attribute.BasicFileAttributes
 class LocalStorageProvider(
     rootDirectory: Path,
     override val id: ProviderId,
-) : StorageTransferProvider {
+) : StorageTransferProvider, PlaybackSourceProvider {
     private val rootDirectory = rootDirectory.toAbsolutePath().normalize()
     private val filesystemRoot = rootDirectory.root
         ?: throw IllegalArgumentException("Local root must be absolute")
@@ -70,6 +70,29 @@ class LocalStorageProvider(
                 else -> throw UnsupportedOperationException("Unsupported Local entry type")
             }
         }
+    }
+
+    override suspend fun resolvePlaybackSource(entry: StorageEntry): StorageResult<PlaybackSource> = guarded {
+        val localRef = checkedRef(entry.ref)
+        if (entry.kind != EntryKind.FILE) {
+            throw UnsupportedOperationException("Only regular files are playable")
+        }
+        val attributes = Files.readAttributes(
+            localRef.path,
+            BasicFileAttributes::class.java,
+            LinkOption.NOFOLLOW_LINKS,
+        )
+        if (attributes.isSymbolicLink || !attributes.isRegularFile) {
+            throw UnsupportedOperationException("Only regular Local files are playable")
+        }
+        if (!Files.isReadable(localRef.path)) {
+            throw AccessDeniedException(localRef.path.toString())
+        }
+        PlaybackSource(
+            transportUri = localRef.path.toUri().toString(),
+            seekSupport = SeekSupport.SEEKABLE,
+            sourceLabel = "Local storage",
+        )
     }
 
     override val transferCapabilities: Set<TransferCapability> = setOf(

@@ -32,6 +32,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
+import com.omnifile.media.isPlaybackEligible
 import com.omnifile.search.SearchHit
 import com.omnifile.search.SearchScope
 import com.omnifile.search.SearchSubtreeFailure
@@ -52,6 +53,7 @@ fun SearchScreen(
     onSubmitQuery: () -> Unit,
     onClearQuery: () -> Unit,
     onOpenResult: (SearchHit) -> Unit,
+    onPlayResult: (SearchHit) -> Unit = {},
 ) {
     val query = when (state) {
         is SearchUiState.Idle -> ""
@@ -104,6 +106,7 @@ fun SearchScreen(
                     rootFailures = state.rootFailures,
                     searching = true,
                     onOpenResult = onOpenResult,
+                    onPlayResult = onPlayResult,
                 )
                 is SearchUiState.Results -> SearchResults(
                     hits = state.hits,
@@ -112,8 +115,9 @@ fun SearchScreen(
                     searching = false,
                     truncated = state.truncated,
                     onOpenResult = onOpenResult,
+                    onPlayResult = onPlayResult,
                 )
-                is SearchUiState.Error -> RootErrorState(state.rootError, state.hits, state.rootFailures, onOpenResult)
+                is SearchUiState.Error -> RootErrorState(state.rootError, state.hits, state.rootFailures, onOpenResult, onPlayResult)
             }
         }
     }
@@ -165,6 +169,7 @@ private fun SearchResults(
     searching: Boolean,
     truncated: Boolean = false,
     onOpenResult: (SearchHit) -> Unit,
+    onPlayResult: (SearchHit) -> Unit = {},
 ) {
     if (rootFailures.isNotEmpty()) {
         Column(modifier = Modifier.padding(horizontal = 16.dp).testTag("search.partial.roots")) {
@@ -208,7 +213,7 @@ private fun SearchResults(
     if (hits.isNotEmpty()) {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             itemsIndexed(hits, key = { _, hit -> hit.entry.ref.identityKey }) { index, hit ->
-                SearchResultRow(index, hit, onOpenResult)
+                SearchResultRow(index, hit, onOpenResult, onPlayResult)
             }
         }
     }
@@ -220,6 +225,7 @@ private fun RootErrorState(
     hits: List<SearchHit>,
     rootFailures: List<SearchRootFailure>,
     onOpenResult: (SearchHit) -> Unit,
+    onPlayResult: (SearchHit) -> Unit = {},
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(searchErrorMessage(error), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.testTag("search.error"))
@@ -231,7 +237,7 @@ private fun RootErrorState(
         }
         if (hits.isNotEmpty()) {
             Text("Previously found results remain available.")
-            hits.forEachIndexed { index, hit -> SearchResultRow(index, hit, onOpenResult) }
+            hits.forEachIndexed { index, hit -> SearchResultRow(index, hit, onOpenResult, onPlayResult) }
         } else {
             Text("No results are available for this scope.")
         }
@@ -239,7 +245,12 @@ private fun RootErrorState(
 }
 
 @Composable
-private fun SearchResultRow(index: Int, hit: SearchHit, onOpenResult: (SearchHit) -> Unit) {
+private fun SearchResultRow(
+    index: Int,
+    hit: SearchHit,
+    onOpenResult: (SearchHit) -> Unit,
+    onPlayResult: (SearchHit) -> Unit = {},
+) {
     val location = buildList {
         hit.rootLabel?.let(::add)
         addAll(hit.ancestors.map { it.displayName })
@@ -251,17 +262,26 @@ private fun SearchResultRow(index: Int, hit: SearchHit, onOpenResult: (SearchHit
             add(DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it)))
         }
     }.joinToString(" · ")
-    TextButton(
-        onClick = { onOpenResult(hit) },
-        modifier = Modifier.fillMaxWidth().testTag("search.result.$index"),
-    ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(if (hit.entry.kind == EntryKind.DIRECTORY) "□" else "·")
-            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
-                Text(hit.entry.displayName, style = MaterialTheme.typography.titleMedium)
-                if (location.isNotEmpty()) Text(location, style = MaterialTheme.typography.bodySmall)
-                Text(metadata, style = MaterialTheme.typography.bodySmall)
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        TextButton(
+            onClick = { onOpenResult(hit) },
+            modifier = Modifier.weight(1f).testTag("search.result.$index"),
+        ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(if (hit.entry.kind == EntryKind.DIRECTORY) "□" else "·")
+                Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
+                    Text(hit.entry.displayName, style = MaterialTheme.typography.titleMedium)
+                    if (location.isNotEmpty()) Text(location, style = MaterialTheme.typography.bodySmall)
+                    Text(metadata, style = MaterialTheme.typography.bodySmall)
+                }
             }
+        }
+        // Same single playback command as Files; no player is created here.
+        if (hit.entry.isPlaybackEligible) {
+            TextButton(
+                modifier = Modifier.testTag("search.play.$index"),
+                onClick = { onPlayResult(hit) },
+            ) { Text("Play") }
         }
     }
 }
