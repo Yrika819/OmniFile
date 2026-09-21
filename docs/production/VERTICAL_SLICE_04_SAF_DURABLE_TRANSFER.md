@@ -2,16 +2,17 @@
 
 ## Status
 
-`OMNIFILE_CORE_V1_VS04_INCOMPLETE — FINAL PIXEL COMPOSE/UI RERUN PENDING WHILE DEVICE IS LOCKED`
+`OMNIFILE_CORE_V1_VS04_COMPLETE — SAF DURABLE TRANSFER SLICE CLOSED`
 
 VS04 hardening is implemented and the two prior final-review code findings are closed. The final supported production matrix remains conservative: sequential SAF source → Local Copy is supported for the verified grant/provider path; SAF destination finalization, SAF Move, and SAF → SAF remain Unsupported.
 
-The latest Pixel run was blocked only for Compose/UI interaction because the Pixel entered `mDreamingLockscreen=true`. The device was not unlocked or bypassed. Controlled provider runtime and non-UI SAF runtime remained executable and passed.
+The final physical Compose/UI gate is closed on a normally unlocked Pixel 7a. The focused Compose class passed 4/4, the complete direct instrumentation suite passed 31/31, and the bounded disposable-tree UI smoke confirmed source restoration and conservative capability gating. No route was enabled from this evidence.
 
 ## Base, branch, and current revision
 
 - Published VS03 base: `a95b3e28f47954b879b389ce6d5a5f17d4704407`
 - VS04 branch: `development/core-v1-saf-transfer-v1`
+- Current VS04 HEAD: `b3fd23078bc26857e80cbc4018ba5019d19dc04c`
 - VS04 worktree: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1`
 - Hardening commit: `19b73f7 fix(storage): close saf interruption and tree restoration blockers`
 - Room schema: version `1`; unchanged; no migration required
@@ -88,7 +89,7 @@ Real Pixel grant evidence from the disposable tree:
 - Observed permission state: `mode=0x3`, `persistable=0x3`, `persisted=0x3`, `[prefix]`
 - Prior production restart restored the broad `OmniFile-SAF-Test` tree rather than the child destination tree.
 
-Real grant revocation and equal-depth DocumentsUI interaction were not repeated during the locked-device overnight run. Deterministic controlled/host evidence is the primary evidence for those interruption and restoration cases.
+Real user-provider grant revocation remains intentionally deferred; deterministic controlled/host evidence is the primary evidence for interruption and destructive revocation semantics. The final physical source restoration check used the existing disposable tree after normal DocumentsUI selection and Activity recreation.
 
 ## Capability and finalization gates
 
@@ -205,7 +206,14 @@ Earlier final production APK evidence on the same Pixel/provider established:
 
 No real Local→SAF or SAF→SAF destination operation was attempted because production finalization is intentionally unsupported. No final production SAF Move is claimed.
 
-The current final APK was installed successfully, but the Pixel then reported `mDreamingLockscreen=true`. The final Compose class returned four `No compose hierarchies found` failures because the device was locked/dreaming. Unlocking, root, grant database edits, and permission bypass were not used.
+Final physical UI closure on the normally unlocked Pixel 7a/API 36:
+
+- Focused `FilesScreenComposeInstrumentedTest`: `4/4 PASS`.
+- Complete direct AndroidJUnitRunner suite: `31/31 PASS`, including the four Compose tests.
+- Existing disposable `OmniFile-SAF-Test` tree restored after Activity recreation; `source` and `destination` were listed and `vs04-source.txt` remained `41 B`.
+- Selected SAF source: Copy enabled; Move disabled.
+- Destination picker: Local selectable; SAF final `Use this folder` confirmation remained disabled while `finalizationProven=false`.
+- No destructive transfer, real grant revocation, personal-file access, root, grant-database edit, or security bypass was used.
 
 ## Room/schema impact
 
@@ -236,7 +244,7 @@ Final APK SHA-256:
 
 ```text
 app-debug.apk
-4aab8d502161a5deddbd8d9451ce73fd5acac72a88e8a998e6eeb66a9bcd40f1
+d7429bd8d7d68a2d38b92620aed740214bbb977dd0b2aadf149ec17aa80b5c4b
 
 app-debug-androidTest.apk
 6881e010dc1a0455a967c1e13885aa72a6ac79b209ede489e15a93976b216814
@@ -245,8 +253,10 @@ app-debug-androidTest.apk
 ## Reviews and security closure
 
 - Prior final whole-diff review: `tmp/reviews/2026-09-21-code-review-final-vs04.md` — old F1/F2 findings superseded by current hardening.
-- Current post-hardening code review: `tmp/reviews/2026-09-21-code-review-post-hardening-7d2c9a41.md` — `Pass with caveat`; no unresolved code findings; one locked-device UI test gap.
-- Current post-hardening regression review: `tmp/reviews/2026-09-21-user-visible-regression-post-hardening-7d2c9a41.md` — `Discuss` only for locked-device final UI evidence.
+- Current post-hardening code review: `tmp/reviews/2026-09-21-code-review-post-hardening-7d2c9a41.md` — historical `Pass with caveat`; its locked-device UI gap is superseded by the post-unlock evidence below.
+- Final post-unlock code review: `tmp/reviews/2026-09-21-code-review-post-unlock-63faae30.md` — `Pass`; 0 findings, 0 test gaps, 8 coverage areas.
+- Current post-hardening regression review: `tmp/reviews/2026-09-21-user-visible-regression-post-hardening-7d2c9a41.md` — historical `Discuss` for the locked-device gate.
+- Final post-unlock regression review: `tmp/reviews/2026-09-21-user-visible-regression-post-unlock-63faae30.md` — `Pass`; no user-visible regressions identified.
 - `android-intent-security`: picker construction, returned URI/flags, read/write masking, persistable grant validation, restoration, and containment reviewed.
 - `debug`: used for SAF provider/error ambiguity, controlled provider evidence, and Gradle/Kotlin daemon stalls. No temporary debug probes remain.
 - `testing-setup`: existing JUnit4, Compose instrumentation, Room, and controlled DocumentsProvider harness were extended; no unnecessary dependency was added.
@@ -254,8 +264,8 @@ app-debug-androidTest.apk
 
 ## Explicit remaining gates and deferred work
 
-- Final physical Compose/UI rerun after normal user unlock remains pending.
-- Real persisted-grant revocation through normal user interaction remains deferred; controlled provider/host evidence is green.
+- Final physical Compose/UI verification is closed: focused 4/4 and complete 31/31 on the normally unlocked Pixel.
+- Real persisted-grant revocation through normal user interaction remains deferred; controlled provider/host evidence is green and no supported destructive SAF route depends on unproven user-provider behavior.
 - Generic SAF destination finalization remains Unsupported until provider-scoped create/write/rename/returned-identity proof is established.
 - SAF→Local Move remains Unsupported until provider-scoped source-version proof is established.
 - SAF→SAF remains Unsupported because it depends on destination finalization and source-delete proof.
