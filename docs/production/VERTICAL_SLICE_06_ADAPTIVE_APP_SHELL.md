@@ -4,7 +4,9 @@
 - Published VS05 base: `35dcf37ccadc7f86182ca1b038b59015a5962bba`
 - VS06 branch: `development/core-v1-app-shell-v1`
 - Worktree: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1`
-- Status: implementation and physical verification complete; final commit/push metadata is recorded at closure
+- Status: implementation, review, documentation, and physical verification complete; branch/push equality is recorded at closure
+- Final debug APK SHA-256: `77d6e9ef730e2fe57f9735a7b332031887b2ba1a7ada88111460bc69a2477465`
+- Final debug androidTest APK SHA-256: `2d79c091ec3761c6a3438b2b7eb3bfe2826c601c6e1aa4bd56e9e96747bbb887`
 
 ## Product navigation model
 
@@ -129,7 +131,7 @@ Environment: Android SDK `/Users/yuta/Library/Android/sdk`; JDK 21 fallback at `
 
 - `:app:compileDebugKotlin`: PASS
 - focused VS06 host tests: PASS; 18 tests across navigation, contextual Files origin, root registry, ThisDevice Search, root labels, and Files provider switching
-- `:app:testDebugUnitTest`: 95 tests executed; 84 passed and 11 pre-existing LocalStorage secure-mutation/transfer tests fail under this macOS/JDK 21 runtime because `SecureDirectoryStream` is reported unavailable. The failures are unchanged VS05 LocalStorage/Operation paths and are not caused by VS06 shell/root code.
+- `:app:testDebugUnitTest`: 97 tests executed; 86 passed and 11 pre-existing LocalStorage secure-mutation/transfer tests fail under this macOS/JDK 21 runtime because `SecureDirectoryStream` is reported unavailable. The failures are unchanged VS05 LocalStorage/Operation paths and are not caused by VS06 shell/root code.
 - `:app:lintDebug`: BUILD SUCCESSFUL; existing advisory/dependency/resource warnings remain, with no new error-level issue
 - `:app:assembleDebug`: PASS
 - `:app:assembleDebugAndroidTest`: PASS
@@ -164,11 +166,22 @@ Physical evidence is compact-width only. The expanded NavigationRail branch is s
 - Review A — shell/navigation architecture: `tmp/reviews/2026-09-21-code-review-vs06-review-a-1d4f8c2a.md`, validated Pass before substantial UI work.
 - Review B — state restoration, Back, ThisDevice aggregation: `tmp/reviews/2026-09-21-code-review-vs06-review-b-7eb71a63.md`, validated Pass, 0 findings, 8 areas.
 - Review C — UI/adaptive/accessibility/insets: `tmp/reviews/2026-09-21-code-review-vs06-review-c-535255d8.md`, validated Pass, 0 findings, 8 areas.
-- Final whole-diff review and final VS05→VS06 regression review are performed at closure against the published VS05 SHA and recorded in the final review artifacts.
+- Final whole-diff review: `tmp/reviews/2026-09-21-code-review-vs06-final-01e7dd84.md`, validated Pass, 0 findings, 13 areas.
+- Final VS05→VS06 regression review: `tmp/reviews/2026-09-21-user-visible-regression-vs06-final-ce9a3d2a.md`, validated Pass, 0 regression findings, 4 intentional changes.
 
 ## Deferred capabilities
 
 Media3 playback, music indexing, full Settings, root storage, network/cloud providers, archives, Preview, directory Copy/Move, SAF Move, SAF destination finalization, persistent indexing, full-text/OCR/semantic search, duplicate detection, WorkManager indexing, and VS07 work remain deferred.
+
+## Final commits
+
+- `994015b` `feat(navigation): add adaptive app shell`
+- `821f5ff` `feat(search): enable this-device multi-root scope`
+- `65798f5` `test(navigation): cover shell restoration and multi-root flows`
+- `2e2272a` `docs(vs06): record adaptive app shell evidence`
+- `687d8a1` `fix(navigation): preserve contextual files origin`
+- `2a077dc` `docs(vs06): update final root and navigation evidence`
+- Final review artifacts and closure metadata are committed after this document update.
 
 ## Recommended VS07 frontier
 
