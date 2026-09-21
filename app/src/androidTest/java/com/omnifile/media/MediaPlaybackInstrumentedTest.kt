@@ -47,6 +47,7 @@ class MediaPlaybackInstrumentedTest {
         }
         File(context.filesDir, WAV_NAME).delete()
         File(context.filesDir, FLAC_NAME).delete()
+        File(context.filesDir, "vs07-missing-replacement.wav").delete()
     }
 
     @Test
@@ -125,6 +126,7 @@ class MediaPlaybackInstrumentedTest {
                                 is StorageResult.Success -> StorageResult.Success(
                                     base.value.copy(seekSupport = SeekSupport.NOT_SEEKABLE),
                                 )
+
                                 is StorageResult.Failure -> base
                             }
                     }
@@ -162,6 +164,29 @@ class MediaPlaybackInstrumentedTest {
         val failed = awaitState { it.status == PlaybackStatus.ERROR }
         assertEquals(PlaybackStatus.ERROR, failed.status)
         assertEquals(PlaybackError.SourceNotFound, failed.error)
+    }
+
+    @Test
+    fun failedReplacementKeepsStateOnTheFailedCurrentRequest() {
+        val first = prepareWav()
+        val replacementName = "vs07-missing-replacement.wav"
+        File(context.filesDir, replacementName).writeBytes(MediaTestFixtures.toneWavBytes())
+        val replacement = entryFor(replacementName)
+
+        instrumentation.runOnMainSync { coordinator.play(first) }
+        awaitState { it.status == PlaybackStatus.READY && it.isPlaying }
+        File(context.filesDir, replacementName).delete()
+
+        instrumentation.runOnMainSync { coordinator.play(replacement) }
+
+        val failed = awaitState { it.status == PlaybackStatus.ERROR }
+        assertEquals(replacementName, failed.item?.displayName)
+        assertEquals(PlaybackError.SourceNotFound, failed.error)
+        Thread.sleep(500)
+        val stable = coordinator.state.value
+        assertEquals("replacement error must remain current", replacementName, stable.item?.displayName)
+        assertEquals(PlaybackStatus.ERROR, stable.status)
+        assertTrue(!stable.isPlaying)
     }
 
     @Test
@@ -205,4 +230,3 @@ class MediaPlaybackInstrumentedTest {
         const val FLAC_NAME = "vs07-primary.flac"
     }
 }
-

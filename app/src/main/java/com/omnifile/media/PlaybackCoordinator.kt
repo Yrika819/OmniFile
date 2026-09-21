@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 
 /**
@@ -55,6 +56,9 @@ class PlaybackCoordinator(
     private var pollingJob: Job? = null
     private var playJob: Job? = null
     private var playRequestId = 0L
+    private var expectedMediaId: String? = null
+    private var controllerGeneration = 0L
+    private var playerError: PlaybackError? = null
 
     /**
      * Plays one eligible audio entry, replacing the single current item.
@@ -64,8 +68,11 @@ class PlaybackCoordinator(
     fun play(entry: StorageEntry) {
         playJob?.cancel()
         val requestId = ++playRequestId
+        clearPlayerForReplacement()
         when (val eligibility = entry.playbackEligibility()) {
             is PlaybackEligibility.Ineligible -> {
+                val errorItem = PlaybackItem.of(entry, "")
+                expectedMediaId = errorItem.mediaId
                 val error = when (eligibility.reason) {
                     PlaybackIneligibility.DIRECTORY,
                     PlaybackIneligibility.UNSUPPORTED_TYPE,
@@ -73,13 +80,14 @@ class PlaybackCoordinator(
 
                     PlaybackIneligibility.NOT_READABLE -> PlaybackError.PermissionUnavailable
                 }
-                publishError(PlaybackItem.of(entry, ""), error)
+                publishError(errorItem, error)
                 return
             }
 
             PlaybackEligibility.Eligible -> Unit
         }
         val pendingItem = PlaybackItem.of(entry, "")
+        expectedMediaId = pendingItem.mediaId
         _state.value = NowPlayingState(
             status = PlaybackStatus.BUFFERING,
             item = pendingItem,
@@ -96,7 +104,9 @@ class PlaybackCoordinator(
                 publishError(pendingItem, PlaybackError.ProviderUnavailable)
                 return@launch
             }
-            when (val resolved = resolver.resolvePlaybackSource(entry)) {
+            when (val resolved = withContext(Dispatchers.IO) {
+                resolver.resolvePlaybackSource(entry)
+            }) {
                 is StorageResult.Failure -> {
                     if (isCurrentPlayRequest(requestId)) {
                         publishError(pendingItem, PlaybackErrorMapper.fromStorageError(resolved.error))
@@ -122,15 +132,14 @@ class PlaybackCoordinator(
         playJob?.cancel()
         playJob = null
         ++playRequestId
-        controller?.let { current ->
-            current.stop()
-            current.clearMediaItems()
-            publishFromPlayer()
-        } ?: run {
-            pollingJob?.cancel()
-            pollingJob = null
-            _state.value = NowPlayingState.NoMedia
+        expectedMediaId = null
+        clearPlayerForReplacement()
+        if (controller == null) {
+            controllerGeneration++
+            controllerFuture?.cancel(true)
+            controllerFuture = null
         }
+        _state.value = NowPlayingState.NoMedia
     }
 
     /** Seek is only issued when the per-item probe proved SEEKABLE and the player agrees. */
@@ -147,6 +156,7 @@ class PlaybackCoordinator(
         if (!isCurrentPlayRequest(requestId)) return
         items[item.mediaId] = item
         seekSupportById[item.mediaId] = source.seekSupport
+        playerError = null
         _state.value = NowPlayingState(
             status = PlaybackStatus.BUFFERING,
             item = item,
@@ -181,20 +191,36 @@ class PlaybackCoordinator(
     private fun isCurrentPlayRequest(requestId: Long): Boolean = requestId == playRequestId
 
     private suspend fun awaitController(): MediaController? {
-        controller?.let { return it }
+        controller?.let { existing ->
+            if (existing.isConnected) return existing
+            existing.release()
+            controller = null
+            listenerAttached = false
+            controllerFuture = null
+        }
         val future = controllerFuture ?: MediaController.Builder(
             appContext,
             SessionToken(appContext, ComponentName(appContext, serviceClass)),
         ).buildAsync().also { controllerFuture = it }
+        val generation = controllerGeneration
         return suspendCancellableCoroutine { continuation ->
             future.addListener({
                 val connected = runCatching { future.get() }.getOrNull()
+                if (generation != controllerGeneration || controllerFuture !== future) {
+                    connected?.release()
+                    if (continuation.isActive) continuation.resume(null)
+                    return@addListener
+                }
                 if (connected != null) {
                     controller = connected
                     if (!listenerAttached) {
                         connected.addListener(playerListener)
                         listenerAttached = true
                     }
+                } else {
+                    // Do not cache a failed connection: a later play request may
+                    // recover after a transient service/session failure.
+                    controllerFuture = null
                 }
                 if (continuation.isActive) continuation.resume(connected)
             }, MoreExecutors.directExecutor())
@@ -206,13 +232,21 @@ class PlaybackCoordinator(
         playJob?.cancel()
         playJob = null
         ++playRequestId
+        expectedMediaId = null
         pollingJob?.cancel()
-        controllerFuture?.let { future ->
-            if (future.isDone) runCatching { future.get().release() }
-        }
-        controllerFuture = null
+        controllerGeneration++
+        val currentController = controller
         controller = null
         listenerAttached = false
+        currentController?.release()
+        controllerFuture?.let { future ->
+            if (!future.isDone) {
+                future.cancel(true)
+            } else if (currentController == null) {
+                runCatching { future.get().release() }
+            }
+        }
+        controllerFuture = null
     }
 
 
@@ -227,14 +261,21 @@ class PlaybackCoordinator(
         ) = publishFromPlayer()
 
         override fun onPlayerError(error: PlaybackException) {
-            val item = controller?.currentMediaItem?.mediaId?.let(items::get)
-            publishError(item, mapPlaybackError(error))
+            val mediaId = controller?.currentMediaItem?.mediaId
+            if (!isExpectedMediaId(mediaId)) return
+            playerError = mapPlaybackError(error)
+            val item = mediaId?.let(items::get)
+            publishError(item, playerError!!)
         }
     }
 
     private fun publishFromPlayer() {
         val current = controller ?: return
         val mediaId = current.currentMediaItem?.mediaId
+        // MediaController commands are asynchronous. Ignore callbacks from the
+        // previous item (including the transient empty state from clearMediaItems)
+        // while a newer request owns the coordinator state.
+        if (!isExpectedMediaId(mediaId)) return
         val item = mediaId?.let(items::get)
         val phase = when (current.playbackState) {
             Player.STATE_IDLE -> PlayerPhase.IDLE
@@ -243,7 +284,11 @@ class PlaybackCoordinator(
             Player.STATE_ENDED -> PlayerPhase.ENDED
             else -> PlayerPhase.IDLE
         }
-        val status = PlaybackStateReducer.reduce(phase, hasItem = item != null, hasError = false)
+        val status = PlaybackStateReducer.reduce(
+            phase,
+            hasItem = item != null,
+            hasError = playerError != null,
+        )
         val duration = current.duration.takeIf { it != C.TIME_UNSET && it >= 0L }
         _state.value = NowPlayingState(
             status = status,
@@ -252,9 +297,22 @@ class PlaybackCoordinator(
             positionMs = current.currentPosition.coerceAtLeast(0L),
             durationMs = duration,
             seekSupport = mediaId?.let { seekSupportById[it] } ?: SeekSupport.UNKNOWN,
-            error = null,
+            error = playerError,
         )
-        updatePolling(current.isPlaying && item != null)
+        updatePolling(current.isPlaying && item != null && playerError == null)
+    }
+
+    private fun isExpectedMediaId(mediaId: String?): Boolean =
+        mediaId != null && mediaId == expectedMediaId
+
+    private fun clearPlayerForReplacement() {
+        playerError = null
+        pollingJob?.cancel()
+        pollingJob = null
+        controller?.let { current ->
+            current.stop()
+            current.clearMediaItems()
+        }
     }
 
     private fun publishError(item: PlaybackItem?, error: PlaybackError) {

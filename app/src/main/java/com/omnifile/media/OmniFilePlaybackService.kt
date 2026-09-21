@@ -86,17 +86,18 @@ class OmniFilePlaybackService : MediaSessionService() {
                 return MediaSession.ConnectionResult.reject()
             }
 
-            // App-owned control needs source selection; external system controls
-            // receive transport-only commands and can never inject a new URI/item.
+            // App-owned control needs source selection and proven seek support;
+            // external system controls receive transport-only commands and can
+            // never inject a new URI/item or seek an unproven source.
             val playerCommands = Player.Commands.Builder()
                 .add(Player.COMMAND_GET_CURRENT_MEDIA_ITEM)
                 .add(Player.COMMAND_GET_TIMELINE)
                 .add(Player.COMMAND_GET_METADATA)
                 .add(Player.COMMAND_PLAY_PAUSE)
                 .add(Player.COMMAND_STOP)
-                .add(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
                 .apply {
                     if (ownController) {
+                        add(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
                         add(Player.COMMAND_SET_MEDIA_ITEM)
                         add(Player.COMMAND_PREPARE)
                         add(Player.COMMAND_CHANGE_MEDIA_ITEMS)
