@@ -2,6 +2,7 @@ package com.omnifile
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Build
 import android.provider.DocumentsContract
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
@@ -11,57 +12,56 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.room.Room
-import com.omnifile.files.FilesRepository
 import com.omnifile.files.FilesUiState
 import com.omnifile.files.FilesViewModel
-import com.omnifile.operations.OperationManager
-import com.omnifile.operations.OperationsViewModel
-import com.omnifile.operations.persistence.OperationDatabase
-import com.omnifile.operations.persistence.OperationStore
+import com.omnifile.search.SearchScope
+import com.omnifile.search.SearchUiState
 import com.omnifile.search.SearchViewModel
-import com.omnifile.storage.LocalStorageProvider
-import com.omnifile.storage.ProviderId
-import com.omnifile.storage.SafStorageProvider
-import com.omnifile.storage.SafTreeGrantStore
 import com.omnifile.ui.files.FilesScreen
+import com.omnifile.ui.home.HomeUiState
+import com.omnifile.ui.home.HomeViewModel
+import com.omnifile.ui.home.HomeScreen
+import com.omnifile.ui.music.MusicScreen
 import com.omnifile.ui.operations.OperationsPanel
 import com.omnifile.ui.search.SearchScreen
+import com.omnifile.ui.settings.SettingsScreen
+import com.omnifile.ui.shell.AppNavigationState
+import com.omnifile.ui.shell.AppShell
+import com.omnifile.ui.shell.DetailSurface
+import com.omnifile.ui.shell.FilesOrigin
+import com.omnifile.ui.shell.TopLevelDestination
 import com.omnifile.ui.theme.OmniFileTheme
-import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
-    private enum class Surface {
-        FILES,
-        SEARCH,
-    }
-
+    private lateinit var app: AppContainer
     private lateinit var filesViewModel: FilesViewModel
     private lateinit var searchViewModel: SearchViewModel
-    private lateinit var grantStore: SafTreeGrantStore
-    private lateinit var operationDatabase: OperationDatabase
-    private lateinit var operationManager: OperationManager
-    private lateinit var operationsViewModel: OperationsViewModel
-    private val surface = MutableStateFlow(Surface.FILES)
+    private lateinit var homeViewModel: HomeViewModel
+    private lateinit var operationsViewModel: com.omnifile.operations.OperationsViewModel
+    private var navigation by mutableStateOf(AppNavigationState())
 
     private val treePicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val returned = result.data ?: return@registerForActivityResult
         val uri = returned.data ?: return@registerForActivityResult
         if (result.resultCode != RESULT_OK || !DocumentsContract.isTreeUri(uri)) return@registerForActivityResult
         val destinationPicker = filesViewModel.isDestinationPicker
-        if (grantStore.persistGrant(uri, returned.flags) &&
-            (destinationPicker || grantStore.rememberSelectedReadTree(uri))
-        ) {
+        if (app.grantStore.persistGrant(uri, returned.flags)) {
             if (destinationPicker) {
                 filesViewModel.selectDestinationSaf(uri)
             } else {
+                app.safProviderFor(uri)
+                app.repository.register(app.safProviderFor(uri))
                 filesViewModel.selectSaf(uri)
+                homeViewModel.refresh()
             }
         }
     }
@@ -69,172 +69,231 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        grantStore = SafTreeGrantStore(applicationContext)
-        val localProviderId = ProviderId("local-app-files")
-        val localProvider = LocalStorageProvider(filesDir.toPath(), localProviderId)
-        val repository = FilesRepository(mapOf(localProviderId to localProvider))
-        operationDatabase = Room.databaseBuilder(
-            applicationContext,
-            OperationDatabase::class.java,
-            "operations.db",
-        ).build()
-        val operationStore = OperationStore(operationDatabase.operationDao())
-        operationManager = OperationManager(operationStore, mapOf(localProviderId to localProvider))
-        grantStore.restoredGrants().forEach { grant ->
-            val provider = SafStorageProvider(
-                contentResolver = contentResolver,
-                treeUri = grant.uri,
-                id = SafStorageProvider.providerIdFor(grant.uri),
-                grantFlags = grant.modeFlags,
-            )
-            repository.register(provider)
-            operationManager.registerProvider(provider)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
         }
-        operationsViewModel = ViewModelProvider(this, OperationsViewModelFactory {
-            OperationsViewModel(operationStore, operationManager)
-        })[OperationsViewModel::class.java]
-        filesViewModel = ViewModelProvider(this, FilesViewModelFactory {
+        app = (application as OmniFileApplication).container
+        val restoredTopLevel = savedInstanceState?.getString(KEY_TOP_LEVEL)?.let { value ->
+            runCatching { TopLevelDestination.valueOf(value) }.getOrNull()
+        } ?: TopLevelDestination.HOME
+        val restoredDetail = savedInstanceState?.getString(KEY_DETAIL)?.let {
+            runCatching { DetailSurface.valueOf(it) }.getOrNull()
+        }
+        val restoredFilesOrigin = savedInstanceState?.getString(KEY_FILES_ORIGIN)?.let {
+            runCatching { FilesOrigin.valueOf(it) }.getOrNull()
+        }
+        navigation = AppNavigationState(restoredTopLevel, restoredDetail, restoredFilesOrigin)
+
+        operationsViewModel = ViewModelProvider(this, Factory { com.omnifile.operations.OperationsViewModel(app.operationStore, app.operationManager) })[com.omnifile.operations.OperationsViewModel::class.java]
+        filesViewModel = ViewModelProvider(this, Factory {
             FilesViewModel(
-                repository = repository,
-                localProviderId = localProviderId,
-                safProviderFor = { uri ->
-                    val grant = grantStore.grantFor(uri)
-                        ?: throw SecurityException("No persisted SAF grant")
-                    SafStorageProvider(
-                        contentResolver,
-                        uri,
-                        SafStorageProvider.providerIdFor(uri),
-                        grant.modeFlags,
-                    )
-                },
-                restoredSafUri = grantStore::restoredReadTree,
-                operationManager = operationManager,
+                repository = app.repository,
+                localProviderId = app.localProvider.id,
+                safProviderFor = app::safProviderFor,
+                restoredSafUri = app.grantStore::restoredReadTree,
+                operationManager = app.operationManager,
                 onOperationsCreated = { operationsViewModel.refresh() },
             )
         })[FilesViewModel::class.java]
-        searchViewModel = ViewModelProvider(this, SearchViewModelFactory {
-            SearchViewModel(listChildren = repository::children)
+        searchViewModel = ViewModelProvider(this, Factory {
+            SearchViewModel(
+                listChildren = app.repository::children,
+                resolveRoots = { scope ->
+                    when (scope) {
+                        SearchScope.ThisDevice -> {
+                            val snapshot = app.rootRegistry.snapshot()
+                            com.omnifile.search.SearchRootResolution(
+                                roots = snapshot.aggregationRoots.map { it.entry },
+                                failures = snapshot.failures.map { failure ->
+                                    com.omnifile.search.SearchRootFailure(failure.id, failure.label, failure.error)
+                                },
+                            )
+                        }
+                        is SearchScope.CurrentFolder -> com.omnifile.search.SearchRootResolution(listOf(scope.directory))
+                    }
+                },
+            )
         })[SearchViewModel::class.java]
+        homeViewModel = ViewModelProvider(this, Factory { HomeViewModel(app.rootRegistry) })[HomeViewModel::class.java]
+
+        if (navigation.detail != null && filesViewModel.uiState.value == FilesUiState.SourceSelection) {
+            // A process-death recreation cannot restore an in-memory Files path safely.
+            navigation = navigation.closeDetail()
+        }
+
+        if (navigation.topLevel == TopLevelDestination.SEARCH && navigation.detail == null) {
+            searchViewModel.restoreRequest(SearchScope.ThisDevice, savedInstanceState?.getString(KEY_SEARCH_QUERY).orEmpty())
+        }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (surface.value == Surface.SEARCH) {
-                    closeSearch()
-                } else if (filesViewModel.uiState.value is FilesUiState.SourceSelection) {
+                if (!consumeBack()) {
                     isEnabled = false
                     onBackPressedDispatcher.onBackPressed()
                     isEnabled = true
-                } else {
-                    filesViewModel.handleBack()
                 }
             }
         })
         setContent {
-            val state by filesViewModel.uiState.collectAsState()
+            val filesState by filesViewModel.uiState.collectAsState()
             val searchState by searchViewModel.state.collectAsState()
-            val currentSurface by surface.collectAsState()
+            val homeState by homeViewModel.state.collectAsState()
+            val operations by operationsViewModel.operations.collectAsState()
             val mutationInFlight by filesViewModel.mutationInFlight.collectAsState()
+            val currentNavigation = navigation
+            val currentTop = currentNavigation.topLevel
+            val currentDetail = currentNavigation.detail
+            val showNavigation = currentDetail == null
             OmniFileTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        if (currentSurface == Surface.SEARCH) {
-                            SearchScreen(
-                                modifier = Modifier.weight(1f),
-                                state = searchState,
-                                onBack = ::closeSearch,
-                                onQueryChanged = searchViewModel::queryChanged,
-                                onSubmitQuery = searchViewModel::submitQuery,
-                                onClearQuery = searchViewModel::clearQuery,
-                                onOpenResult = ::openSearchResult,
-                            )
-                        } else {
-                            FilesScreen(
-                                modifier = Modifier.weight(1f),
-                                state = state,
-                                onSelectLocal = filesViewModel::selectLocal,
-                                onPickTree = ::launchTreePicker,
-                                onOpenDirectory = filesViewModel::openDirectory,
-                                onOpenSearch = ::openSearch,
-                                onEnterSelection = filesViewModel::enterSelection,
-                                onToggleSelection = filesViewModel::toggleSelection,
-                                onClearSelection = filesViewModel::clearSelection,
-                                onRenameSelected = filesViewModel::renameSelected,
-                                onDeleteSelected = filesViewModel::deleteSelected,
-                                onCopySelected = filesViewModel::copySelectedToCurrentDirectory,
-                                onMoveSelected = filesViewModel::moveSelectedToCurrentDirectory,
-                                onOpenDestinationDirectory = filesViewModel::openDestinationDirectory,
-                                onConfirmDestination = filesViewModel::confirmDestination,
-                                onCancelDestination = filesViewModel::cancelDestinationPicker,
-                                onSelectLocalDestination = filesViewModel::selectDestinationLocal,
-                                onPickDestinationTree = ::launchTreePicker,
-                                mutationInFlight = mutationInFlight,
-                                onBack = filesViewModel::handleBack,
-                                onRetry = filesViewModel::retry,
+                    AppShell(
+                        selected = currentTop,
+                        showPrimaryNavigation = showNavigation,
+                        onDestinationSelected = ::selectTopLevel,
+                    ) {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            androidx.compose.foundation.layout.Box(modifier = Modifier.weight(1f).fillMaxSize()) {
+                                when (currentDetail) {
+                                    DetailSurface.FILES -> FilesSurface(filesState, mutationInFlight)
+                                    DetailSurface.CONTEXTUAL_SEARCH -> SearchSurface(searchState, contextual = true)
+                                    null -> when (currentTop) {
+                                        TopLevelDestination.HOME -> HomeScreen(homeState, ::openRoot, ::launchTreePicker)
+                                        TopLevelDestination.SEARCH -> SearchSurface(searchState, contextual = false)
+                                        TopLevelDestination.MUSIC -> MusicScreen()
+                                        TopLevelDestination.SETTINGS -> SettingsScreen((homeState as? HomeUiState.Ready)?.snapshot)
+                                    }
+                                }
+                            }
+                            OperationsPanel(
+                                operations = operations,
+                                onCancel = operationsViewModel::cancel,
+                                applyNavigationBarsPadding = !showNavigation,
                             )
                         }
-                        OperationsPanel(
-                            operations = operationsViewModel.operations.collectAsState().value,
-                            onCancel = operationsViewModel::cancel,
-                        )
                     }
                 }
             }
             LaunchedEffect(Unit) {
-                filesViewModel.restorePersistedSaf()
-                operationManager.reconcileNonTerminal()
+                app.reconcileOperationsOnce()
                 operationsViewModel.refresh()
             }
         }
     }
 
-    private fun openSearch() {
-        val scope = filesViewModel.currentSearchScope() ?: return
-        searchViewModel.setScope(scope)
-        surface.value = Surface.SEARCH
+    @Composable
+    private fun FilesSurface(state: FilesUiState, mutationInFlight: Boolean) {
+        FilesScreen(
+            state = state,
+            onSelectLocal = filesViewModel::selectLocal,
+            onPickTree = ::launchTreePicker,
+            onOpenDirectory = filesViewModel::openDirectory,
+            onOpenSearch = ::openContextualSearch,
+            onEnterSelection = filesViewModel::enterSelection,
+            onToggleSelection = filesViewModel::toggleSelection,
+            onClearSelection = filesViewModel::clearSelection,
+            onRenameSelected = filesViewModel::renameSelected,
+            onDeleteSelected = filesViewModel::deleteSelected,
+            onCopySelected = filesViewModel::copySelectedToCurrentDirectory,
+            onMoveSelected = filesViewModel::moveSelectedToCurrentDirectory,
+            onOpenDestinationDirectory = filesViewModel::openDestinationDirectory,
+            onConfirmDestination = filesViewModel::confirmDestination,
+            onCancelDestination = filesViewModel::cancelDestinationPicker,
+            onSelectLocalDestination = filesViewModel::selectDestinationLocal,
+            onPickDestinationTree = ::launchTreePicker,
+            mutationInFlight = mutationInFlight,
+            onBack = ::consumeFilesBack,
+            onRetry = filesViewModel::retry,
+        )
     }
 
-    private fun closeSearch() {
+    @Composable
+    private fun SearchSurface(state: SearchUiState, contextual: Boolean) {
+        SearchScreen(
+            state = state,
+            onBack = if (contextual) ::closeContextualSearch else ::finish,
+            onQueryChanged = searchViewModel::queryChanged,
+            onSubmitQuery = searchViewModel::submitQuery,
+            onClearQuery = searchViewModel::clearQuery,
+            onOpenResult = ::openSearchResult,
+        )
+    }
+
+    private fun selectTopLevel(destination: TopLevelDestination) {
+        if (destination == navigation.topLevel && navigation.detail == null) return
+        navigation = navigation.selectTopLevel(destination)
+        if (destination == TopLevelDestination.SEARCH && searchViewModel.scope != SearchScope.ThisDevice) {
+            searchViewModel.setScope(SearchScope.ThisDevice)
+        }
+    }
+
+    private fun openRoot(root: com.omnifile.storage.SupportedRoot) {
+        filesViewModel.openRoot(root.entry)
+        navigation = navigation.openFiles(FilesOrigin.HOME)
+    }
+
+    private fun openContextualSearch() {
+        val scope = filesViewModel.currentSearchScope() ?: return
+        searchViewModel.setScope(scope)
+        navigation = navigation.openContextualSearch()
+    }
+
+    private fun closeContextualSearch() {
         searchViewModel.stop()
-        surface.value = Surface.FILES
+        navigation = navigation.returnToFilesFromContextualSearch()
     }
 
     private fun openSearchResult(hit: com.omnifile.search.SearchHit) {
-        filesViewModel.openSearchResult(hit)
-        closeSearch()
+        if (!filesViewModel.openSearchResult(hit)) return
+        navigation = navigation.openFiles(
+            if (navigation.topLevel == TopLevelDestination.SEARCH) FilesOrigin.TOP_LEVEL_SEARCH else FilesOrigin.HOME,
+        )
+    }
+
+    private fun consumeFilesBack(): Boolean {
+        if (filesViewModel.isDestinationPicker || filesViewModel.isSelectionMode || !filesViewModel.isAtProviderRoot()) {
+            filesViewModel.handleBack()
+            return true
+        }
+        filesViewModel.goBack()
+        navigation = navigation.closeFilesAtRoot()
+        return true
+    }
+
+    private fun consumeBack(): Boolean = when (navigation.detail) {
+        DetailSurface.FILES -> consumeFilesBack()
+        DetailSurface.CONTEXTUAL_SEARCH -> {
+            closeContextualSearch()
+            true
+        }
+        null -> false
     }
 
     private fun launchTreePicker() {
         val accessFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
             Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION or
             if (filesViewModel.isDestinationPicker) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0
-        treePicker.launch(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
-            addFlags(accessFlags)
-        })
+        treePicker.launch(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply { addFlags(accessFlags) })
     }
 
-    override fun onDestroy() {
-        operationDatabase.close()
-        super.onDestroy()
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString(KEY_TOP_LEVEL, navigation.topLevel.name)
+        outState.putString(KEY_DETAIL, navigation.detail?.name)
+        outState.putString(KEY_FILES_ORIGIN, navigation.filesOrigin?.name)
+        outState.putString(KEY_SEARCH_QUERY, searchViewModel.query)
+        super.onSaveInstanceState(outState)
+    }
+
+    private inline fun <reified T : Enum<T>> valueOfOrNull(value: String): T? = runCatching { enumValueOf<T>(value) }.getOrNull()
+
+    companion object {
+        private const val KEY_TOP_LEVEL = "omnifile.top-level"
+        private const val KEY_DETAIL = "omnifile.detail"
+        private const val KEY_FILES_ORIGIN = "omnifile.files-origin"
+        private const val KEY_SEARCH_QUERY = "omnifile.search-query"
     }
 }
 
-private class OperationsViewModelFactory(
-    private val create: () -> OperationsViewModel,
-) : ViewModelProvider.Factory {
+private class Factory<T : ViewModel>(private val create: () -> T) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T = create() as T
-}
-
-private class FilesViewModelFactory(
-    private val create: () -> FilesViewModel,
-) : ViewModelProvider.Factory {
-    @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T = create() as T
-}
-
-private class SearchViewModelFactory(
-    private val create: () -> SearchViewModel,
-) : ViewModelProvider.Factory {
-    @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T = create() as T
+    override fun <VM : ViewModel> create(modelClass: Class<VM>): VM = create() as VM
 }

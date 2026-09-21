@@ -137,8 +137,20 @@ class FilesViewModel(
     }
 
     fun restorePersistedSaf() {
+        if (navigation.isNotEmpty() || selectedProviderId != null) return
         restoredSafUri()?.let(::selectSaf)
     }
+
+    fun openRoot(root: StorageEntry) {
+        if (root.kind != EntryKind.DIRECTORY) return
+        clearSelection()
+        selectedProviderId = root.ref.providerId
+        navigation.clear()
+        navigation += root
+        loadChildren(root)
+    }
+
+    fun isAtProviderRoot(): Boolean = selectedProviderId != null && navigation.size <= 1
 
     fun selectDestinationLocal() {
         if (pendingTransfer == null) return
@@ -182,22 +194,20 @@ class FilesViewModel(
         return SearchScope.CurrentFolder(location.ref.providerId, location)
     }
 
-    fun openSearchResult(hit: SearchHit) {
-        val providerId = selectedProviderId ?: return
-        if (hit.entry.ref.providerId != providerId) return
-        if (hit.ancestors.any { it.ref.providerId != providerId || it.kind != EntryKind.DIRECTORY }) return
-        if (hit.entry.parentRef != hit.ancestors.lastOrNull()?.ref) return
-        val targetPath = if (hit.entry.kind == EntryKind.DIRECTORY) {
-            hit.ancestors + hit.entry
-        } else {
-            hit.ancestors
-        }
-        val location = targetPath.lastOrNull() ?: return
+    fun openSearchResult(hit: SearchHit): Boolean {
+        val providerId = hit.entry.ref.providerId
+        if (hit.ancestors.isEmpty()) return false
+        if (hit.ancestors.any { it.ref.providerId != providerId || it.kind != EntryKind.DIRECTORY }) return false
+        if (hit.entry.parentRef != hit.ancestors.lastOrNull()?.ref) return false
+        val targetPath = if (hit.entry.kind == EntryKind.DIRECTORY) hit.ancestors + hit.entry else hit.ancestors
+        val location = targetPath.lastOrNull() ?: return false
         clearSelection()
         listingJob?.cancel()
+        selectedProviderId = providerId
         navigation.clear()
         navigation.addAll(targetPath)
         loadChildren(location)
+        return true
     }
 
     fun enterSelection(entry: StorageEntry) {

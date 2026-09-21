@@ -20,12 +20,13 @@ import com.omnifile.operations.OperationState
 fun OperationsPanel(
     operations: List<OperationSnapshot>,
     onCancel: (String) -> Unit,
+    applyNavigationBarsPadding: Boolean = true,
 ) {
     if (operations.isEmpty()) return
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .navigationBarsPadding()
+            .then(if (applyNavigationBarsPadding) Modifier.navigationBarsPadding() else Modifier)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
