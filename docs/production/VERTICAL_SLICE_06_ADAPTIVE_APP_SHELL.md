@@ -119,23 +119,94 @@ Settings is a read-only truthful surface showing current app identity/version, A
 
 ## Host evidence
 
-Commands used the required strict flags:
+The complete host differential was rerun on 2026-09-21 with serialized Gradle execution and the same Android SDK, Gradle wrapper, flags, and relevant environment variables on both published refs:
 
 ```text
 --no-daemon --max-workers=1
 -Dkotlin.compiler.execution.strategy=in-process
 --dependency-verification=strict
+--rerun-tasks :app:testDebugUnitTest
 ```
 
-Environment: Android SDK `/Users/yuta/Library/Android/sdk`; JDK 21 fallback at `/Users/yuta/.gradle/jdks/eclipse_adoptium-21-x86_64-os_x.2/jdk-21.0.7+6/Contents/Home` because JBR 25.0.3 was not installed. JDK 26 was not used for final verification.
+Toolchain inventory:
+
+- Android SDK: `/Users/yuta/Library/Android/sdk`
+- Gradle wrapper: `9.6.0`
+- Android Studio JBR: `/Applications/Android Studio.app/Contents/jbr/Contents/Home`, OpenJDK `25.0.3`
+- Historical comparison JDK: `/Users/yuta/.gradle/jdks/eclipse_adoptium-21-x86_64-os_x.2/jdk-21.0.7+6/Contents/Home`, Temurin `21.0.7+6`
+- JDK 26 installations were present but were not selected for either comparison.
+
+### Same-environment JDK 21 differential
+
+The original reported failure environment was reproduced exactly enough to compare the published control and target:
+
+- Published VS05 `35dcf37ccadc7f86182ca1b038b59015a5962bba`: **80 total, 69 passed, 11 failed, 0 errors, 0 skipped**.
+- Published VS06 `d2c1525e4abaad4ed79841a64b034bfdc85ffb77`: **97 total, 86 passed, 11 failed, 0 errors, 0 skipped**.
+- Common failures: **11**.
+- VS05-only failures: **0**.
+- VS06-only failures: **0**.
+- Same test name with a materially different root cause: **0**.
+
+The exact common failure set is:
+
+1. `com.omnifile.operations.OperationManagerTest#copyReachesCompleteOnlyAfterFinalization`
+2. `com.omnifile.operations.OperationManagerTest#moveNeverDeletesSourceWhenTransferFaultsAfterPartialCreation`
+3. `com.omnifile.operations.OperationManagerTest#providerUnavailableBeforeExecutionIsRetryableAndRecoveryDoesNotDuplicateDestination`
+4. `com.omnifile.operations.OperationManagerTest#providerUnavailableDuringSourceDeleteLeavesPendingStateAndRecoveryDoesNotRecopy`
+5. `com.omnifile.storage.LocalStorageProviderTest#deletingEmptyDirectoryIsAllowed`
+6. `com.omnifile.storage.LocalStorageProviderTest#deletingFileRemovesItAndMakesItsReferenceNotFound`
+7. `com.omnifile.storage.LocalStorageProviderTest#deletingSymlinksDoesNotFollowThemOrDeleteOutsideContainment`
+8. `com.omnifile.storage.LocalStorageProviderTest#deletingUnicodeFileRemovesTheUnicodeEntry`
+9. `com.omnifile.storage.LocalStorageProviderTest#rootCannotBeRenamedOrDeletedAndDoesNotExposeMutationCapabilities`
+10. `com.omnifile.storage.LocalStorageTransferTest#localFinalizationClassifiesExistingFinalNameAsConflict`
+11. `com.omnifile.storage.LocalStorageTransferTest#localTransferUsesOwnedPartialAndAtomicFinalization`
+
+The JUnit reports show the same exception families and stack origins on both refs: `AssertionError` at the OperationManager/LocalStorage assertions (`OperationManagerTest.kt:166`, `LocalStorageProviderTest.kt:338`) and `IllegalStateException` from the test success helpers (`OperationManagerTest.kt:256`, `LocalStorageTransferTest.kt:87`).
+
+### SecureDirectoryStream root-cause evidence
+
+The unchanged VS05/VS06 source and test blobs were verified identical for `LocalStorageProvider.kt`, `OperationManager.kt`, `LocalStorageTransferTest.kt`, and `OperationManagerTest.kt`; the focused source diff is empty. The causal path is explicit:
+
+- `LocalStorageProvider.kt:429-435` requires `Files.newDirectoryStream(directory)` to be a `SecureDirectoryStream`; otherwise it throws `UnsupportedOperationException("Secure directory operations unavailable")`.
+- `LocalStorageProvider.kt:466-492` maps that condition to unavailable delete capabilities.
+- `LocalStorageProvider.kt:504-521` maps it to `StorageError.Unsupported` for secure mutations and partial creation.
+- A direct provider probe on this macOS host reported JDK 21 as `sun.nio.fs.UnixDirectoryStream secure=false`, while JBR 25.0.3 reported `sun.nio.fs.UnixSecureDirectoryStream secure=true`.
+
+This proves the 11 JDK 21 failures are the unchanged LocalStorage/Operation secure-filesystem contract encountering a provider capability difference, not a VS06 shell/root regression.
+
+### Authoritative JBR 25.0.3 host closure
+
+Because Android Studio JBR 25.0.3 is available, it is the supported authoritative host environment for final closure. The same forced complete suite was rerun on both published refs with the same flags:
+
+- VS05: **80 total, 80 passed, 0 failed, 0 errors, 0 skipped**.
+- VS06: **97 total, 97 passed, 0 failed, 0 errors, 0 skipped**.
+- JBR failure set: **empty on both refs**.
+
+The focused VS06 host command was also rerun under JBR 25.0.3:
+
+```text
+:app:testDebugUnitTest --tests AppNavigationStateTest --tests SupportedRootRegistryTest --tests ThisDeviceSearchTest --tests FilesSearchIntegrationTest
+```
+
+It executed **17/17 PASS, 0 failed, 0 errors, 0 skipped**: 7 navigation tests, 5 supported-root tests, 3 This-device Search tests, and 2 contextual Files integration tests. The previous `18` count was an evidence-counting error and is corrected here; no test source was changed.
+
+### Android artifact correlation
+
+No production or test source changed during this closure, so the prior Pixel instrumentation evidence remains tied to the functional VS06 SHA. The existing artifacts are present and their hashes still match the published evidence:
+
+- debug APK: `77d6e9ef730e2fe57f9735a7b332031887b2ba1a7ada88111460bc69a2477465`
+- androidTest APK: `2d79c091ec3761c6a3438b2b7eb3bfe2826c601c6e1aa4bd56e9e96747bbb887`
+- prior Android instrumentation: **37/37 PASS** on Pixel 7a API 36
+
+### Closure interpretation
+
+The JDK 21 differential classifies as `HOST_BASELINE_EQUIVALENT`: the published VS05 and VS06 refs fail the exact same 11 tests with equivalent SecureDirectoryStream/macOS/JDK root causes, and VS06 adds zero host failures. The stronger supported-environment result is also green: both refs pass completely under JBR 25.0.3. No production fix, test weakening, or JDK installation was required.
 
 - `:app:compileDebugKotlin`: PASS
-- focused VS06 host tests: PASS; 18 tests across navigation, contextual Files origin, root registry, ThisDevice Search, root labels, and Files provider switching
-- `:app:testDebugUnitTest`: 97 tests executed; 86 passed and 11 pre-existing LocalStorage secure-mutation/transfer tests fail under this macOS/JDK 21 runtime because `SecureDirectoryStream` is reported unavailable. The failures are unchanged VS05 LocalStorage/Operation paths and are not caused by VS06 shell/root code.
-- `:app:lintDebug`: BUILD SUCCESSFUL; existing advisory/dependency/resource warnings remain, with no new error-level issue
-- `:app:assembleDebug`: PASS
-- `:app:assembleDebugAndroidTest`: PASS
-- strict dependency verification: PASS for all successful Gradle commands
+- `:app:lintDebug`: PASS in prior VS06 evidence; no source changed in this closure
+- `:app:assembleDebug`: PASS in prior VS06 evidence; no source changed in this closure
+- `:app:assembleDebugAndroidTest`: PASS in prior VS06 evidence; no source changed in this closure
+- strict dependency verification: PASS for all closure Gradle commands
 
 ## Controlled provider and Pixel evidence
 
