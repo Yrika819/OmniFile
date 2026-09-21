@@ -24,6 +24,8 @@ Navigation is implemented with explicit shell state rather than Navigation Compo
 - Home → Files: nested directory Back moves to the parent; provider-root Back returns to Home.
 - Top-level Search → result → Files: nested Back follows the Files path; provider-root Back returns to Search, preserving the Search ViewModel state while the process remains alive.
 - Files → contextual Search: Back returns to the originating Files detail surface.
+- Contextual Search result opening preserves the live Files stack; Back follows that stack rather than treating the scoped directory as a provider root.
+- Contextual Search result Files routes carry an explicit contextual origin, so the Files boundary returns to contextual Search before contextual Search returns to Files.
 - Search top-level, Music, Settings, and Home at their root use the normal Activity/system Back policy. Bottom navigation does not create a cyclic Back history.
 - Selection mode and destination-picker Back handling remain owned by `FilesViewModel` before the shell consumes a Files boundary Back.
 
@@ -56,7 +58,7 @@ Home is a useful source overview backed by the same provider contracts as Files:
 - Choose SAF folder action using the existing `ACTION_OPEN_DOCUMENT_TREE` flow;
 - unavailable/revoked remembered sources are reported as unavailable and are not presented as usable roots.
 
-No cloud, network, root filesystem, capacity numbers, or fake providers are shown. The root registry resolves SAF candidates on every snapshot, so a newly granted folder becomes visible without requiring process restart.
+No cloud, network, root filesystem, capacity numbers, or fake providers are shown. The root registry resolves SAF candidates on every snapshot, so a newly granted folder becomes visible without requiring process restart. Home refreshes that snapshot when the Activity resumes, so external grant/provider changes are reflected when returning to the app.
 
 ## Top-level Search and ThisDevice
 
@@ -84,7 +86,7 @@ Remembered SAF URIs are revalidated against current persisted readable grants. A
 
 ### Multi-root results and failures
 
-Search preserves root identity through provider-aware `EntryRef` identities and displays human-readable root/path context rather than raw URI/provider strings.
+Search preserves root identity through provider-aware `EntryRef` identities and displays the registry's human-readable root label plus relative path context rather than raw URI/provider strings. Equal filenames under two roots therefore remain distinguishable even when folder names match.
 
 - all roots succeed: `Results.complete == true` when traversal has no subtree failure/truncation;
 - at least one root succeeds and another fails: successful matches remain visible with an incomplete/partial warning;
@@ -126,7 +128,7 @@ Commands used the required strict flags:
 Environment: Android SDK `/Users/yuta/Library/Android/sdk`; JDK 21 fallback at `/Users/yuta/.gradle/jdks/eclipse_adoptium-21-x86_64-os_x.2/jdk-21.0.7+6/Contents/Home` because JBR 25.0.3 was not installed. JDK 26 was not used for final verification.
 
 - `:app:compileDebugKotlin`: PASS
-- focused VS06 host tests: PASS; 16 tests across navigation, root registry, ThisDevice Search, and Files provider switching
+- focused VS06 host tests: PASS; 18 tests across navigation, contextual Files origin, root registry, ThisDevice Search, root labels, and Files provider switching
 - `:app:testDebugUnitTest`: 95 tests executed; 84 passed and 11 pre-existing LocalStorage secure-mutation/transfer tests fail under this macOS/JDK 21 runtime because `SecureDirectoryStream` is reported unavailable. The failures are unchanged VS05 LocalStorage/Operation paths and are not caused by VS06 shell/root code.
 - `:app:lintDebug`: BUILD SUCCESSFUL; existing advisory/dependency/resource warnings remain, with no new error-level issue
 - `:app:assembleDebug`: PASS
@@ -162,7 +164,7 @@ Physical evidence is compact-width only. The expanded NavigationRail branch is s
 - Review A — shell/navigation architecture: `tmp/reviews/2026-09-21-code-review-vs06-review-a-1d4f8c2a.md`, validated Pass before substantial UI work.
 - Review B — state restoration, Back, ThisDevice aggregation: `tmp/reviews/2026-09-21-code-review-vs06-review-b-7eb71a63.md`, validated Pass, 0 findings, 8 areas.
 - Review C — UI/adaptive/accessibility/insets: `tmp/reviews/2026-09-21-code-review-vs06-review-c-535255d8.md`, validated Pass, 0 findings, 8 areas.
-- Final whole-diff and regression reviews are performed at closure against the published VS05 SHA.
+- Final whole-diff review and final VS05→VS06 regression review are performed at closure against the published VS05 SHA and recorded in the final review artifacts.
 
 ## Deferred capabilities
 
