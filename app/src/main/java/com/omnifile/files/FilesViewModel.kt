@@ -14,6 +14,8 @@ import com.omnifile.storage.StorageTransferProvider
 import com.omnifile.operations.OperationManager
 import com.omnifile.operations.OperationType
 import com.omnifile.storage.StorageResult
+import com.omnifile.search.SearchHit
+import com.omnifile.search.SearchScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -172,6 +174,30 @@ class FilesViewModel(
         }
         navigation += entry
         loadChildren(entry)
+    }
+
+    fun currentSearchScope(): SearchScope? {
+        val location = navigation.lastOrNull() ?: return null
+        if (location.kind != EntryKind.DIRECTORY || selectedProviderId != location.ref.providerId) return null
+        return SearchScope.CurrentFolder(location.ref.providerId, location)
+    }
+
+    fun openSearchResult(hit: SearchHit) {
+        val providerId = selectedProviderId ?: return
+        if (hit.entry.ref.providerId != providerId) return
+        if (hit.ancestors.any { it.ref.providerId != providerId || it.kind != EntryKind.DIRECTORY }) return
+        if (hit.entry.parentRef != hit.ancestors.lastOrNull()?.ref) return
+        val targetPath = if (hit.entry.kind == EntryKind.DIRECTORY) {
+            hit.ancestors + hit.entry
+        } else {
+            hit.ancestors
+        }
+        val location = targetPath.lastOrNull() ?: return
+        clearSelection()
+        listingJob?.cancel()
+        navigation.clear()
+        navigation.addAll(targetPath)
+        loadChildren(location)
     }
 
     fun enterSelection(entry: StorageEntry) {

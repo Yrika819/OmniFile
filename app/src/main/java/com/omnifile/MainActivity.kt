@@ -25,20 +25,30 @@ import com.omnifile.operations.OperationManager
 import com.omnifile.operations.OperationsViewModel
 import com.omnifile.operations.persistence.OperationDatabase
 import com.omnifile.operations.persistence.OperationStore
+import com.omnifile.search.SearchViewModel
 import com.omnifile.storage.LocalStorageProvider
 import com.omnifile.storage.ProviderId
 import com.omnifile.storage.SafStorageProvider
 import com.omnifile.storage.SafTreeGrantStore
 import com.omnifile.ui.files.FilesScreen
 import com.omnifile.ui.operations.OperationsPanel
+import com.omnifile.ui.search.SearchScreen
 import com.omnifile.ui.theme.OmniFileTheme
+import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
+    private enum class Surface {
+        FILES,
+        SEARCH,
+    }
+
     private lateinit var filesViewModel: FilesViewModel
+    private lateinit var searchViewModel: SearchViewModel
     private lateinit var grantStore: SafTreeGrantStore
     private lateinit var operationDatabase: OperationDatabase
     private lateinit var operationManager: OperationManager
     private lateinit var operationsViewModel: OperationsViewModel
+    private val surface = MutableStateFlow(Surface.FILES)
 
     private val treePicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val returned = result.data ?: return@registerForActivityResult
@@ -102,9 +112,15 @@ class MainActivity : ComponentActivity() {
                 onOperationsCreated = { operationsViewModel.refresh() },
             )
         })[FilesViewModel::class.java]
+        searchViewModel = ViewModelProvider(this, SearchViewModelFactory {
+            SearchViewModel(listChildren = repository::children)
+        })[SearchViewModel::class.java]
+
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (filesViewModel.uiState.value is FilesUiState.SourceSelection) {
+                if (surface.value == Surface.SEARCH) {
+                    closeSearch()
+                } else if (filesViewModel.uiState.value is FilesUiState.SourceSelection) {
                     isEnabled = false
                     onBackPressedDispatcher.onBackPressed()
                     isEnabled = true
@@ -115,32 +131,47 @@ class MainActivity : ComponentActivity() {
         })
         setContent {
             val state by filesViewModel.uiState.collectAsState()
+            val searchState by searchViewModel.state.collectAsState()
+            val currentSurface by surface.collectAsState()
             val mutationInFlight by filesViewModel.mutationInFlight.collectAsState()
             OmniFileTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     Column(modifier = Modifier.fillMaxSize()) {
-                        FilesScreen(
-                            modifier = Modifier.weight(1f),
-                            state = state,
-                            onSelectLocal = filesViewModel::selectLocal,
-                            onPickTree = ::launchTreePicker,
-                            onOpenDirectory = filesViewModel::openDirectory,
-                            onEnterSelection = filesViewModel::enterSelection,
-                            onToggleSelection = filesViewModel::toggleSelection,
-                            onClearSelection = filesViewModel::clearSelection,
-                            onRenameSelected = filesViewModel::renameSelected,
-                            onDeleteSelected = filesViewModel::deleteSelected,
-                            onCopySelected = filesViewModel::copySelectedToCurrentDirectory,
-                            onMoveSelected = filesViewModel::moveSelectedToCurrentDirectory,
-                            onOpenDestinationDirectory = filesViewModel::openDestinationDirectory,
-                            onConfirmDestination = filesViewModel::confirmDestination,
-                            onCancelDestination = filesViewModel::cancelDestinationPicker,
-                            onSelectLocalDestination = filesViewModel::selectDestinationLocal,
-                            onPickDestinationTree = ::launchTreePicker,
-                            mutationInFlight = mutationInFlight,
-                            onBack = filesViewModel::handleBack,
-                            onRetry = filesViewModel::retry,
-                        )
+                        if (currentSurface == Surface.SEARCH) {
+                            SearchScreen(
+                                modifier = Modifier.weight(1f),
+                                state = searchState,
+                                onBack = ::closeSearch,
+                                onQueryChanged = searchViewModel::queryChanged,
+                                onSubmitQuery = searchViewModel::submitQuery,
+                                onClearQuery = searchViewModel::clearQuery,
+                                onOpenResult = ::openSearchResult,
+                            )
+                        } else {
+                            FilesScreen(
+                                modifier = Modifier.weight(1f),
+                                state = state,
+                                onSelectLocal = filesViewModel::selectLocal,
+                                onPickTree = ::launchTreePicker,
+                                onOpenDirectory = filesViewModel::openDirectory,
+                                onOpenSearch = ::openSearch,
+                                onEnterSelection = filesViewModel::enterSelection,
+                                onToggleSelection = filesViewModel::toggleSelection,
+                                onClearSelection = filesViewModel::clearSelection,
+                                onRenameSelected = filesViewModel::renameSelected,
+                                onDeleteSelected = filesViewModel::deleteSelected,
+                                onCopySelected = filesViewModel::copySelectedToCurrentDirectory,
+                                onMoveSelected = filesViewModel::moveSelectedToCurrentDirectory,
+                                onOpenDestinationDirectory = filesViewModel::openDestinationDirectory,
+                                onConfirmDestination = filesViewModel::confirmDestination,
+                                onCancelDestination = filesViewModel::cancelDestinationPicker,
+                                onSelectLocalDestination = filesViewModel::selectDestinationLocal,
+                                onPickDestinationTree = ::launchTreePicker,
+                                mutationInFlight = mutationInFlight,
+                                onBack = filesViewModel::handleBack,
+                                onRetry = filesViewModel::retry,
+                            )
+                        }
                         OperationsPanel(
                             operations = operationsViewModel.operations.collectAsState().value,
                             onCancel = operationsViewModel::cancel,
@@ -154,6 +185,22 @@ class MainActivity : ComponentActivity() {
                 operationsViewModel.refresh()
             }
         }
+    }
+
+    private fun openSearch() {
+        val scope = filesViewModel.currentSearchScope() ?: return
+        searchViewModel.setScope(scope)
+        surface.value = Surface.SEARCH
+    }
+
+    private fun closeSearch() {
+        searchViewModel.stop()
+        surface.value = Surface.FILES
+    }
+
+    private fun openSearchResult(hit: com.omnifile.search.SearchHit) {
+        filesViewModel.openSearchResult(hit)
+        closeSearch()
     }
 
     private fun launchTreePicker() {
@@ -180,6 +227,13 @@ private class OperationsViewModelFactory(
 
 private class FilesViewModelFactory(
     private val create: () -> FilesViewModel,
+) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T = create() as T
+}
+
+private class SearchViewModelFactory(
+    private val create: () -> SearchViewModel,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T = create() as T

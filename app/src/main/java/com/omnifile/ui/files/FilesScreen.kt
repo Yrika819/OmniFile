@@ -52,6 +52,7 @@ fun FilesScreen(
     onSelectLocal: () -> Unit,
     onPickTree: () -> Unit,
     onOpenDirectory: (StorageEntry) -> Unit,
+    onOpenSearch: () -> Unit = {},
     onEnterSelection: (StorageEntry) -> Unit,
     onToggleSelection: (StorageEntry) -> Unit,
     onClearSelection: () -> Unit,
@@ -138,6 +139,11 @@ fun FilesScreen(
                             enabled = canDelete,
                             onClick = { deleteDialogVisible = true },
                         ) { Text("Delete") }
+                    } else if (state is FilesUiState.Content || state is FilesUiState.Empty) {
+                        IconButton(
+                            modifier = Modifier.testTag("files.search"),
+                            onClick = onOpenSearch,
+                        ) { Text("⌕") }
                     }
                 },
             )
