@@ -9,6 +9,7 @@ enum class DetailSurface {
 enum class FilesOrigin {
     HOME,
     TOP_LEVEL_SEARCH,
+    CONTEXTUAL_SEARCH,
 }
 
 data class AppNavigationState(
@@ -49,6 +50,10 @@ data class AppNavigationState(
         FilesOrigin.TOP_LEVEL_SEARCH -> copy(
             topLevel = TopLevelDestination.SEARCH,
             detail = null,
+            filesOrigin = null,
+        )
+        FilesOrigin.CONTEXTUAL_SEARCH -> copy(
+            detail = DetailSurface.CONTEXTUAL_SEARCH,
             filesOrigin = null,
         )
         FilesOrigin.HOME, null -> copy(

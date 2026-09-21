@@ -21,6 +21,29 @@ import org.junit.Test
 
 class FilesSearchIntegrationTest {
     @Test
+    fun contextualResultPreservesTheExistingFilesPathForBack() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val provider = FakeProvider(ProviderId("local"), "Local")
+            val repository = FilesRepository(mapOf(provider.id to provider))
+            val viewModel = FilesViewModel(repository, provider.id, scope = scope)
+            viewModel.selectLocal()
+            viewModel.uiState.filterIsInstance<FilesUiState.Content>().first()
+            viewModel.openDirectory(provider.folder)
+            viewModel.uiState.filterIsInstance<FilesUiState.Content>().first { it.location.ref == provider.folder.ref }
+
+            assertTrue(viewModel.openSearchResult(SearchHit(provider.nestedFile, listOf(provider.folder))))
+            assertEquals(provider.folder.ref, (viewModel.uiState.filterIsInstance<FilesUiState.Content>().first()).location.ref)
+            assertTrue(!viewModel.isAtProviderRoot())
+
+            viewModel.handleBack()
+            assertEquals(provider.root.ref, viewModel.uiState.filterIsInstance<FilesUiState.Content>().first().location.ref)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
     fun searchResultFromAnotherProviderOpensTheMatchingFilesSurface() = runBlocking {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         try {
@@ -38,7 +61,7 @@ class FilesSearchIntegrationTest {
 
             assertEquals(saf.id, state.location.ref.providerId)
             assertEquals(saf.root.ref, state.location.ref)
-            assertEquals(listOf(saf.file), state.entries)
+            assertEquals(listOf(saf.file, saf.folder), state.entries)
         } finally {
             scope.cancel()
         }
@@ -50,11 +73,16 @@ class FilesSearchIntegrationTest {
     ) : StorageProvider {
         val root = entry(id, label, EntryKind.DIRECTORY)
         val file = entry(id, "same-name.txt", EntryKind.FILE, root)
+        val folder = entry(id, "nested", EntryKind.DIRECTORY, root)
+        val nestedFile = entry(id, "nested-result.txt", EntryKind.FILE, folder)
 
         override suspend fun root(): StorageResult<StorageEntry> = StorageResult.Success(root)
 
-        override suspend fun listChildren(directory: EntryRef): StorageResult<List<StorageEntry>> =
-            if (directory == root.ref) StorageResult.Success(listOf(file)) else StorageResult.Success(emptyList())
+        override suspend fun listChildren(directory: EntryRef): StorageResult<List<StorageEntry>> = when (directory) {
+            root.ref -> StorageResult.Success(listOf(file, folder))
+            folder.ref -> StorageResult.Success(listOf(nestedFile))
+            else -> StorageResult.Success(emptyList())
+        }
     }
 
     private fun entry(

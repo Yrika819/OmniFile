@@ -30,6 +30,17 @@ class AppNavigationStateTest {
     }
 
     @Test
+    fun contextualFilesResultReturnsToContextualSearchAtItsBoundary() {
+        val files = AppNavigationState().openContextualSearch()
+            .openFiles(FilesOrigin.CONTEXTUAL_SEARCH)
+
+        assertEquals(
+            AppNavigationState(detail = DetailSurface.CONTEXTUAL_SEARCH),
+            files.closeFilesAtRoot(),
+        )
+    }
+
+    @Test
     fun filesOpenedFromSearchReturnsSearchAtProviderRoot() {
         val files = AppNavigationState(topLevel = TopLevelDestination.SEARCH)
             .openFiles(FilesOrigin.TOP_LEVEL_SEARCH)

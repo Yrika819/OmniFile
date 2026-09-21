@@ -63,7 +63,7 @@ class SupportedRootRegistry(
                     SupportedRoot(
                         id = LOCAL_ROOT_ID,
                         providerId = result.value.ref.providerId,
-                        label = "Local storage",
+                        label = "OmniFile storage",
                         source = SupportedRootSource.LOCAL,
                         entry = result.value,
                     ),

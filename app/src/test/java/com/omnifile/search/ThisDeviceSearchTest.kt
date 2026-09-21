@@ -37,6 +37,10 @@ class ThisDeviceSearchTest {
                     SearchRootResolution(
                         roots = listOf(localRoot, safRoot),
                         failures = listOf(SearchRootFailure("revoked", "Revoked SAF", StorageError.PermissionDenied)),
+                        rootLabels = mapOf(
+                            localRoot.ref.identityKey to "Local storage",
+                            safRoot.ref.identityKey to "SAF source A",
+                        ),
                     )
                 },
                 scope = scope,
@@ -49,6 +53,7 @@ class ThisDeviceSearchTest {
 
             val state = viewModel.state.value as SearchUiState.Results
             assertEquals(setOf(localId, safId), state.hits.map { it.providerId }.toSet())
+            assertEquals(setOf("Local storage", "SAF source A"), state.hits.map { it.rootLabel }.toSet())
             assertEquals(1, state.rootFailures.size)
             assertFalse(state.complete)
         } finally {

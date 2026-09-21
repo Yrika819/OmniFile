@@ -99,29 +99,35 @@ class SearchViewModel(
         searchJob = lifecycleScope.launch(Dispatchers.IO) {
             var rootFailures = emptyList<SearchRootFailure>()
             var resolvedRootCount = 0
+            var rootLabels = emptyMap<String, String>()
             engine.search(
                 request = SearchRequest(scope, rawQuery),
                 roots = { requestedScope ->
                     val resolution = resolveRoots(requestedScope)
                     rootFailures = resolution.failures
                     resolvedRootCount = resolution.roots.size
+                    rootLabels = resolution.rootLabels
                     StorageResult.Success(resolution.roots)
                 },
                 children = listChildren,
             ).collect { emission ->
                 if (requestGeneration != generation || scope != activeScope) return@collect
                 when (emission) {
-                    is SearchEmission.Batch -> publishBatch(emission, rootFailures)
-                    is SearchEmission.Completed -> publishCompleted(emission, rawQuery, scope, rootFailures, resolvedRootCount)
+                    is SearchEmission.Batch -> publishBatch(emission, rootFailures, rootLabels)
+                    is SearchEmission.Completed -> publishCompleted(emission, rawQuery, scope, rootFailures, resolvedRootCount, rootLabels)
                 }
             }
         }
     }
 
-    private fun publishBatch(batch: SearchEmission.Batch, rootFailures: List<SearchRootFailure>) {
+    private fun publishBatch(
+        batch: SearchEmission.Batch,
+        rootFailures: List<SearchRootFailure>,
+        rootLabels: Map<String, String>,
+    ) {
         val current = _state.value as? SearchUiState.Searching ?: return
         _state.value = current.copy(
-            hits = current.hits + batch.hits,
+            hits = current.hits + labelHits(batch.hits, rootLabels),
             failures = current.failures + batch.failures,
             rootFailures = rootFailures,
             entriesVisited = batch.entriesVisited,
@@ -135,13 +141,14 @@ class SearchViewModel(
         scope: SearchScope,
         rootFailures: List<SearchRootFailure>,
         resolvedRootCount: Int,
+        rootLabels: Map<String, String>,
     ) {
         if (completed.rootError != null || (scope is SearchScope.ThisDevice && completed.hits.isEmpty() && rootFailures.isNotEmpty() && resolvedRootCount == 0)) {
             _state.value = SearchUiState.Error(
                 query = rawQuery,
                 scope = scope,
                 rootError = completed.rootError ?: rootFailures.first().error,
-                hits = completed.hits,
+                hits = labelHits(completed.hits, rootLabels),
                 failures = completed.failures,
                 rootFailures = rootFailures,
             )
@@ -150,7 +157,7 @@ class SearchViewModel(
         _state.value = SearchUiState.Results(
             query = rawQuery,
             scope = scope,
-            hits = completed.hits,
+            hits = labelHits(completed.hits, rootLabels),
             failures = completed.failures,
             entriesVisited = completed.entriesVisited,
             directoriesVisited = completed.directoriesVisited,
@@ -159,6 +166,12 @@ class SearchViewModel(
             rootFailures = rootFailures,
         )
     }
+
+
+    private fun labelHits(hits: List<SearchHit>, rootLabels: Map<String, String>): List<SearchHit> =
+        hits.map { hit ->
+            hit.copy(rootLabel = hit.rootLabel ?: hit.ancestors.firstOrNull()?.ref?.identityKey?.let(rootLabels::get))
+        }
 
     private fun cancelActive() {
         generation += 1

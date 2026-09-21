@@ -199,7 +199,17 @@ class FilesViewModel(
         if (hit.ancestors.isEmpty()) return false
         if (hit.ancestors.any { it.ref.providerId != providerId || it.kind != EntryKind.DIRECTORY }) return false
         if (hit.entry.parentRef != hit.ancestors.lastOrNull()?.ref) return false
-        val targetPath = if (hit.entry.kind == EntryKind.DIRECTORY) hit.ancestors + hit.entry else hit.ancestors
+        val currentLocation = navigation.lastOrNull()
+        val preservesCurrentPath = currentLocation?.ref == hit.ancestors.firstOrNull()?.ref &&
+            selectedProviderId == providerId
+        val targetPath = if (preservesCurrentPath) {
+            navigation + hit.ancestors.drop(1) +
+                if (hit.entry.kind == EntryKind.DIRECTORY) listOf(hit.entry) else emptyList()
+        } else if (hit.entry.kind == EntryKind.DIRECTORY) {
+            hit.ancestors + hit.entry
+        } else {
+            hit.ancestors
+        }
         val location = targetPath.lastOrNull() ?: return false
         clearSelection()
         listingJob?.cancel()

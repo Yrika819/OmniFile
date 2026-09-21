@@ -107,9 +107,13 @@ class MainActivity : ComponentActivity() {
                                 failures = snapshot.failures.map { failure ->
                                     com.omnifile.search.SearchRootFailure(failure.id, failure.label, failure.error)
                                 },
+                                rootLabels = snapshot.aggregationRoots.associate { it.entry.ref.identityKey to it.label },
                             )
                         }
-                        is SearchScope.CurrentFolder -> com.omnifile.search.SearchRootResolution(listOf(scope.directory))
+                        is SearchScope.CurrentFolder -> com.omnifile.search.SearchRootResolution(
+                            roots = listOf(scope.directory),
+                            rootLabels = mapOf(scope.directory.ref.identityKey to scope.directory.displayName),
+                        )
                     }
                 },
             )
@@ -180,6 +184,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (::homeViewModel.isInitialized) homeViewModel.refresh()
+    }
+
     @Composable
     private fun FilesSurface(state: FilesUiState, mutationInFlight: Boolean) {
         FilesScreen(
@@ -245,7 +254,11 @@ class MainActivity : ComponentActivity() {
     private fun openSearchResult(hit: com.omnifile.search.SearchHit) {
         if (!filesViewModel.openSearchResult(hit)) return
         navigation = navigation.openFiles(
-            if (navigation.topLevel == TopLevelDestination.SEARCH) FilesOrigin.TOP_LEVEL_SEARCH else FilesOrigin.HOME,
+            when {
+                navigation.detail == DetailSurface.CONTEXTUAL_SEARCH -> FilesOrigin.CONTEXTUAL_SEARCH
+                navigation.topLevel == TopLevelDestination.SEARCH -> FilesOrigin.TOP_LEVEL_SEARCH
+                else -> FilesOrigin.HOME
+            },
         )
     }
 

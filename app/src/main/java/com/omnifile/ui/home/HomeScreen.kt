@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.omnifile.storage.SupportedRoot
+import com.omnifile.storage.StorageError
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,11 +69,15 @@ fun HomeScreen(
                         }
                     }
                     if (state.snapshot.failures.isNotEmpty()) item {
-                        Text(
-                            "${state.snapshot.failures.size} storage source(s) unavailable. They are not included in This device search.",
-                            modifier = Modifier.padding(horizontal = 20.dp),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
+                        Column(modifier = Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                "${state.snapshot.failures.size} storage source(s) unavailable. They are not included in This device search.",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            state.snapshot.failures.forEach { failure ->
+                                Text("${failure.label}: ${homeFailureMessage(failure.error)}", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
                     }
                 }
             }
@@ -96,4 +101,12 @@ private fun RootCard(root: SupportedRoot, onOpenRoot: (SupportedRoot) -> Unit) {
             Text("›", style = MaterialTheme.typography.headlineMedium)
         }
     }
+}
+
+
+private fun homeFailureMessage(error: StorageError): String = when (error) {
+    StorageError.PermissionDenied -> "permission revoked or unavailable"
+    StorageError.ProviderUnavailable -> "provider unavailable"
+    StorageError.StaleReference -> "stale source"
+    else -> "unavailable"
 }

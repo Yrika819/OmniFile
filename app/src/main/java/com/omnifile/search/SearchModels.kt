@@ -32,6 +32,7 @@ data class SearchRootFailure(
 data class SearchRootResolution(
     val roots: List<StorageEntry>,
     val failures: List<SearchRootFailure> = emptyList(),
+    val rootLabels: Map<String, String> = emptyMap(),
 )
 
 data class SearchRequest(val scope: SearchScope, val query: String)
@@ -40,6 +41,8 @@ data class SearchHit(
     val entry: StorageEntry,
     /** Directory entries from the search root through the hit's containing directory. */
     val ancestors: List<StorageEntry>,
+    /** Human-readable root context; raw provider IDs/URIs never reach the UI. */
+    val rootLabel: String? = null,
 ) {
     val providerId: ProviderId get() = entry.ref.providerId
     val identity: EntryRef get() = entry.ref

@@ -167,10 +167,12 @@ private fun SearchResults(
     onOpenResult: (SearchHit) -> Unit,
 ) {
     if (rootFailures.isNotEmpty()) {
-        Text(
-            "Some storage sources could not be searched (${rootFailures.size}); results are incomplete.",
-            modifier = Modifier.padding(horizontal = 16.dp).testTag("search.partial.roots"),
-        )
+        Column(modifier = Modifier.padding(horizontal = 16.dp).testTag("search.partial.roots")) {
+            Text("Some storage sources could not be searched; results are incomplete.")
+            rootFailures.forEach { failure ->
+                Text("${failure.label}: ${searchErrorMessage(failure.error)}", style = MaterialTheme.typography.bodySmall)
+            }
+        }
     }
     if (searching) {
         Row(
@@ -221,7 +223,12 @@ private fun RootErrorState(
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(searchErrorMessage(error), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.testTag("search.error"))
-        if (rootFailures.isNotEmpty()) Text("${rootFailures.size} supported source(s) need attention before results are complete.")
+        if (rootFailures.isNotEmpty()) {
+            Text("${rootFailures.size} supported source(s) need attention before results are complete.")
+            rootFailures.forEach { failure ->
+                Text("${failure.label}: ${searchErrorMessage(failure.error)}", style = MaterialTheme.typography.bodySmall)
+            }
+        }
         if (hits.isNotEmpty()) {
             Text("Previously found results remain available.")
             hits.forEachIndexed { index, hit -> SearchResultRow(index, hit, onOpenResult) }
@@ -233,7 +240,10 @@ private fun RootErrorState(
 
 @Composable
 private fun SearchResultRow(index: Int, hit: SearchHit, onOpenResult: (SearchHit) -> Unit) {
-    val location = hit.ancestors.joinToString(" / ") { it.displayName }
+    val location = buildList {
+        hit.rootLabel?.let(::add)
+        addAll(hit.ancestors.map { it.displayName })
+    }.joinToString(" / ")
     val metadata = buildList {
         add(if (hit.entry.kind == EntryKind.DIRECTORY) "Folder" else hit.entry.mimeType ?: "File")
         hit.entry.sizeBytes?.let { add("${it} B") }
