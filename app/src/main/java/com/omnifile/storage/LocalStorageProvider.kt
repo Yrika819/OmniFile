@@ -72,6 +72,39 @@ class LocalStorageProvider(
         }
     }
 
+    /** Archive extraction uses these provider-owned, single-component operations. */
+    suspend fun child(parent: EntryRef, name: String): StorageResult<StorageEntry> = guarded {
+        val localParent = checkedRef(parent)
+        if (!Files.isDirectory(localParent.path, LinkOption.NOFOLLOW_LINKS) || !isValidSingleComponent(name)) {
+            throw NotDirectoryException(localParent.path.toString())
+        }
+        val child = localParent.path.resolve(name)
+        if (!isWithinRoot(child) || Files.notExists(child, LinkOption.NOFOLLOW_LINKS)) {
+            throw NoSuchFileException(child.toString())
+        }
+        entryFor(child, localParent)
+    }
+
+    suspend fun createDirectory(parent: EntryRef, name: String): StorageResult<StorageEntry> = guarded {
+        val localParent = checkedRef(parent)
+        if (!Files.isDirectory(localParent.path, LinkOption.NOFOLLOW_LINKS) || !isValidSingleComponent(name)) {
+            throw NotDirectoryException(localParent.path.toString())
+        }
+        val child = localParent.path.resolve(name)
+        if (!isWithinRoot(child)) throw StaleReferenceException
+        withSecureParent(child) { secureParent, childName ->
+            try {
+                childAttributes(secureParent, childName)
+                throw FileAlreadyExistsException(name)
+            } catch (_: NoSuchFileException) {
+                // The parent is descriptor-validated; the final component is created
+                // only after the no-follow existence check.
+                Files.createDirectory(child)
+            }
+        }
+        entryFor(child, localParent)
+    }
+
     override suspend fun resolvePlaybackSource(entry: StorageEntry): StorageResult<PlaybackSource> = guarded {
         val localRef = checkedRef(entry.ref)
         if (entry.kind != EntryKind.FILE) {

@@ -79,6 +79,31 @@ class AppNavigationStateTest {
     }
 
     @Test
+    fun archiveOpenedFromFilesReturnsToTheSameFilesOrigin() {
+        val archive = AppNavigationState(topLevel = TopLevelDestination.SEARCH)
+            .openFiles(FilesOrigin.TOP_LEVEL_SEARCH)
+            .openArchive(ArchiveOrigin.FILES_TOP_LEVEL_SEARCH)
+
+        assertEquals(DetailSurface.ARCHIVE, archive.detail)
+        assertEquals(
+            AppNavigationState(
+                topLevel = TopLevelDestination.SEARCH,
+                detail = DetailSurface.FILES,
+                filesOrigin = FilesOrigin.TOP_LEVEL_SEARCH,
+            ),
+            archive.closeArchive(),
+        )
+    }
+
+    @Test
+    fun archiveOpenedDirectlyFromSearchReturnsToSearch() {
+        val archive = AppNavigationState(topLevel = TopLevelDestination.SEARCH)
+            .openArchive(ArchiveOrigin.TOP_LEVEL_SEARCH)
+
+        assertEquals(AppNavigationState(topLevel = TopLevelDestination.SEARCH), archive.closeArchive())
+    }
+
+    @Test
     fun selectingAnotherTopLevelDismissesDetailWithoutCyclingHistory() {
         val files = AppNavigationState().openFiles(FilesOrigin.HOME)
         val music = files.selectTopLevel(TopLevelDestination.MUSIC)

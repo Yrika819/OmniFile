@@ -6,6 +6,8 @@ import android.content.Intent
 import android.net.Uri
 import androidx.room.Room
 import com.omnifile.files.FilesRepository
+import com.omnifile.archive.ArchiveExtractor
+import com.omnifile.archive.ArchiveRepository
 import com.omnifile.operations.OperationManager
 import com.omnifile.operations.OperationRepository
 import com.omnifile.operations.persistence.OperationDatabase
@@ -36,6 +38,8 @@ class AppContainer(context: Context) {
         com.omnifile.storage.ProviderId("local-app-files"),
     )
     val repository = FilesRepository(mapOf(localProvider.id to localProvider))
+    val archiveRepository = ArchiveRepository(repository)
+    val archiveExtractor = ArchiveExtractor(repository)
 
     /** Process-scoped guard for the one notification-permission prompt on first Play. */
     var notificationPermissionRequested = false

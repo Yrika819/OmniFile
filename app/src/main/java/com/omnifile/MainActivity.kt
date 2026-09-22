@@ -22,11 +22,15 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.omnifile.files.FilesUiState
+import com.omnifile.archive.ArchiveSupport
+import com.omnifile.archive.ArchiveUiState
+import com.omnifile.archive.ArchiveViewModel
 import com.omnifile.files.FilesViewModel
 import com.omnifile.search.SearchScope
 import com.omnifile.search.SearchUiState
 import com.omnifile.search.SearchViewModel
 import com.omnifile.ui.files.FilesScreen
+import com.omnifile.ui.archive.ArchiveScreen
 import com.omnifile.ui.home.HomeUiState
 import com.omnifile.ui.home.HomeViewModel
 import com.omnifile.ui.home.HomeScreen
@@ -35,6 +39,7 @@ import com.omnifile.ui.operations.OperationsPanel
 import com.omnifile.ui.search.SearchScreen
 import com.omnifile.ui.settings.SettingsScreen
 import com.omnifile.ui.shell.AppNavigationState
+import com.omnifile.ui.shell.ArchiveOrigin
 import com.omnifile.ui.shell.AppShell
 import com.omnifile.ui.shell.DetailSurface
 import com.omnifile.ui.shell.FilesOrigin
@@ -45,6 +50,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var app: AppContainer
     private lateinit var filesViewModel: FilesViewModel
     private lateinit var searchViewModel: SearchViewModel
+    private lateinit var archiveViewModel: ArchiveViewModel
     private lateinit var homeViewModel: HomeViewModel
     private lateinit var operationsViewModel: com.omnifile.operations.OperationsViewModel
     private var navigation by mutableStateOf(AppNavigationState())
@@ -87,7 +93,10 @@ class MainActivity : ComponentActivity() {
         val restoredFilesOrigin = savedInstanceState?.getString(KEY_FILES_ORIGIN)?.let {
             runCatching { FilesOrigin.valueOf(it) }.getOrNull()
         }
-        navigation = AppNavigationState(restoredTopLevel, restoredDetail, restoredFilesOrigin)
+        val restoredArchiveOrigin = savedInstanceState?.getString(KEY_ARCHIVE_ORIGIN)?.let {
+            runCatching { ArchiveOrigin.valueOf(it) }.getOrNull()
+        }
+        navigation = AppNavigationState(restoredTopLevel, restoredDetail, restoredFilesOrigin, restoredArchiveOrigin)
 
         operationsViewModel = ViewModelProvider(
             this,
@@ -107,6 +116,9 @@ class MainActivity : ComponentActivity() {
                 onOperationsCreated = { operationsViewModel.refresh() },
             )
         })[FilesViewModel::class.java]
+        archiveViewModel = ViewModelProvider(this, Factory {
+            ArchiveViewModel(app.archiveRepository, app.archiveExtractor, app.localProvider)
+        })[ArchiveViewModel::class.java]
         searchViewModel = ViewModelProvider(this, Factory {
             SearchViewModel(
                 listChildren = app.repository::children,
@@ -133,8 +145,12 @@ class MainActivity : ComponentActivity() {
         })[SearchViewModel::class.java]
         homeViewModel = ViewModelProvider(this, Factory { HomeViewModel(app.rootRegistry) })[HomeViewModel::class.java]
 
-        if (navigation.detail != null && filesViewModel.uiState.value == FilesUiState.SourceSelection) {
+        if (navigation.detail == DetailSurface.FILES && filesViewModel.uiState.value == FilesUiState.SourceSelection) {
             // A process-death recreation cannot restore an in-memory Files path safely.
+            navigation = navigation.closeDetail()
+        }
+        if (navigation.detail == DetailSurface.ARCHIVE && archiveViewModel.uiState.value is ArchiveUiState.Idle) {
+            // Archive source/index state is intentionally restart-required and not persisted.
             navigation = navigation.closeDetail()
         }
 
@@ -157,6 +173,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val filesState by filesViewModel.uiState.collectAsState()
             val searchState by searchViewModel.state.collectAsState()
+            val archiveState by archiveViewModel.uiState.collectAsState()
             val homeState by homeViewModel.state.collectAsState()
             val playbackState by app.playbackCoordinator.state.collectAsState()
             val operations by operationsViewModel.operations.collectAsState()
@@ -177,6 +194,7 @@ class MainActivity : ComponentActivity() {
                                 when (currentDetail) {
                                     DetailSurface.FILES -> FilesSurface(filesState, mutationInFlight)
                                     DetailSurface.CONTEXTUAL_SEARCH -> SearchSurface(searchState, contextual = true)
+                                    DetailSurface.ARCHIVE -> ArchiveSurface(archiveState)
                                     null -> when (currentTop) {
                                         TopLevelDestination.HOME -> HomeScreen(
                                             homeState,
@@ -223,6 +241,7 @@ class MainActivity : ComponentActivity() {
             onSelectLocal = filesViewModel::selectLocal,
             onPickTree = ::launchTreePicker,
             onOpenDirectory = filesViewModel::openDirectory,
+            onOpenArchive = ::openArchiveFromFiles,
             onOpenSearch = ::openContextualSearch,
             onPlayEntry = ::playEntry,
             onEnterSelection = filesViewModel::enterSelection,
@@ -240,6 +259,20 @@ class MainActivity : ComponentActivity() {
             mutationInFlight = mutationInFlight,
             onBack = ::consumeFilesBack,
             onRetry = filesViewModel::retry,
+        )
+    }
+
+    @Composable
+    private fun ArchiveSurface(state: ArchiveUiState) {
+        ArchiveScreen(
+            state = state,
+            onBack = ::consumeArchiveBack,
+            onOpenDirectory = archiveViewModel::openDirectory,
+            onEnterSelection = archiveViewModel::enterSelection,
+            onToggleSelection = archiveViewModel::toggleSelection,
+            onExtract = archiveViewModel::extractSelected,
+            onCancelExtraction = archiveViewModel::cancelExtraction,
+            onRetry = archiveViewModel::retry,
         )
     }
 
@@ -294,6 +327,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun openSearchResult(hit: com.omnifile.search.SearchHit) {
+        if (ArchiveSupport.isZip(hit.entry)) {
+            archiveViewModel.open(hit.entry)
+            navigation = navigation.openArchive(
+                if (navigation.detail == DetailSurface.CONTEXTUAL_SEARCH) ArchiveOrigin.CONTEXTUAL_SEARCH
+                else ArchiveOrigin.TOP_LEVEL_SEARCH,
+            )
+            return
+        }
         if (!filesViewModel.openSearchResult(hit)) return
         navigation = navigation.openFiles(
             when {
@@ -302,6 +343,24 @@ class MainActivity : ComponentActivity() {
                 else -> FilesOrigin.HOME
             },
         )
+    }
+
+    private fun openArchiveFromFiles(entry: com.omnifile.storage.StorageEntry) {
+        if (!ArchiveSupport.isZip(entry)) return
+        archiveViewModel.open(entry)
+        navigation = navigation.openArchive(
+            when (navigation.filesOrigin) {
+                FilesOrigin.TOP_LEVEL_SEARCH -> ArchiveOrigin.FILES_TOP_LEVEL_SEARCH
+                FilesOrigin.CONTEXTUAL_SEARCH -> ArchiveOrigin.FILES_CONTEXTUAL_SEARCH
+                FilesOrigin.HOME, null -> ArchiveOrigin.FILES_HOME
+            },
+        )
+    }
+
+    private fun consumeArchiveBack(): Boolean {
+        if (archiveViewModel.handleBack()) return true
+        navigation = navigation.closeArchive()
+        return true
     }
 
     private fun consumeFilesBack(): Boolean {
@@ -320,6 +379,7 @@ class MainActivity : ComponentActivity() {
             closeContextualSearch()
             true
         }
+        DetailSurface.ARCHIVE -> consumeArchiveBack()
 
         null -> false
     }
@@ -335,6 +395,7 @@ class MainActivity : ComponentActivity() {
         outState.putString(KEY_TOP_LEVEL, navigation.topLevel.name)
         outState.putString(KEY_DETAIL, navigation.detail?.name)
         outState.putString(KEY_FILES_ORIGIN, navigation.filesOrigin?.name)
+        outState.putString(KEY_ARCHIVE_ORIGIN, navigation.archiveOrigin?.name)
         outState.putString(KEY_SEARCH_QUERY, searchViewModel.query)
         super.onSaveInstanceState(outState)
     }
@@ -346,6 +407,7 @@ class MainActivity : ComponentActivity() {
         private const val KEY_TOP_LEVEL = "omnifile.top-level"
         private const val KEY_DETAIL = "omnifile.detail"
         private const val KEY_FILES_ORIGIN = "omnifile.files-origin"
+        private const val KEY_ARCHIVE_ORIGIN = "omnifile.archive-origin"
         private const val KEY_SEARCH_QUERY = "omnifile.search-query"
     }
 }

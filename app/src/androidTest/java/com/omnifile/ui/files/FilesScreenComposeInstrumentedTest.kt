@@ -116,6 +116,34 @@ class FilesScreenComposeInstrumentedTest {
     }
 
     @Test
+    fun zipFileRowInvokesArchiveOpenCallback() {
+        val archive = entry("fixture.zip", emptySet())
+        var opened: StorageEntry? = null
+        composeRule.setContent {
+            OmniFileTheme {
+                FilesScreen(
+                    state = content(listOf(archive)),
+                    onSelectLocal = {},
+                    onPickTree = {},
+                    onOpenDirectory = {},
+                    onOpenArchive = { opened = it },
+                    onEnterSelection = {},
+                    onToggleSelection = {},
+                    onClearSelection = {},
+                    onRenameSelected = {},
+                    onDeleteSelected = {},
+                    mutationInFlight = false,
+                    onBack = {},
+                    onRetry = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("files.entry.fixture.zip").performClick()
+        assertEquals(archive.ref, opened?.ref)
+    }
+
+    @Test
     fun distinctEntryRefsWithCollidingHashCodesRenderAsDistinctRows() {
         val entries = listOf(
             entry("first.txt", emptySet(), CollisionEntryRef("first")),

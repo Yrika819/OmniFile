@@ -43,6 +43,7 @@ import com.omnifile.media.isPlaybackEligible
 import com.omnifile.storage.EntryKind
 import com.omnifile.storage.StorageCapability
 import com.omnifile.storage.StorageEntry
+import com.omnifile.archive.ArchiveSupport
 import java.text.DateFormat
 import java.util.Date
 
@@ -54,6 +55,7 @@ fun FilesScreen(
     onSelectLocal: () -> Unit,
     onPickTree: () -> Unit,
     onOpenDirectory: (StorageEntry) -> Unit,
+    onOpenArchive: (StorageEntry) -> Unit = {},
     onOpenSearch: () -> Unit = {},
     onPlayEntry: (StorageEntry) -> Unit = {},
     onEnterSelection: (StorageEntry) -> Unit,
@@ -181,6 +183,7 @@ fun FilesScreen(
                     entries = state.entries,
                     selection = null,
                     onOpenDirectory = onOpenDestinationDirectory,
+                    onOpenArchive = {},
                     onEnterSelection = {},
                     onToggleSelection = {},
                 )
@@ -189,6 +192,7 @@ fun FilesScreen(
                     entries = state.entries,
                     selection = state.selection,
                     onOpenDirectory = onOpenDirectory,
+                    onOpenArchive = onOpenArchive,
                     onEnterSelection = onEnterSelection,
                     onToggleSelection = onToggleSelection,
                     onPlayEntry = onPlayEntry,
@@ -288,6 +292,7 @@ private fun EntryList(
     entries: List<StorageEntry>,
     selection: FilesSelectionState?,
     onOpenDirectory: (StorageEntry) -> Unit,
+    onOpenArchive: (StorageEntry) -> Unit,
     onEnterSelection: (StorageEntry) -> Unit,
     onToggleSelection: (StorageEntry) -> Unit,
     onPlayEntry: (StorageEntry) -> Unit = {},
@@ -306,6 +311,7 @@ private fun EntryList(
                 selected = entry.ref in selection?.selectedEntries.orEmpty(),
                 selectionMode = selection != null,
                 onOpenDirectory = onOpenDirectory,
+                onOpenArchive = onOpenArchive,
                 onEnterSelection = onEnterSelection,
                 onToggleSelection = onToggleSelection,
                 onPlayEntry = onPlayEntry,
@@ -350,6 +356,7 @@ private fun EntryRow(
     selected: Boolean,
     selectionMode: Boolean,
     onOpenDirectory: (StorageEntry) -> Unit,
+    onOpenArchive: (StorageEntry) -> Unit,
     onEnterSelection: (StorageEntry) -> Unit,
     onToggleSelection: (StorageEntry) -> Unit,
     onPlayEntry: (StorageEntry) -> Unit = {},
@@ -377,6 +384,7 @@ private fun EntryRow(
                 onClick = {
                     if (selectionMode) onToggleSelection(entry)
                     else if (entry.kind == EntryKind.DIRECTORY) onOpenDirectory(entry)
+                    else if (ArchiveSupport.isZip(entry)) onOpenArchive(entry)
                 },
                 onLongClick = { onEnterSelection(entry) },
             )

@@ -65,6 +65,38 @@ class SearchScreenComposeInstrumentedTest {
     }
 
     @Test
+    fun archiveSearchResultInvokesOpenResultCallback() {
+        val root = rootEntry()
+        val archive = entry("fixture.zip", EntryKind.FILE, root)
+        val hit = SearchHit(archive, listOf(root))
+        var opened: SearchHit? = null
+        composeRule.setContent {
+            OmniFileTheme {
+                SearchScreen(
+                    state = SearchUiState.Results(
+                        query = "fixture",
+                        scope = SearchScope.CurrentFolder(root.ref.providerId, root),
+                        hits = listOf(hit),
+                        failures = emptyList(),
+                        entriesVisited = 1,
+                        directoriesVisited = 1,
+                        complete = true,
+                        truncated = false,
+                    ),
+                    onBack = {},
+                    onQueryChanged = {},
+                    onSubmitQuery = {},
+                    onClearQuery = {},
+                    onOpenResult = { opened = it },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("search.result.0").performClick()
+        assertEquals(archive.ref, opened?.entry?.ref)
+    }
+
+    @Test
     fun idleSearchStillShowsTheCurrentFolderScope() {
         val root = rootEntry()
         composeRule.setContent {
