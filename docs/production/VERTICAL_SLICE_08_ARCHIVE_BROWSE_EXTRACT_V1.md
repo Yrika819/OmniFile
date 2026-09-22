@@ -139,7 +139,7 @@ Recommended VS09 frontier: repair and isolate the existing Activity/Compose phys
 ## Final artifacts
 
 - Final implementation SHA: `110515a` (`feat(archive): add ZIP browse and safe Local extraction`).
-- Evidence/review closure commit: recorded in final Git verification after this document is committed.
+- Evidence/review closure commit: `d0523d5` (`docs(vs08): record archive evidence and reviews`).
 - Debug APK SHA-256: `884997ee85c3e9e47661c5860a5496b875263e60f3b5e4941b42775a46f6f932`.
 - Debug Android-test APK SHA-256: `9939a99ab9cecc61706a5baaa91c010a4a6e11fe4d190d2d87f5adfc6164a602`.
-- Push: final non-force push to `origin/development/core-v1-archive-v1` remains to be verified after documentation commit.
+- Push: `d0523d5` is pushed non-force to `origin/development/core-v1-archive-v1`; final closure commit is pushed after this evidence line is recorded.
