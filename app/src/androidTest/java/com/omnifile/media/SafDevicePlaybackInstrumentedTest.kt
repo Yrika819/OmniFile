@@ -1,6 +1,7 @@
 package com.omnifile.media
 
 import android.content.Intent
+import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.omnifile.storage.EntryKind
@@ -52,7 +53,7 @@ class SafDevicePlaybackInstrumentedTest {
             treeUri = grant.uri,
             id = SafStorageProvider.providerIdFor(grant.uri),
             grantFlags = (if (grant.isReadPermission) Intent.FLAG_GRANT_READ_URI_PERMISSION else 0) or
-                (if (grant.isWritePermission) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0),
+                    (if (grant.isWritePermission) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0),
         )
         val entry = findDeviceAudio(provider)
         assumeTrue("no vs07 SAF audio fixture in the persisted tree", entry != null)
@@ -66,6 +67,13 @@ class SafDevicePlaybackInstrumentedTest {
         instrumentation.runOnMainSync { playback.play(audioEntry) }
 
         val playing = awaitState(playback.state) { it.status == PlaybackStatus.READY && it.isPlaying }
+        Log.i(
+            "VS07_REAL_SAF",
+            "authority=${grant.uri.authority} fixture=${audioEntry.displayName} " +
+                    "mime=${audioEntry.mimeType} sizeBytes=${audioEntry.sizeBytes} " +
+                    "seekSupport=${playing.seekSupport} durationMs=${playing.durationMs} " +
+                    "status=${playing.status} positionMs=${playing.positionMs}",
+        )
         assertEquals(PlaybackStatus.READY, playing.status)
         assertTrue(playing.isPlaying)
         assertEquals(audioEntry.displayName, playing.item?.displayName)
@@ -74,6 +82,11 @@ class SafDevicePlaybackInstrumentedTest {
         val first = playing.positionMs
         val advanced = awaitState(playback.state) { it.isPlaying && it.positionMs > first + 200 }
         assertTrue("SAF playback must progress", advanced.positionMs > first + 200)
+        Log.i(
+            "VS07_REAL_SAF",
+            "positionAdvancedFromMs=$first toMs=${advanced.positionMs} " +
+                    "seekSupport=${advanced.seekSupport} durationMs=${advanced.durationMs}",
+        )
 
         // Seek is issued only when the per-item probe proved SEEKABLE.
         if (advanced.seekSupport == SeekSupport.SEEKABLE && advanced.durationMs != null) {

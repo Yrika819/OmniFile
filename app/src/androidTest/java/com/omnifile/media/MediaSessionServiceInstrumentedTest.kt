@@ -1,9 +1,13 @@
 package com.omnifile.media
 
+import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
+import androidx.media3.common.Player
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.omnifile.storage.LocalStorageProvider
@@ -11,9 +15,12 @@ import com.omnifile.storage.ProviderId
 import com.omnifile.storage.StorageEntry
 import com.omnifile.storage.StorageResult
 import java.io.File
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -76,6 +83,41 @@ class MediaSessionServiceInstrumentedTest {
     }
 
     @Test
+    fun sameAppControllerConnectsWithRequiredReadAndTransportCommands() {
+        val controller = MediaController.Builder(
+            context,
+            sessionToken(context),
+        ).buildAsync().get(10, TimeUnit.SECONDS)
+        try {
+            instrumentation.runOnMainSync {
+                assertTrue(controller.isCommandAvailable(Player.COMMAND_GET_CURRENT_MEDIA_ITEM))
+                assertTrue(controller.isCommandAvailable(Player.COMMAND_GET_TIMELINE))
+                assertTrue(controller.isCommandAvailable(Player.COMMAND_GET_METADATA))
+                assertTrue(controller.isCommandAvailable(Player.COMMAND_PLAY_PAUSE))
+                assertTrue(controller.isCommandAvailable(Player.COMMAND_STOP))
+                assertTrue(controller.isCommandAvailable(Player.COMMAND_SET_MEDIA_ITEM))
+            }
+        } finally {
+            instrumentation.runOnMainSync { controller.release() }
+        }
+    }
+
+    @Test
+    fun untrustedTestPackageControllerIsRejected() {
+        val untrustedContext = instrumentation.context
+        val future = MediaController.Builder(
+            untrustedContext,
+            sessionToken(untrustedContext),
+        ).buildAsync()
+        try {
+            future.get(10, TimeUnit.SECONDS)
+            fail("untrusted test package must not connect to the MediaSession")
+        } catch (error: ExecutionException) {
+            assertTrue("rejection must have a connection failure cause", error.cause != null)
+        }
+    }
+
+    @Test
     fun sessionIsVisibleToSystemWithTruthfulTitleWhilePlaying() {
         val entry = prepareWav()
         instrumentation.runOnMainSync { coordinator.play(entry) }
@@ -116,6 +158,12 @@ class MediaSessionServiceInstrumentedTest {
         )
     }
 
+    private fun sessionToken(controllerContext: android.content.Context): SessionToken =
+        SessionToken(
+            controllerContext,
+            ComponentName(context.packageName, OmniFilePlaybackService::class.java.name),
+        )
+
     private fun prepareWav(): StorageEntry = runBlocking {
         File(context.filesDir, WAV_NAME).writeBytes(MediaTestFixtures.toneWavBytes())
         val root = (localProvider.root() as StorageResult.Success).value
@@ -143,4 +191,3 @@ class MediaSessionServiceInstrumentedTest {
         const val WAV_NAME = "vs07-session.wav"
     }
 }
-
