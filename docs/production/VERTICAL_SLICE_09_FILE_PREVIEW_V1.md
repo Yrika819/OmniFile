@@ -7,6 +7,7 @@
 - Branch: `development/core-v1-preview-v1`
 - Scope: bounded read-only text/image Preview from Files, Search, and Archive.
 - Implementation commit: `64a28e5` (`feat(preview): add bounded file preview v1`).
+- Initial evidence/review commit: `a856d23` (`docs(preview): record VS09 evidence and reviews`).
 - No VS10 work was started.
 
 Host/compiler/build gates pass. `adb devices -l` listed no Android device or emulator, so connected instrumentation, physical SAF/image acceptance, and device lifecycle acceptance were not run. VS09 remains incomplete until the required device checks below run against the final APKs.
@@ -78,7 +79,8 @@ Run the final `app-debug.apk` and `app-debug-androidTest.apk` on the awake/unloc
 - Implementation commit: `64a28e5`.
 - Debug APK SHA-256: `69fe7093e4115144f7309e8336b9e8d8b7d65853e1ad7f7373b2ef0a0a9a1d84`.
 - Debug Android-test APK SHA-256: `f5c4f62d4d6fab0c5ae7b09cf865c1a70d13c6083c1935278f3300bb59f9e3ff`.
-- Documentation/review commit and normal-push equality are recorded in the final task report after remote verification.
+- Normal push of `development/core-v1-preview-v1` through `a856d23` succeeded. A fresh post-push `git ls-remote` returned the same SHA as local HEAD: `a856d2319a7bcb208272842d6b18a3727586e619`.
+- This evidence line is followed by a small documentation closure update; the final task report records the closure commit's fresh remote equality check.
 
 ## VS10 frontier
 

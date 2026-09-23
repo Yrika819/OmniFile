@@ -101,4 +101,4 @@
 - [x] Freeze generation 0, repair the no-progress finding, then complete generation 1; add the PDF signature guard and stale archive method check before the final review snapshot.
 - [x] Complete the regression review. Intent review found no external intent/manifest/MIME change and is therefore not applicable.
 - [x] Record exact host/build/diagnostic/review/APK evidence and the open device limitation.
-- [ ] Finish the docs commit, normal push, and fresh local/remote SHA equality check.
+- [x] Create focused implementation and evidence commits, push normally to `origin/development/core-v1-preview-v1`, and verify local/remote equality. The post-push docs closure update is pushed and checked separately.
