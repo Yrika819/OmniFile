@@ -5,6 +5,7 @@ enum class DetailSurface {
     FILES,
     CONTEXTUAL_SEARCH,
     ARCHIVE,
+    PREVIEW,
 }
 
 enum class ArchiveOrigin {
@@ -26,30 +27,45 @@ data class AppNavigationState(
     val detail: DetailSurface? = null,
     val filesOrigin: FilesOrigin? = null,
     val archiveOrigin: ArchiveOrigin? = null,
+    val previewOrigin: DetailSurface? = null,
 ) {
     init {
-        require(detail == DetailSurface.FILES || filesOrigin == null) {
+        require(detail == DetailSurface.FILES || (detail == DetailSurface.PREVIEW && previewOrigin == DetailSurface.FILES) || filesOrigin == null) {
             "Files origin is only valid for the Files detail surface"
         }
-        require(detail == DetailSurface.ARCHIVE || archiveOrigin == null) {
+        require(detail == DetailSurface.ARCHIVE || (detail == DetailSurface.PREVIEW && previewOrigin == DetailSurface.ARCHIVE) || archiveOrigin == null) {
             "Archive origin is only valid for the Archive detail surface"
+        }
+        require(detail == DetailSurface.PREVIEW || previewOrigin == null) {
+            "Preview origin is only valid for the Preview detail surface"
         }
     }
 
     fun selectTopLevel(destination: TopLevelDestination): AppNavigationState =
-        copy(topLevel = destination, detail = null, filesOrigin = null, archiveOrigin = null)
+        copy(topLevel = destination, detail = null, filesOrigin = null, archiveOrigin = null, previewOrigin = null)
 
     fun openFiles(origin: FilesOrigin): AppNavigationState =
-        copy(detail = DetailSurface.FILES, filesOrigin = origin, archiveOrigin = null)
+        copy(detail = DetailSurface.FILES, filesOrigin = origin, archiveOrigin = null, previewOrigin = null)
 
     fun openContextualSearch(): AppNavigationState =
-        copy(detail = DetailSurface.CONTEXTUAL_SEARCH, filesOrigin = null, archiveOrigin = null)
+        copy(detail = DetailSurface.CONTEXTUAL_SEARCH, filesOrigin = null, archiveOrigin = null, previewOrigin = null)
 
     fun closeDetail(): AppNavigationState =
-        copy(detail = null, filesOrigin = null, archiveOrigin = null)
+        copy(detail = null, filesOrigin = null, archiveOrigin = null, previewOrigin = null)
 
     fun openArchive(origin: ArchiveOrigin): AppNavigationState =
-        copy(detail = DetailSurface.ARCHIVE, filesOrigin = null, archiveOrigin = origin)
+        copy(detail = DetailSurface.ARCHIVE, filesOrigin = null, archiveOrigin = origin, previewOrigin = null)
+
+    /** Preview is nested inside the current detail or top-level Search destination. */
+    fun openPreview(): AppNavigationState {
+        require(detail != DetailSurface.PREVIEW)
+        return copy(detail = DetailSurface.PREVIEW, previewOrigin = detail)
+    }
+
+    fun closePreview(): AppNavigationState {
+        if (detail != DetailSurface.PREVIEW) return this
+        return copy(detail = previewOrigin, previewOrigin = null)
+    }
 
     fun closeArchive(): AppNavigationState = when (archiveOrigin) {
         ArchiveOrigin.FILES_HOME -> copy(detail = DetailSurface.FILES, filesOrigin = FilesOrigin.HOME, archiveOrigin = null)

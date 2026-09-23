@@ -29,6 +29,10 @@ import com.omnifile.files.FilesViewModel
 import com.omnifile.search.SearchScope
 import com.omnifile.search.SearchUiState
 import com.omnifile.search.SearchViewModel
+import com.omnifile.media.isPlaybackEligible
+import com.omnifile.preview.PreviewItem
+import com.omnifile.preview.PreviewUiState
+import com.omnifile.preview.PreviewViewModel
 import com.omnifile.ui.files.FilesScreen
 import com.omnifile.ui.archive.ArchiveScreen
 import com.omnifile.ui.home.HomeUiState
@@ -37,6 +41,7 @@ import com.omnifile.ui.home.HomeScreen
 import com.omnifile.ui.music.MusicScreen
 import com.omnifile.ui.operations.OperationsPanel
 import com.omnifile.ui.search.SearchScreen
+import com.omnifile.ui.preview.PreviewScreen
 import com.omnifile.ui.settings.SettingsScreen
 import com.omnifile.ui.shell.AppNavigationState
 import com.omnifile.ui.shell.ArchiveOrigin
@@ -51,6 +56,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var filesViewModel: FilesViewModel
     private lateinit var searchViewModel: SearchViewModel
     private lateinit var archiveViewModel: ArchiveViewModel
+    private lateinit var previewViewModel: PreviewViewModel
     private lateinit var homeViewModel: HomeViewModel
     private lateinit var operationsViewModel: com.omnifile.operations.OperationsViewModel
     private var navigation by mutableStateOf(AppNavigationState())
@@ -96,7 +102,10 @@ class MainActivity : ComponentActivity() {
         val restoredArchiveOrigin = savedInstanceState?.getString(KEY_ARCHIVE_ORIGIN)?.let {
             runCatching { ArchiveOrigin.valueOf(it) }.getOrNull()
         }
-        navigation = AppNavigationState(restoredTopLevel, restoredDetail, restoredFilesOrigin, restoredArchiveOrigin)
+        val restoredPreviewOrigin = savedInstanceState?.getString(KEY_PREVIEW_ORIGIN)?.let {
+            runCatching { DetailSurface.valueOf(it) }.getOrNull()
+        }
+        navigation = AppNavigationState(restoredTopLevel, restoredDetail, restoredFilesOrigin, restoredArchiveOrigin, restoredPreviewOrigin)
 
         operationsViewModel = ViewModelProvider(
             this,
@@ -119,6 +128,7 @@ class MainActivity : ComponentActivity() {
         archiveViewModel = ViewModelProvider(this, Factory {
             ArchiveViewModel(app.archiveRepository, app.archiveExtractor, app.localProvider)
         })[ArchiveViewModel::class.java]
+        previewViewModel = ViewModelProvider(this, Factory { PreviewViewModel() })[PreviewViewModel::class.java]
         searchViewModel = ViewModelProvider(this, Factory {
             SearchViewModel(
                 listChildren = app.repository::children,
@@ -145,6 +155,10 @@ class MainActivity : ComponentActivity() {
         })[SearchViewModel::class.java]
         homeViewModel = ViewModelProvider(this, Factory { HomeViewModel(app.rootRegistry) })[HomeViewModel::class.java]
 
+        if (navigation.detail == DetailSurface.PREVIEW && previewViewModel.state.value == PreviewUiState.Idle) {
+            // A process-death restore cannot reconstruct a provider-owned source handle or an archive index.
+            navigation = navigation.closePreview()
+        }
         if (navigation.detail == DetailSurface.FILES && filesViewModel.uiState.value == FilesUiState.SourceSelection) {
             // A process-death recreation cannot restore an in-memory Files path safely.
             navigation = navigation.closeDetail()
@@ -174,6 +188,7 @@ class MainActivity : ComponentActivity() {
             val filesState by filesViewModel.uiState.collectAsState()
             val searchState by searchViewModel.state.collectAsState()
             val archiveState by archiveViewModel.uiState.collectAsState()
+            val previewState by previewViewModel.state.collectAsState()
             val homeState by homeViewModel.state.collectAsState()
             val playbackState by app.playbackCoordinator.state.collectAsState()
             val operations by operationsViewModel.operations.collectAsState()
@@ -195,6 +210,11 @@ class MainActivity : ComponentActivity() {
                                     DetailSurface.FILES -> FilesSurface(filesState, mutationInFlight)
                                     DetailSurface.CONTEXTUAL_SEARCH -> SearchSurface(searchState, contextual = true)
                                     DetailSurface.ARCHIVE -> ArchiveSurface(archiveState)
+                                    DetailSurface.PREVIEW -> PreviewScreen(
+                                        state = previewState,
+                                        onBack = ::closePreview,
+                                        onRetry = previewViewModel::retry,
+                                    )
                                     null -> when (currentTop) {
                                         TopLevelDestination.HOME -> HomeScreen(
                                             homeState,
@@ -242,6 +262,7 @@ class MainActivity : ComponentActivity() {
             onPickTree = ::launchTreePicker,
             onOpenDirectory = filesViewModel::openDirectory,
             onOpenArchive = ::openArchiveFromFiles,
+            onPreviewEntry = { entry -> openPreview(entry, filesLocationLabel(state)) },
             onOpenSearch = ::openContextualSearch,
             onPlayEntry = ::playEntry,
             onEnterSelection = filesViewModel::enterSelection,
@@ -268,6 +289,7 @@ class MainActivity : ComponentActivity() {
             state = state,
             onBack = ::consumeArchiveBack,
             onOpenDirectory = archiveViewModel::openDirectory,
+            onPreview = { node -> openArchivePreview(state, node) },
             onEnterSelection = archiveViewModel::enterSelection,
             onToggleSelection = archiveViewModel::toggleSelection,
             onExtract = archiveViewModel::extractSelected,
@@ -291,6 +313,7 @@ class MainActivity : ComponentActivity() {
 
     private fun selectTopLevel(destination: TopLevelDestination) {
         if (destination == navigation.topLevel && navigation.detail == null) return
+        if (navigation.detail == DetailSurface.PREVIEW) previewViewModel.close()
         navigation = navigation.selectTopLevel(destination)
         if (destination == TopLevelDestination.SEARCH && searchViewModel.scope != SearchScope.ThisDevice) {
             searchViewModel.setScope(SearchScope.ThisDevice)
@@ -327,6 +350,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun openSearchResult(hit: com.omnifile.search.SearchHit) {
+        if (hit.entry.kind == com.omnifile.storage.EntryKind.FILE && !ArchiveSupport.isZip(hit.entry) && !hit.entry.isPlaybackEligible) {
+            val location = buildList {
+                hit.rootLabel?.let(::add)
+                addAll(hit.ancestors.map { it.displayName })
+            }.joinToString(" / ")
+            openPreview(hit.entry, location)
+            return
+        }
         if (ArchiveSupport.isZip(hit.entry)) {
             archiveViewModel.open(hit.entry)
             navigation = navigation.openArchive(
@@ -343,6 +374,36 @@ class MainActivity : ComponentActivity() {
                 else -> FilesOrigin.HOME
             },
         )
+    }
+
+    private fun filesLocationLabel(state: FilesUiState): String = when (state) {
+        is FilesUiState.Content -> state.breadcrumb.joinToString(" / ")
+        is FilesUiState.Empty -> state.breadcrumb.joinToString(" / ")
+        is FilesUiState.Loading -> state.location?.displayName.orEmpty()
+        is FilesUiState.Error -> state.breadcrumb.joinToString(" / ")
+        else -> "Files"
+    }
+
+    private fun openPreview(entry: com.omnifile.storage.StorageEntry, location: String) {
+        val item = PreviewItem(entry.ref, entry.displayName, location, entry.mimeType, entry.sizeBytes)
+        previewViewModel.open(item) { app.repository.previewSource(entry) }
+        navigation = navigation.openPreview()
+    }
+
+    private fun openArchivePreview(state: ArchiveUiState, node: com.omnifile.archive.ArchiveNode) {
+        val content = state as? ArchiveUiState.Content ?: return
+        if (content.entries.none { it.ref == node.ref } || node.kind != com.omnifile.storage.EntryKind.FILE) return
+        val location = "${content.document.container.title} / ${node.path}"
+        val item = PreviewItem(node.ref, node.displayName, location, mimeType = null, sizeBytes = node.sizeBytes)
+        previewViewModel.open(item) { app.archiveRepository.previewSource(content.document, node) }
+        navigation = navigation.openPreview()
+    }
+
+    private fun closePreview(): Boolean {
+        if (navigation.detail != DetailSurface.PREVIEW) return false
+        previewViewModel.close()
+        navigation = navigation.closePreview()
+        return true
     }
 
     private fun openArchiveFromFiles(entry: com.omnifile.storage.StorageEntry) {
@@ -380,6 +441,7 @@ class MainActivity : ComponentActivity() {
             true
         }
         DetailSurface.ARCHIVE -> consumeArchiveBack()
+        DetailSurface.PREVIEW -> closePreview()
 
         null -> false
     }
@@ -396,6 +458,7 @@ class MainActivity : ComponentActivity() {
         outState.putString(KEY_DETAIL, navigation.detail?.name)
         outState.putString(KEY_FILES_ORIGIN, navigation.filesOrigin?.name)
         outState.putString(KEY_ARCHIVE_ORIGIN, navigation.archiveOrigin?.name)
+        outState.putString(KEY_PREVIEW_ORIGIN, navigation.previewOrigin?.name)
         outState.putString(KEY_SEARCH_QUERY, searchViewModel.query)
         super.onSaveInstanceState(outState)
     }
@@ -408,6 +471,7 @@ class MainActivity : ComponentActivity() {
         private const val KEY_DETAIL = "omnifile.detail"
         private const val KEY_FILES_ORIGIN = "omnifile.files-origin"
         private const val KEY_ARCHIVE_ORIGIN = "omnifile.archive-origin"
+        private const val KEY_PREVIEW_ORIGIN = "omnifile.preview-origin"
         private const val KEY_SEARCH_QUERY = "omnifile.search-query"
     }
 }

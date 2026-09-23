@@ -28,7 +28,7 @@ class SafStorageProvider(
     private val grantFlags: Int = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
     private val finalizationProven: Boolean = false,
     private val sourceVersionProven: Boolean = false,
-) : StorageTransferProvider, PlaybackSourceProvider {
+) : StorageTransferProvider, PlaybackSourceProvider, com.omnifile.preview.PreviewSourceProvider {
     init {
         require(DocumentsContract.isTreeUri(treeUri)) { "SAF transfer requires a tree URI" }
     }
@@ -282,6 +282,26 @@ class SafStorageProvider(
 
             is StorageResult.Failure -> result
         }
+    }
+
+
+    override suspend fun openPreviewSource(entry: StorageEntry): StorageResult<com.omnifile.preview.PreviewSource> {
+        if (entry.ref.providerId != id || entry.kind != EntryKind.FILE ||
+            StorageCapability.READ_SEQUENTIAL !in entry.capabilities
+        ) return StorageResult.Failure(StorageError.Unsupported)
+        val locator = when (val result = encodeDurableLocator(entry.ref)) {
+            is StorageResult.Success -> result.value
+            is StorageResult.Failure -> return result
+        }
+        return StorageResult.Success(
+            com.omnifile.preview.PreviewSource(
+                identity = entry.ref,
+                sourceLabel = "Selected storage",
+                mimeType = entry.mimeType,
+                sizeBytes = entry.sizeBytes,
+                capabilities = com.omnifile.preview.PreviewCapabilities(sequentialReadable = true, canReopen = true),
+            ) { openSequentialRead(locator) },
+        )
     }
 
     override suspend fun openSequentialRead(
