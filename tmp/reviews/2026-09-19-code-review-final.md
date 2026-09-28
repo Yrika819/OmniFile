@@ -12,7 +12,7 @@
 - Parent resolution ID: `None`
 - Parent resolution path: `None`
 - Generated at: `2026-09-19T20:25:00Z`
-- Report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/tmp/reviews/2026-09-19-code-review-final.md`
+- Report path: `~/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/tmp/reviews/2026-09-19-code-review-final.md`
 - Source skill: `code-review`
 - Status: `Review incomplete`
 - Git mutation during review: `None`

@@ -12,7 +12,7 @@
 - Parent resolution ID: `None`
 - Parent resolution path: `None`
 - Generated at: `2026-09-21T08:35:00Z`
-- Report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1/tmp/reviews/2026-09-21-code-review-vs06-host-differential-7c20c76e.md`
+- Report path: `~/Desktop/File Manager-worktrees/omnifile-app-shell-v1/tmp/reviews/2026-09-21-code-review-vs06-host-differential-7c20c76e.md`
 - Source skill: `code-review`
 - Status: `Review complete`
 - Git mutation during review: `None`
@@ -144,9 +144,9 @@ None.
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `A4` | `secure-provider gate` | [`LocalStorageProvider.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/storage/LocalStorageProvider.kt#L429-L435) | The exact provider cast and environment-specific Unsupported path. |
-| `A4` | `error mapping` | [`LocalStorageProvider.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/storage/LocalStorageProvider.kt#L466-L521) | Capability and mutation mapping explains the common test symptoms. |
-| `A5` | `focused tests` | [`AppNavigationStateTest.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/test/java/com/omnifile/ui/shell/AppNavigationStateTest.kt#L8-L88) | Seven of the 17 focused VS06 tests. |
+| `A4` | `secure-provider gate` | [`LocalStorageProvider.kt`](~/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/storage/LocalStorageProvider.kt#L429-L435) | The exact provider cast and environment-specific Unsupported path. |
+| `A4` | `error mapping` | [`LocalStorageProvider.kt`](~/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/storage/LocalStorageProvider.kt#L466-L521) | Capability and mutation mapping explains the common test symptoms. |
+| `A5` | `focused tests` | [`AppNavigationStateTest.kt`](~/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/test/java/com/omnifile/ui/shell/AppNavigationStateTest.kt#L8-L88) | Seven of the 17 focused VS06 tests. |
 
 ### Dismissed Coordinator Candidates
 

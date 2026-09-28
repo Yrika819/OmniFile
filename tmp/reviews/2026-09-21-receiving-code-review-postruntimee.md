@@ -6,12 +6,12 @@
 - Resolution ID: `rr-20260921-postruntimee`
 - Review chain ID: `rc-20260920-postruntimee`
 - Generated at: `2026-09-21T02:16:00+09:00`
-- Resolution path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-21-receiving-code-review-postruntimee.md`
+- Resolution path: `~/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-21-receiving-code-review-postruntimee.md`
 
 ## Source Review
 
 - Source report ID: `cr-20260920-postruntimee`
-- Source report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-20-code-review-post-runtime-e.md`
+- Source report path: `~/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-20-code-review-post-runtime-e.md`
 - Continuation authorized by: `VS04 runtime-closure campaign`
 
 ## Disposition Ledger

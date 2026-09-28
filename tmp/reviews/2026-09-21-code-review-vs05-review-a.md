@@ -164,8 +164,8 @@ None - no implementation exists in this review scope.
 ### Verification Commands
 
 - `git rev-parse development/core-v1-saf-transfer-v1 origin/development/core-v1-saf-transfer-v1` -> `both e6f1148b1b6dbe946228316861b6f6e382ca2af1`
-- `git -C /Users/yuta/Desktop/File Manager-worktrees/omnifile-search-v1 status --short --branch` -> `clean before report creation`
-- `git -C /Users/yuta/Desktop/File Manager-worktrees/omnifile-search-v1 diff --stat e6f1148..HEAD` -> `no implementation diff`
+- `git -C ~/Desktop/File Manager-worktrees/omnifile-search-v1 status --short --branch` -> `clean before report creation`
+- `git -C ~/Desktop/File Manager-worktrees/omnifile-search-v1 diff --stat e6f1148..HEAD` -> `no implementation diff`
 - `git ls-remote origin refs/heads/development/core-v1-saf-transfer-v1 refs/heads/development/core-v1-search-v1` -> `VS04 remote matches e6f1148; VS05 remote branch does not yet exist`
 
 ### Supporting Code Links

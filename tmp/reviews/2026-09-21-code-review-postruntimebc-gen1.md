@@ -8,11 +8,11 @@
 - Review generation: `1`
 - Review trigger: `post-implementation`
 - Parent review report ID: `cr-20260920-postruntimebc`
-- Parent review report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-20-code-review-post-runtime-bc.md`
+- Parent review report path: `~/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-20-code-review-post-runtime-bc.md`
 - Parent resolution ID: `rr-20260921-postruntimebc`
-- Parent resolution path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-21-receiving-code-review-postruntimebc.md`
+- Parent resolution path: `~/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-21-receiving-code-review-postruntimebc.md`
 - Generated at: `2026-09-21T02:20:00+09:00`
-- Report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-21-code-review-postruntimebc-gen1.md`
+- Report path: `~/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-21-code-review-postruntimebc-gen1.md`
 - Source skill: `code-review`
 - Status: `Review complete`
 - Git mutation during review: `None`
@@ -30,7 +30,7 @@
 - Diff size: `reviewed by targeted trace and direct runtime evidence`
 - Completion: `Complete within reviewed scope`
 - Requirements consulted: `VS04 restart, grant, source-mutation, Move-ordering, and supported-route requirements`
-- Prior resolution consulted: `rr-20260921-postruntimebc; /Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-21-receiving-code-review-postruntimebc.md`
+- Prior resolution consulted: `rr-20260921-postruntimebc; ~/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-21-receiving-code-review-postruntimebc.md`
 - Assumptions: `Unsupported SAF Move and SAF destination routes are not approval targets.`
 - Excluded as unrelated: `directories, background execution, cloud providers, VS05`
 

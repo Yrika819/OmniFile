@@ -6,7 +6,7 @@ Status: `IMPLEMENTED / DEVICE-VERIFIED / NOT PUSHED`
 
 - Base SHA: `97a63de6c7546b4dfec9439df328fba593a4cc0c`
 - Branch: `development/core-v1-selection-mutations-v1`
-- Worktree: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-selection-mutations-v1`
+- Worktree: `~/Desktop/File Manager-worktrees/omnifile-selection-mutations-v1`
 - Root worktree originals were not edited.
 - The 11 UI-authority PNGs are unchanged copies under `docs/ui-authority/v1/`; their SHA-256 values are recorded in that directory's README.
 - Files normal-screen imagery was absent; VS01 production Files UI remains the normal-mode baseline. The single- and multiple-selection images are the VS02 authority.

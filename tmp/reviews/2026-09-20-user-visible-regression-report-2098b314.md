@@ -98,9 +98,9 @@ None.
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `B1` | `entry` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt:243` | Starts Copy/Move picker with the complete navigation stack. |
-| `B1` | `guard` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt:91` | Keeps visible picker arrow as explicit cancel and confirmation explicit. |
-| `B2` | `output` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/ui/operations/OperationsPanel.kt:32` | Renders durable terminal operation state and byte totals. |
+| `B1` | `entry` | `~/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt:243` | Starts Copy/Move picker with the complete navigation stack. |
+| `B1` | `guard` | `~/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt:91` | Keeps visible picker arrow as explicit cancel and confirmation explicit. |
+| `B2` | `output` | `~/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/ui/operations/OperationsPanel.kt:32` | Renders durable terminal operation state and byte totals. |
 
 ### Blind Spots
 

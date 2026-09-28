@@ -133,9 +133,9 @@ No review subagents were launched. The coordinator selected single-reviewer mode
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `A1` | `entry` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt:243` | Starts the destination picker from the current navigation stack. |
-| `A1` | `behavior` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt:323` | Loads the parent on Android Back without re-adding it. |
-| `A1` | `test` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/app/src/test/java/com/omnifile/files/FilesViewModelTest.kt:212` | Covers parent Back and sibling entry. |
+| `A1` | `entry` | `~/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt:243` | Starts the destination picker from the current navigation stack. |
+| `A1` | `behavior` | `~/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt:323` | Loads the parent on Android Back without re-adding it. |
+| `A1` | `test` | `~/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/app/src/test/java/com/omnifile/files/FilesViewModelTest.kt:212` | Covers parent Back and sibling entry. |
 
 ### Dismissed Coordinator Candidates
 

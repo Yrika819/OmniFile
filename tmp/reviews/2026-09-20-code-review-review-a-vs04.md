@@ -12,7 +12,7 @@
 - Parent resolution ID: `None`
 - Parent resolution path: `None`
 - Generated at: `2026-09-20T09:29:11Z`
-- Report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-20-code-review-review-a-vs04.md`
+- Report path: `~/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-20-code-review-review-a-vs04.md`
 - Source skill: `code-review`
 - Status: `Review complete`
 - Git mutation during review: `None`
@@ -110,8 +110,8 @@ Origin: `R0 F1`
 Coordinator verification: `SafStorageProvider currently implements only StorageProvider; its EntryRef identity contains treeUri/documentId, MainActivity gives every tree ProviderId("saf-tree"), and no durable SAF locator codec/resolver exists.`
 
 Look here first:
-- [`SafStorageProvider.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L12)
-- [`MainActivity.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/MainActivity.kt#L65)
+- [`SafStorageProvider.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L12)
+- [`MainActivity.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/MainActivity.kt#L65)
 
 Failure mode:
 - Expected: `A versioned SAF locator contains only safe re-resolution facts, validates authority/tree containment, and adopts provider-returned identity after rename/finalization.`
@@ -148,8 +148,8 @@ Origin: `R0 F2`
 Coordinator verification: `SafTreeGrantStore masks to read permission, stores one URI, and restores only isReadPermission; MainActivity passes a fabricated read-only flag rather than actual result flags.`
 
 Look here first:
-- [`SafTreeGrantStore.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafTreeGrantStore.kt#L14)
-- [`MainActivity.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/MainActivity.kt#L40)
+- [`SafTreeGrantStore.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafTreeGrantStore.kt#L14)
+- [`MainActivity.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/MainActivity.kt#L40)
 
 Failure mode:
 - Expected: `The picker requests only required access, takes only granted read/write flags, persists every selected tree required by active operations, and revalidates before use.`
@@ -185,8 +185,8 @@ Origin: `R0 F3`
 Coordinator verification: `SafStorageProvider is browse/mutation-only, OperationManager accepts only transfer providers, and the controlled provider throws from openDocument/createDocument.`
 
 Look here first:
-- [`StorageModel.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/StorageModel.kt#L109)
-- [`SafStorageProvider.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L12)
+- [`StorageModel.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/StorageModel.kt#L109)
+- [`SafStorageProvider.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L12)
 
 Failure mode:
 - Expected: `create operation-owned partial -> bounded sequential transfer -> verify -> provider finalization -> persist returned final locator -> source delete only after durable destination completion.`
@@ -222,8 +222,8 @@ Origin: `R0 F4`
 Coordinator verification: `OperationManager` checks provider-wide transfer capabilities only; current SAF browse maps only coarse write/rename/delete flags and does not expose transfer capabilities.`
 
 Look here first:
-- [`OperationManager.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L22)
-- [`FilesScreen.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L73)
+- [`OperationManager.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L22)
+- [`FilesScreen.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L73)
 
 Failure mode:
 - Expected: `Actions and enqueue validate actual source/destination entries, persisted grant modes, provider flags, and runtime failure fallback.`
@@ -256,12 +256,12 @@ None.
 
 | Area ID | Area / path | Touched files or entry points | Owner | Depth | Status | Result | Evidence / next step |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `A1` | Durable SAF locator and tree containment | [`SafStorageProvider.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt), [`StorageModel.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/StorageModel.kt) | `R0/R1` | `contract trace` | `Finding F1` | No versioned SAF transfer locator or resolver; mutable identity facts are only browse refs. |
-| `A2` | Persisted grant acquisition and restoration | [`SafTreeGrantStore.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafTreeGrantStore.kt), [`MainActivity.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/MainActivity.kt) | `R0/R1` | `contract trace` | `Finding F2` | Read-only singleton grant; no actual result-flag or revocation matrix. |
-| `A3` | Provider transfer/finalization contract | [`SafStorageProvider.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt), [`TransferEngine.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/TransferEngine.kt) | `R0/R1` | `dependency trace` | `Finding F3` | SAF is not a transfer provider; controlled provider has no stream/create behavior. |
-| `A4` | Capability gating | [`OperationManager.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt), [`FilesScreen.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt) | `R0/R1` | `contract trace` | `Finding F4` | Current enqueue/action checks cannot prove SAF route guarantees. |
-| `A5` | Room persistence and migrations | [`OperationEntity.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/persistence/OperationEntity.kt), [`OperationDatabase.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/persistence/OperationDatabase.kt) | `R1` | `contract trace` | `Reviewed - no issue found` | Existing generic locator triplets and description fields may encode versioned SAF facts without schema churn; this must be proven by implementation tests. |
-| `A6` | P0.5 evidence boundary | [`docs/architecture/14_P0_EVIDENCE_INCORPORATION.md`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/docs/architecture/14_P0_EVIDENCE_INCORPORATION.md), commit `1912ee8` | `R1` | `contract trace` | `Reviewed - no issue found` | Evidence is correctly treated as partial/non-production; no claim was accepted beyond its stated scope. |
+| `A1` | Durable SAF locator and tree containment | [`SafStorageProvider.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt), [`StorageModel.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/StorageModel.kt) | `R0/R1` | `contract trace` | `Finding F1` | No versioned SAF transfer locator or resolver; mutable identity facts are only browse refs. |
+| `A2` | Persisted grant acquisition and restoration | [`SafTreeGrantStore.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafTreeGrantStore.kt), [`MainActivity.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/MainActivity.kt) | `R0/R1` | `contract trace` | `Finding F2` | Read-only singleton grant; no actual result-flag or revocation matrix. |
+| `A3` | Provider transfer/finalization contract | [`SafStorageProvider.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt), [`TransferEngine.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/TransferEngine.kt) | `R0/R1` | `dependency trace` | `Finding F3` | SAF is not a transfer provider; controlled provider has no stream/create behavior. |
+| `A4` | Capability gating | [`OperationManager.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt), [`FilesScreen.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt) | `R0/R1` | `contract trace` | `Finding F4` | Current enqueue/action checks cannot prove SAF route guarantees. |
+| `A5` | Room persistence and migrations | [`OperationEntity.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/persistence/OperationEntity.kt), [`OperationDatabase.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/persistence/OperationDatabase.kt) | `R1` | `contract trace` | `Reviewed - no issue found` | Existing generic locator triplets and description fields may encode versioned SAF facts without schema churn; this must be proven by implementation tests. |
+| `A6` | P0.5 evidence boundary | [`docs/architecture/14_P0_EVIDENCE_INCORPORATION.md`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/docs/architecture/14_P0_EVIDENCE_INCORPORATION.md), commit `1912ee8` | `R1` | `contract trace` | `Reviewed - no issue found` | Evidence is correctly treated as partial/non-production; no claim was accepted beyond its stated scope. |
 
 ## Subagent Candidate Adjudication
 
@@ -297,12 +297,12 @@ None.
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `F1` | `entry` | [`SafStorageProvider.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L12) | Current SAF provider is browse/mutation-only. |
-| `F1` | `risk` | [`MainActivity.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/MainActivity.kt#L65) | All trees currently share one provider ID. |
-| `F2` | `entry` | [`SafTreeGrantStore.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafTreeGrantStore.kt#L14) | Only read permission is taken and stored. |
-| `F3` | `entry` | [`StorageModel.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/StorageModel.kt#L109) | Defines the missing provider-neutral transfer surface. |
-| `F4` | `risk` | [`OperationManager.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L22) | Current route validation is provider-wide. |
-| `T1` | `test` | [`OperationDatabaseMigrationTest.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/androidTest/java/com/omnifile/operations/persistence/OperationDatabaseMigrationTest.kt#L106) | Existing test proves v1 open only. |
+| `F1` | `entry` | [`SafStorageProvider.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L12) | Current SAF provider is browse/mutation-only. |
+| `F1` | `risk` | [`MainActivity.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/MainActivity.kt#L65) | All trees currently share one provider ID. |
+| `F2` | `entry` | [`SafTreeGrantStore.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafTreeGrantStore.kt#L14) | Only read permission is taken and stored. |
+| `F3` | `entry` | [`StorageModel.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/StorageModel.kt#L109) | Defines the missing provider-neutral transfer surface. |
+| `F4` | `risk` | [`OperationManager.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L22) | Current route validation is provider-wide. |
+| `T1` | `test` | [`OperationDatabaseMigrationTest.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/androidTest/java/com/omnifile/operations/persistence/OperationDatabaseMigrationTest.kt#L106) | Existing test proves v1 open only. |
 
 ### Dismissed Coordinator Candidates
 

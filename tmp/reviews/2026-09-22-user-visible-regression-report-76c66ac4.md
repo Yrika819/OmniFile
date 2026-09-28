@@ -49,8 +49,8 @@ Surface: Files Play, Search Play, Music, Activity recreation, background playbac
 Confidence: High for the evidence gap; low that the implementation itself is broken.
 
 Look here first:
-- [final connected result XML](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-media-playback-v1/app/build/outputs/androidTest-results/connected/debug/TEST-Pixel%207a%20-%2016.xml)
-- [final lifecycle test](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-media-playback-v1/app/src/androidTest/java/com/omnifile/media/PlaybackLifecycleInstrumentedTest.kt#L42)
+- [final connected result XML](~/Desktop/File%20Manager-worktrees/omnifile-media-playback-v1/app/build/outputs/androidTest-results/connected/debug/TEST-Pixel%207a%20-%2016.xml)
+- [final lifecycle test](~/Desktop/File%20Manager-worktrees/omnifile-media-playback-v1/app/src/androidTest/java/com/omnifile/media/PlaybackLifecycleInstrumentedTest.kt#L42)
 
 Behavior delta:
 - Before: VS06 shell and Files/Search behavior had baseline evidence.
@@ -75,8 +75,8 @@ Surface: SAF audio selected from Files/Search and played through Music and the M
 Confidence: High for the coverage gap; low that a regression exists.
 
 Look here first:
-- [real SAF acceptance test](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-media-playback-v1/app/src/androidTest/java/com/omnifile/media/SafDevicePlaybackInstrumentedTest.kt#L42)
-- [SAF playback source adapter](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-media-playback-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L147)
+- [real SAF acceptance test](~/Desktop/File%20Manager-worktrees/omnifile-media-playback-v1/app/src/androidTest/java/com/omnifile/media/SafDevicePlaybackInstrumentedTest.kt#L42)
+- [SAF playback source adapter](~/Desktop/File%20Manager-worktrees/omnifile-media-playback-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L147)
 
 Behavior delta:
 - Before: VS06 had real SAF browse/transfer paths but no playback path.

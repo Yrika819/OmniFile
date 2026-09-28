@@ -8,9 +8,9 @@
 - Review generation: `1`
 - Review trigger: `post-implementation`
 - Parent review report ID: `cr-20260923-7adfab01`
-- Parent review report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-archive-v1/docs/review/VS08_CODE_REVIEW_V1_7adfab01.md`
+- Parent review report path: `~/Desktop/File Manager-worktrees/omnifile-archive-v1/docs/review/VS08_CODE_REVIEW_V1_7adfab01.md`
 - Parent resolution ID: `rr-20260923-9739a4f8`
-- Parent resolution path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-archive-v1/docs/review/VS08_CODE_REVIEW_RECEIVING_9739a4f8.md`
+- Parent resolution path: `~/Desktop/File Manager-worktrees/omnifile-archive-v1/docs/review/VS08_CODE_REVIEW_RECEIVING_9739a4f8.md`
 - Generated at: `2026-09-23T19:25:00Z`
 - Report path: `docs/review/VS08_CODE_REVIEW_V2_3d4783be.md`
 - Source skill: `code-review`
@@ -137,11 +137,11 @@ No subagents were used; coordinator-only generation-1 review was proportionate t
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `A1` | repair | [`ZipArchiveReader.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/archive/ZipArchiveReader.kt#L117) | source transport failures retain provider classification |
-| `A2` | repair | [`ArchiveExtractor.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/archive/ArchiveExtractor.kt#L399) | normalized duplicate/type gate |
-| `A2` | test | [`ArchiveExtractorTest.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/test/java/com/omnifile/archive/ArchiveExtractorTest.kt#L42) | deterministic collision regression |
-| `A3` | test | [`FilesScreenComposeInstrumentedTest.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/androidTest/java/com/omnifile/ui/files/FilesScreenComposeInstrumentedTest.kt#L120) | Files archive callback assertion |
-| `A4` | test | [`SearchScreenComposeInstrumentedTest.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/androidTest/java/com/omnifile/ui/search/SearchScreenComposeInstrumentedTest.kt#L47) | Search archive result callback assertion |
+| `A1` | repair | [`ZipArchiveReader.kt`](~/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/archive/ZipArchiveReader.kt#L117) | source transport failures retain provider classification |
+| `A2` | repair | [`ArchiveExtractor.kt`](~/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/archive/ArchiveExtractor.kt#L399) | normalized duplicate/type gate |
+| `A2` | test | [`ArchiveExtractorTest.kt`](~/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/test/java/com/omnifile/archive/ArchiveExtractorTest.kt#L42) | deterministic collision regression |
+| `A3` | test | [`FilesScreenComposeInstrumentedTest.kt`](~/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/androidTest/java/com/omnifile/ui/files/FilesScreenComposeInstrumentedTest.kt#L120) | Files archive callback assertion |
+| `A4` | test | [`SearchScreenComposeInstrumentedTest.kt`](~/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/androidTest/java/com/omnifile/ui/search/SearchScreenComposeInstrumentedTest.kt#L47) | Search archive result callback assertion |
 
 ### Dismissed Coordinator Candidates
 

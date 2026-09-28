@@ -12,7 +12,7 @@
 - Parent resolution ID: `None`
 - Parent resolution path: `None`
 - Generated at: `2026-09-19T19:45:00Z`
-- Report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/tmp/reviews/2026-09-19-code-review-review-c.md`
+- Report path: `~/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/tmp/reviews/2026-09-19-code-review-review-c.md`
 - Source skill: `code-review`
 - Status: `Review incomplete`
 - Git mutation during review: `None`
@@ -108,8 +108,8 @@ Origin: `Coordinator`
 Coordinator verification: `FINALIZING/VERIFYING are first converted to INTERRUPTED; execute then invokes TransferEngine, whose existing-final check returns NameConflict. No reconciliation branch inspects the existing final candidate against expected size/source facts and no branch establishes destination completion from that evidence.`
 
 Look here first:
-- [`OperationManager.kt:55-65`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L55-L65)
-- [`TransferEngine.kt:44-54`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/TransferEngine.kt#L44-L54)
+- [`OperationManager.kt:55-65`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L55-L65)
+- [`TransferEngine.kt:44-54`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/TransferEngine.kt#L44-L54)
 
 Failure mode:
 - Expected: `Reconciliation inspects the intended final candidate and, when verification facts match, durably promotes destination completion without replaying or falsely conflicting.`
@@ -146,8 +146,8 @@ Origin: `Coordinator`
 Coordinator verification: `OperationSnapshot and Room columns contain errorCode/errorMessage, but OperationRepository has no failure-recording method and OperationManager.fail only transitions state.`
 
 Look here first:
-- [`OperationManager.kt:155-164`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L155-L164)
-- [`OperationStore.kt:25-64`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/persistence/OperationStore.kt#L25-L64)
+- [`OperationManager.kt:155-164`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L155-L164)
+- [`OperationStore.kt:25-64`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/persistence/OperationStore.kt#L25-L64)
 
 Failure mode:
 - Expected: `Failure transitions atomically or durably record state plus OperationErrorCode and message.`
@@ -183,8 +183,8 @@ Origin: `Coordinator`
 Coordinator verification: `enqueue accepts arbitrary locators and type without resolving provider IDs or checking READ_SEQUENTIAL/CREATE_CHILD/WRITE_SEQUENTIAL/FINALIZE, and MOVE does not require DELETE.`
 
 Look here first:
-- [`OperationManager.kt:14-52`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L14-L52)
-- [`StorageModel.kt:75-82`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/storage/StorageModel.kt#L75-L82)
+- [`OperationManager.kt:14-52`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L14-L52)
+- [`StorageModel.kt:75-82`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/storage/StorageModel.kt#L75-L82)
 
 Failure mode:
 - Expected: `Enqueue validates provider availability and the complete route, or returns Unsupported before durable operation creation.`
@@ -253,11 +253,11 @@ None.
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `F1` | `replay entry` | [`OperationManager.kt:55-65`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L55-L65) | `Recovery replays instead of inspecting a possibly finalized candidate.` |
-| `F1` | `conflict branch` | [`TransferEngine.kt:44-54`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/TransferEngine.kt#L44-L54) | `Any existing final name becomes NameConflict.` |
-| `F2` | `failure` | [`OperationManager.kt:155-164`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L155-L164) | `State changes but error facts are not written.` |
-| `F3` | `enqueue` | [`OperationManager.kt:14-52`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L14-L52) | `No capability route validation precedes durable create.` |
-| `T1` | `coverage` | [`TransferEngine.kt:195-209`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/TransferEngine.kt#L195-L209) | `Fault hooks exist but are not exercised by a completed test matrix.` |
+| `F1` | `replay entry` | [`OperationManager.kt:55-65`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L55-L65) | `Recovery replays instead of inspecting a possibly finalized candidate.` |
+| `F1` | `conflict branch` | [`TransferEngine.kt:44-54`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/TransferEngine.kt#L44-L54) | `Any existing final name becomes NameConflict.` |
+| `F2` | `failure` | [`OperationManager.kt:155-164`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L155-L164) | `State changes but error facts are not written.` |
+| `F3` | `enqueue` | [`OperationManager.kt:14-52`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L14-L52) | `No capability route validation precedes durable create.` |
+| `T1` | `coverage` | [`TransferEngine.kt:195-209`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/TransferEngine.kt#L195-L209) | `Fault hooks exist but are not exercised by a completed test matrix.` |
 
 ### Dismissed Coordinator Candidates
 

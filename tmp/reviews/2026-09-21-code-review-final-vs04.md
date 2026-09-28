@@ -12,7 +12,7 @@
 - Parent resolution ID: `None`
 - Parent resolution path: `None`
 - Generated at: `2026-09-21T02:45:00+09:00`
-- Report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-21-code-review-final-vs04.md`
+- Report path: `~/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-21-code-review-final-vs04.md`
 - Source skill: `code-review`
 - Status: `Review complete`
 - Git mutation during review: `None`
@@ -103,8 +103,8 @@ Origin: `R1`
 Coordinator verification: `isWithinSelectedTree() catches non-security provider exceptions as false; locator callers then return StaleReference/NOT_FOUND. Final Pixel only proved normal grant acquisition and Copy.`
 
 Look here first:
-- [`SafStorageProvider.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L622)
-- [`OperationManager.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L435)
+- [`SafStorageProvider.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L622)
+- [`OperationManager.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L435)
 
 Failure mode:
 - Expected: `Provider disappearance/revocation remains a distinct retryable permission/provider error; it never masquerades as stale identity or source absence.`
@@ -136,7 +136,7 @@ Origin: `R1`
 Coordinator verification: `The final Pixel had broad root and child destination grants and restored the broad root; equal-depth unrelated grants were not exercised.`
 
 Look here first:
-- [`SafTreeGrantStore.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafTreeGrantStore.kt#L54)
+- [`SafTreeGrantStore.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafTreeGrantStore.kt#L54)
 
 Failure mode:
 - Expected: `Persisted selected-tree intent is restored while child grants remain available for destinations.`

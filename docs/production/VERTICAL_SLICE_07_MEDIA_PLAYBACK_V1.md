@@ -4,7 +4,7 @@
 - Published VS06 base: `67a8e0e08d3b6ad03165d0d962ad8868b00c661c`
 - Branch: `development/core-v1-media-playback-v1`
 - Final implementation/evidence target: `607759c`
-- Worktree: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-media-playback-v1`
+- Worktree: `~/Desktop/File Manager-worktrees/omnifile-media-playback-v1`
 - Status: **COMPLETE — provider-neutral media playback V1 closed**
 
 ## Mission and boundary
@@ -22,7 +22,7 @@ Deferred: persistent library/indexing, playlists, album/artist databases, lyrics
 - Compose BOM: `2025.12.00`
 - Gradle wrapper: `9.6.0`
 - Android Studio JBR: `25.0.3`
-- SDK: `/Users/yuta/Library/Android/sdk`
+- SDK: `~/Library/Android/sdk`
 
 `OmniFilePlaybackService` owns exactly one ExoPlayer and one MediaSession. `PlaybackCoordinator` is process-scoped in `AppContainer`, owns one MediaController, survives Activity recreation, and never constructs a player. UI collects one `StateFlow<NowPlayingState>`.
 

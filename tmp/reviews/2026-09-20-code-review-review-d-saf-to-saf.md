@@ -12,7 +12,7 @@
 - Parent resolution ID: `None`
 - Parent resolution path: `None`
 - Generated at: `2026-09-20T12:10:00Z`
-- Report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-20-code-review-review-d-saf-to-saf.md`
+- Report path: `~/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-20-code-review-review-d-saf-to-saf.md`
 - Source skill: `code-review`
 - Status: `Review complete`
 - Git mutation during review: `None`
@@ -106,8 +106,8 @@ Origin: `Coordinator`
 Coordinator verification: `Static trace plus compiled runtime test; no connected device.`
 
 Look here first:
-- [SafStorageProvider.kt](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L22)
-- [SafTransferRuntimeInstrumentedTest.kt](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/androidTest/java/com/omnifile/operations/SafTransferRuntimeInstrumentedTest.kt#L130)
+- [SafStorageProvider.kt](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L22)
+- [SafTransferRuntimeInstrumentedTest.kt](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/androidTest/java/com/omnifile/operations/SafTransferRuntimeInstrumentedTest.kt#L130)
 
 Failure mode:
 - Expected: `Same-tree and different-tree trees must retain separate provider-scoped identity and independently pass create/write/finalize/delete checks; no native-move equivalence may be assumed.`
@@ -170,9 +170,9 @@ None.
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `F1` | `entry` | [SafStorageProvider.kt](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L22) | `Route entry point.` |
-| `F1` | `risk` | [SafTransferRuntimeInstrumentedTest.kt](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/androidTest/java/com/omnifile/operations/SafTransferRuntimeInstrumentedTest.kt#L130) | `Risk-bearing implementation.` |
-| `T1` | `test` | [`SafTransferRuntimeInstrumentedTest.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/androidTest/java/com/omnifile/operations/SafTransferRuntimeInstrumentedTest.kt#L1) | `Runtime matrix is present but unexecuted.` |
+| `F1` | `entry` | [SafStorageProvider.kt](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L22) | `Route entry point.` |
+| `F1` | `risk` | [SafTransferRuntimeInstrumentedTest.kt](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/androidTest/java/com/omnifile/operations/SafTransferRuntimeInstrumentedTest.kt#L130) | `Risk-bearing implementation.` |
+| `T1` | `test` | [`SafTransferRuntimeInstrumentedTest.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/androidTest/java/com/omnifile/operations/SafTransferRuntimeInstrumentedTest.kt#L1) | `Runtime matrix is present but unexecuted.` |
 
 ### Dismissed Coordinator Candidates
 

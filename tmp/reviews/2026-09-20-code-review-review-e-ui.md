@@ -12,7 +12,7 @@
 - Parent resolution ID: `None`
 - Parent resolution path: `None`
 - Generated at: `2026-09-20T12:10:00Z`
-- Report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-20-code-review-review-e-ui.md`
+- Report path: `~/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-20-code-review-review-e-ui.md`
 - Source skill: `code-review`
 - Status: `Review complete`
 - Git mutation during review: `None`
@@ -106,8 +106,8 @@ Origin: `Coordinator`
 Coordinator verification: `Static UI trace, host tests, Android-test compilation; no device.`
 
 Look here first:
-- [FilesViewModel.kt](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt#L240)
-- [FilesScreen.kt](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L82)
+- [FilesViewModel.kt](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt#L240)
+- [FilesScreen.kt](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L82)
 
 Failure mode:
 - Expected: `Destination confirmation should be gated by all required route capabilities or explicitly surface conditional support; revoked/provider-disappearance errors must retain a recoverable picker state.`
@@ -170,9 +170,9 @@ None.
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `F1` | `entry` | [FilesViewModel.kt](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt#L240) | `Route entry point.` |
-| `F1` | `risk` | [FilesScreen.kt](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L82) | `Risk-bearing implementation.` |
-| `T1` | `test` | [`SafTransferRuntimeInstrumentedTest.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/androidTest/java/com/omnifile/operations/SafTransferRuntimeInstrumentedTest.kt#L1) | `Runtime matrix is present but unexecuted.` |
+| `F1` | `entry` | [FilesViewModel.kt](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt#L240) | `Route entry point.` |
+| `F1` | `risk` | [FilesScreen.kt](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L82) | `Risk-bearing implementation.` |
+| `T1` | `test` | [`SafTransferRuntimeInstrumentedTest.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/androidTest/java/com/omnifile/operations/SafTransferRuntimeInstrumentedTest.kt#L1) | `Runtime matrix is present but unexecuted.` |
 
 ### Dismissed Coordinator Candidates
 

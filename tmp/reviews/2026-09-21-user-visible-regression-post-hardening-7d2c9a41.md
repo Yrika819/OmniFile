@@ -44,8 +44,8 @@ Surface: `Files error rendering, provider-unavailable message, Retry action, fin
 Confidence: `medium`
 
 Look here first:
-- [`FilesScreen.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L186)
-- [`SafStorageProvider.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L655)
+- [`FilesScreen.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L186)
+- [`SafStorageProvider.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L655)
 
 Behavior delta:
 - Before: `The prior runtime evidence covered normal UI journeys, but provider-unavailable rendering was not a distinct final route.`

@@ -8,11 +8,11 @@
 - Review generation: `1`
 - Review trigger: `post-implementation`
 - Parent review report ID: `cr-20260920-postruntimee`
-- Parent review report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-20-code-review-post-runtime-e.md`
+- Parent review report path: `~/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-20-code-review-post-runtime-e.md`
 - Parent resolution ID: `rr-20260921-postruntimee`
-- Parent resolution path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-21-receiving-code-review-postruntimee.md`
+- Parent resolution path: `~/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-21-receiving-code-review-postruntimee.md`
 - Generated at: `2026-09-21T02:21:00+09:00`
-- Report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-21-code-review-postruntimee-gen1.md`
+- Report path: `~/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-21-code-review-postruntimee-gen1.md`
 - Source skill: `code-review`
 - Status: `Review complete`
 - Git mutation during review: `None`
@@ -30,7 +30,7 @@
 - Diff size: `reviewed by targeted trace and direct runtime evidence`
 - Completion: `Complete within reviewed scope`
 - Requirements consulted: `VS04 picker/grant/UI gating and Operations UI requirements`
-- Prior resolution consulted: `rr-20260921-postruntimee; /Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-21-receiving-code-review-postruntimee.md`
+- Prior resolution consulted: `rr-20260921-postruntimee; ~/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-21-receiving-code-review-postruntimee.md`
 - Assumptions: `SAF destination finalization remains Unsupported and is not an approval target.`
 - Excluded as unrelated: `unrelated UI redesign, directories, VS05`
 

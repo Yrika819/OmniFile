@@ -8,9 +8,9 @@
 - Review generation: `1`
 - Review trigger: `post-implementation`
 - Parent review report ID: `cr-20260921-vs05reviewa`
-- Parent review report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-search-v1/tmp/reviews/2026-09-21-code-review-vs05-review-a.md`
+- Parent review report path: `~/Desktop/File Manager-worktrees/omnifile-search-v1/tmp/reviews/2026-09-21-code-review-vs05-review-a.md`
 - Parent resolution ID: `rr-20260921-vs05reviewa`
-- Parent resolution path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-search-v1/tmp/reviews/2026-09-21-receiving-code-review-vs05-review-a.md`
+- Parent resolution path: `~/Desktop/File Manager-worktrees/omnifile-search-v1/tmp/reviews/2026-09-21-receiving-code-review-vs05-review-a.md`
 - Generated at: `2026-09-21T03:16:00Z`
 - Report path: `tmp/reviews/2026-09-21-code-review-vs05-review-b.md`
 - Source skill: `code-review`
@@ -133,7 +133,7 @@ None.
 
 ### Verification Commands
 
-- `JAVA_HOME=Android Studio JBR; ANDROID_HOME=/Users/yuta/Library/Android/sdk; GRADLE_USER_HOME=.gradle-vs05 ./gradlew --offline --no-daemon --max-workers=1 -Dkotlin.compiler.execution.strategy=in-process --dependency-verification=strict :app:testDebugUnitTest --tests 'com.omnifile.search.*'` -> `11 passed, 0 failed, 0 errors, 0 skipped`
+- `JAVA_HOME=Android Studio JBR; ANDROID_HOME=~/Library/Android/sdk; GRADLE_USER_HOME=.gradle-vs05 ./gradlew --offline --no-daemon --max-workers=1 -Dkotlin.compiler.execution.strategy=in-process --dependency-verification=strict :app:testDebugUnitTest --tests 'com.omnifile.search.*'` -> `11 passed, 0 failed, 0 errors, 0 skipped`
 - Same environment `:app:compileDebugAndroidTestKotlin` -> `BUILD SUCCESSFUL`
 - `git diff --check` -> `no whitespace errors`
 - Static provider trace -> `Local NOFOLLOW_LINKS and SAF selected-tree containment retained`

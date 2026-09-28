@@ -12,7 +12,7 @@
 - Parent resolution ID: `None`
 - Parent resolution path: `None`
 - Generated at: `2026-09-21T07:00:00Z`
-- Report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1/tmp/reviews/2026-09-21-code-review-vs06-review-b-7eb71a63.md`
+- Report path: `~/Desktop/File Manager-worktrees/omnifile-app-shell-v1/tmp/reviews/2026-09-21-code-review-vs06-review-b-7eb71a63.md`
 - Source skill: `code-review`
 - Status: `Review complete`
 - Git mutation during review: `None`
@@ -137,9 +137,9 @@ None. The process-death limitation is an evidence blind spot, not an untested ch
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `A1` | `route` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/ui/shell/AppNavigation.kt` | `Pure route transitions define top-level/detail/Files origin behavior.` |
-| `A2` | `roots` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/storage/SupportedRootRegistry.kt` | `Live supported roots and conservative overlap policy are centralized.` |
-| `A3` | `search` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/search/SearchViewModel.kt` | `Generation and root-count semantics gate publications.` |
+| `A1` | `route` | `~/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/ui/shell/AppNavigation.kt` | `Pure route transitions define top-level/detail/Files origin behavior.` |
+| `A2` | `roots` | `~/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/storage/SupportedRootRegistry.kt` | `Live supported roots and conservative overlap policy are centralized.` |
+| `A3` | `search` | `~/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/search/SearchViewModel.kt` | `Generation and root-count semantics gate publications.` |
 
 ### Dismissed Coordinator Candidates
 

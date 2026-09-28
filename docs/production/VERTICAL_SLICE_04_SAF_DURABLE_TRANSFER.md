@@ -13,11 +13,11 @@ The final physical Compose/UI gate is closed on a normally unlocked Pixel 7a. Th
 - Published VS03 base: `a95b3e28f47954b879b389ce6d5a5f17d4704407`
 - VS04 branch: `development/core-v1-saf-transfer-v1`
 - Current VS04 HEAD: `b3fd23078bc26857e80cbc4018ba5019d19dc04c`
-- VS04 worktree: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1`
+- VS04 worktree: `~/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1`
 - Hardening commit: `19b73f7 fix(storage): close saf interruption and tree restoration blockers`
 - Room schema: version `1`; unchanged; no migration required
 - Device: Pixel 7a, Android 16/API 36
-- Stable serial: `adb-35241JEHN08768-sNRKBY._adb-tls-connect._tcp`
+- Stable serial: `<ANDROID_SERIAL>`
 
 ## Final production route matrix
 
@@ -225,7 +225,7 @@ Environment:
 
 ```text
 Android Studio JBR 25.0.3
-SDK /Users/yuta/Library/Android/sdk
+SDK ~/Library/Android/sdk
 --no-daemon --max-workers=1
 -Dorg.gradle.java.home=/Applications/Android Studio.app/Contents/jbr/Contents/Home
 -Dkotlin.compiler.execution.strategy=in-process

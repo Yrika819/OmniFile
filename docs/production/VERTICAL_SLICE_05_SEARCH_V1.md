@@ -4,7 +4,7 @@
 
 - Published VS04 base: `e6f1148b1b6dbe946228316861b6f6e382ca2af1`
 - VS05 branch: `development/core-v1-search-v1`
-- Worktree: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-search-v1`
+- Worktree: `~/Desktop/File Manager-worktrees/omnifile-search-v1`
 - Scope: provider-neutral, non-destructive filename search for the current Local or SAF folder
 - Explicitly deferred: permanent Home/Search/Music/Settings navigation shell and executable `ThisDevice` aggregation
 
@@ -79,7 +79,7 @@ The dedicated Material 3 Search surface includes:
 
 ### Host
 
-Environment: Android Studio JBR 25.0.3, SDK `/Users/yuta/Library/Android/sdk`, serialized Gradle workers, strict dependency verification, offline isolated cache used because an unrelated Gradle process held the shared cache locks.
+Environment: Android Studio JBR 25.0.3, SDK `~/Library/Android/sdk`, serialized Gradle workers, strict dependency verification, offline isolated cache used because an unrelated Gradle process held the shared cache locks.
 
 - `:app:testDebugUnitTest`: **80 passed, 0 failed, 0 errors, 0 skipped** across 15 suites.
 - Search-focused host tests: **11 passed, 0 failed, 0 errors, 0 skipped**.

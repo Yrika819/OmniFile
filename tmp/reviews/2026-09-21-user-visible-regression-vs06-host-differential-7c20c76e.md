@@ -90,8 +90,8 @@ None built - the reviewed closure changes evidence wording only and does not cha
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `E1` | `provider contract` | [`LocalStorageProvider.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/storage/LocalStorageProvider.kt#L429-L435) | The secure-directory capability boundary that differs by JDK. |
-| `E2` | `VS06 focused path` | [`FilesSearchIntegrationTest.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/test/java/com/omnifile/files/FilesSearchIntegrationTest.kt#L23-L55) | Contextual Files origin regression coverage remains green. |
+| `E1` | `provider contract` | [`LocalStorageProvider.kt`](~/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/storage/LocalStorageProvider.kt#L429-L435) | The secure-directory capability boundary that differs by JDK. |
+| `E2` | `VS06 focused path` | [`FilesSearchIntegrationTest.kt`](~/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/test/java/com/omnifile/files/FilesSearchIntegrationTest.kt#L23-L55) | Contextual Files origin regression coverage remains green. |
 
 ### Blind Spots
 

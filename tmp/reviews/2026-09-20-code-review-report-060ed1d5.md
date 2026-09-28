@@ -126,8 +126,8 @@ Coordinator verification: `Reviewed the 57 host tests, direct Pixel 20-test runn
 
 Look here first:
 
-- [FilesViewModel Copy/Move enqueue path](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt#L239)
-- [OperationsPanel terminal rendering](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/ui/operations/OperationsPanel.kt#L20)
+- [FilesViewModel Copy/Move enqueue path](~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt#L239)
+- [OperationsPanel terminal rendering](~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/ui/operations/OperationsPanel.kt#L20)
 
 Failure mode:
 
@@ -195,9 +195,9 @@ No usable subagent report was produced. Two read-only launches exceeded the avai
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `T1` | `entry` | [FilesViewModel](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt#L239) | `Starts the user-visible Copy/Move journey.` |
-| `T1` | `effect` | [OperationManager](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L95) | `Runs the durable transfer path.` |
-| `T1` | `output` | [OperationsPanel](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/ui/operations/OperationsPanel.kt#L20) | `Renders terminal user-visible state.` |
+| `T1` | `entry` | [FilesViewModel](~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt#L239) | `Starts the user-visible Copy/Move journey.` |
+| `T1` | `effect` | [OperationManager](~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L95) | `Runs the durable transfer path.` |
+| `T1` | `output` | [OperationsPanel](~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/ui/operations/OperationsPanel.kt#L20) | `Renders terminal user-visible state.` |
 
 ### Dismissed Coordinator Candidates
 

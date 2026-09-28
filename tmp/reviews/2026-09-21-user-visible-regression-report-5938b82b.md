@@ -39,8 +39,8 @@ None.
 
 ## Intentional Changes
 
-- `I1` Dedicated Search is now reachable from normal Files Content/Empty states through a transitional Search action; this is the settled VS05 product decision and is covered by Search/Files source and device evidence. [FilesScreen](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-search-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L142)
-- `I2` The future Home/Search/Music/Settings bottom-navigation shell and executable ThisDevice aggregation remain absent; this is explicitly deferred and avoids fake tabs or misleading global search. [SearchModels](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-search-v1/app/src/main/java/com/omnifile/search/SearchModels.kt#L9)
+- `I1` Dedicated Search is now reachable from normal Files Content/Empty states through a transitional Search action; this is the settled VS05 product decision and is covered by Search/Files source and device evidence. [FilesScreen](~/Desktop/File%20Manager-worktrees/omnifile-search-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L142)
+- `I2` The future Home/Search/Music/Settings bottom-navigation shell and executable ThisDevice aggregation remain absent; this is explicitly deferred and avoids fake tabs or misleading global search. [SearchModels](~/Desktop/File%20Manager-worktrees/omnifile-search-v1/app/src/main/java/com/omnifile/search/SearchModels.kt#L9)
 
 ## Coverage Ledger
 
@@ -114,9 +114,9 @@ None.
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `I1` | `ingress` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-search-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L142` | `Additive Search action is visible only in normal Files browsing.` |
-| `I1` | `surface` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-search-v1/app/src/main/java/com/omnifile/MainActivity.kt#L112` | `Independent Search surface routing.` |
-| `B3` | `navigation` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-search-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt#L185` | `Result returns through existing Files stack.` |
+| `I1` | `ingress` | `~/Desktop/File Manager-worktrees/omnifile-search-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L142` | `Additive Search action is visible only in normal Files browsing.` |
+| `I1` | `surface` | `~/Desktop/File Manager-worktrees/omnifile-search-v1/app/src/main/java/com/omnifile/MainActivity.kt#L112` | `Independent Search surface routing.` |
+| `B3` | `navigation` | `~/Desktop/File Manager-worktrees/omnifile-search-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt#L185` | `Result returns through existing Files stack.` |
 
 ### Blind Spots
 
