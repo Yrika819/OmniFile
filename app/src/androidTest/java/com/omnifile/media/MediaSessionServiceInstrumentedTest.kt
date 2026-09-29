@@ -118,6 +118,7 @@ class MediaSessionServiceInstrumentedTest {
     }
 
     @Test
+    @RequiresAudioClock
     fun sessionIsVisibleToSystemWithTruthfulTitleWhilePlaying() {
         val entry = prepareWav()
         instrumentation.runOnMainSync { coordinator.play(entry) }
@@ -139,6 +140,7 @@ class MediaSessionServiceInstrumentedTest {
     }
 
     @Test
+    @RequiresAudioClock
     fun stoppedServiceIsNoLongerForeground() {
         val entry = prepareWav()
         instrumentation.runOnMainSync { coordinator.play(entry) }

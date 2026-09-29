@@ -51,6 +51,7 @@ class MediaPlaybackInstrumentedTest {
     }
 
     @Test
+    @RequiresAudioClock
     fun serviceConnectsAndLocalWavPlaysWithTruthfulState() {
         val entry = prepareWav()
 
@@ -190,6 +191,7 @@ class MediaPlaybackInstrumentedTest {
     }
 
     @Test
+    @RequiresAudioClock
     fun wavPlaysToEndedState() {
         val entry = prepareWav()
         instrumentation.runOnMainSync { coordinator.play(entry) }

@@ -58,7 +58,10 @@ jobs:
         # `expected-tests` is the number of test cases the suite must report
         # for that API level. It is a floor, not an exact match, so growing the
         # suite never breaks CI while silently losing tests always does. Every
-        # level runs the same full suite; nothing is excluded.
+        # level runs the whole suite; API 35 alone skips the four
+        # @RequiresAudioClock tests, because that emulator cannot grant audio
+        # focus. See .github/scripts/run-connected-instrumentation.sh for the
+        # evidence.
         include:
           - api-level: 31
             target: google_apis
@@ -74,7 +77,7 @@ jobs:
             expected-tests: '80'
           - api-level: 35
             target: google_apis
-            expected-tests: '80'
+            expected-tests: '76'
           - api-level: 36
             target: google_apis
             expected-tests: '80'
