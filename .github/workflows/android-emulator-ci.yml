@@ -49,6 +49,30 @@ jobs:
         # system-images;android-<api>;google_apis;x86_64, published for every
         # one of these six API levels, so no level needs a different target.
         api-level: [31, 32, 33, 34, 35, 36]
+        include:
+          # google_apis x86_64 is published for every API level here, and is the
+          # single target family for all but one. API 35 is the documented
+          # exception: on that image the emulator's audio output does not come
+          # up for roughly the first 90s after boot, and AOSP's audio-focus
+          # hardening denies the app every focus request in that window
+          # ("Audio focus request blocked by hardening"). ExoPlayer then never
+          # leaves READY, so the two tests that assert the playback position
+          # advances fail for an environmental reason while the product behaves
+          # correctly. The AOSP default image for the same API level has no
+          # Play Store or Google APIs baggage and is used only to keep those
+          # tests meaningful. Any future change here must be evidence-driven.
+          - api-level: 31
+            target: google_apis
+          - api-level: 32
+            target: google_apis
+          - api-level: 33
+            target: google_apis
+          - api-level: 34
+            target: google_apis
+          - api-level: 35
+            target: default
+          - api-level: 36
+            target: google_apis
 
     env:
       MATRIX_API_LEVEL: ${{ matrix.api-level }}
@@ -191,7 +215,7 @@ jobs:
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: ${{ matrix.api-level }}
-          target: google_apis
+          target: ${{ matrix.target }}
           arch: x86_64
           profile: Nexus 6
           cores: 2

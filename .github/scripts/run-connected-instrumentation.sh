@@ -54,5 +54,7 @@ capture emulator-getprop.txt adb shell getprop
 capture logcat.txt adb logcat -d -v threadtime -b all -t 20000
 capture dumpsys-media-session.txt adb shell dumpsys media_session
 capture dumpsys-omnifile-services.txt adb shell dumpsys activity services com.omnifile
+capture dumpsys-audio-flinger.txt adb shell dumpsys media.audio_flinger
+capture dumpsys-audio.txt adb shell dumpsys audio
 
 exit "${status}"
