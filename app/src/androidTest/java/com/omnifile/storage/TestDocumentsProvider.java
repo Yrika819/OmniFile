@@ -16,7 +16,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.TimeUnit;
 
 /** Deterministic in-process DocumentsProvider used only by instrumentation tests. */
@@ -69,7 +69,7 @@ public final class TestDocumentsProvider extends DocumentsProvider {
     private static boolean ambiguousDelete;
     private static int readFailureAfterBytes = -1;
     private static int writeFailureAfterBytes = -1;
-    private static volatile CountDownLatch ioCompletion = new CountDownLatch(0);
+    private static final AtomicInteger pendingIo = new AtomicInteger(0);
     private static volatile boolean providerUnavailable;
 
     static {
@@ -112,7 +112,7 @@ public final class TestDocumentsProvider extends DocumentsProvider {
         readFailureAfterBytes = -1;
         writeFailureAfterBytes = -1;
         providerUnavailable = false;
-        ioCompletion = new CountDownLatch(0);
+        pendingIo.set(0);
         REGULAR_FILE_BACKING.clear();
     }
 
@@ -231,13 +231,30 @@ public final class TestDocumentsProvider extends DocumentsProvider {
         providerUnavailable = unavailable;
     }
 
+    /**
+     * Blocks until every pipe-backed read and write started so far has finished
+     * committing, or until the timeout expires.
+     *
+     * This counts in-flight operations rather than holding a single completion
+     * handle. A single handle is wrong as soon as two operations overlap: opening
+     * a second pipe replaced the handle, so a caller could observe an already
+     * completed latch while an earlier writer was still committing, and the
+     * transfer would verify against stale content. That surfaced as an
+     * intermittent StorageError.IoFailure, which OperationManager correctly maps
+     * to RETRYABLE_FAILURE.
+     */
     public static boolean awaitPendingIo() {
-        try {
-            return ioCompletion.await(5, TimeUnit.SECONDS);
-        } catch (InterruptedException interrupted) {
-            Thread.currentThread().interrupt();
-            return false;
+        long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (pendingIo.get() > 0) {
+            if (System.nanoTime() >= deadlineNanos) return false;
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
         }
+        return true;
     }
 
     public static int renameCalls() {
@@ -273,7 +290,11 @@ public final class TestDocumentsProvider extends DocumentsProvider {
     }
 
     private static void beginIo() {
-        ioCompletion = new CountDownLatch(1);
+        pendingIo.incrementAndGet();
+    }
+
+    private static void endIo() {
+        pendingIo.decrementAndGet();
     }
 
     private static void throwFailure(String failure, String documentId, String operation) throws FileNotFoundException {
@@ -436,7 +457,7 @@ public final class TestDocumentsProvider extends DocumentsProvider {
             } catch (IOException ignored) {
                 // Closing the consumer or an injected interruption is observed as EOF/I/O by the reader.
             } finally {
-                ioCompletion.countDown();
+                endIo();
             }
         }, "controlled-saf-read").start();
         return pipe[0];
@@ -476,7 +497,7 @@ public final class TestDocumentsProvider extends DocumentsProvider {
             } catch (Exception ignored) {
                 // A failed stream deliberately leaves the previous committed content unchanged.
             } finally {
-                ioCompletion.countDown();
+                endIo();
             }
         }, "controlled-saf-write").start();
         return pipe[1];
