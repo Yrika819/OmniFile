@@ -138,12 +138,27 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+          # `udevadm trigger` only queues a uevent and returns immediately, so
+          # the new rule is applied asynchronously. Checking the device node in
+          # the same breath races the udev worker: on API 31 the check ran 29ms
+          # after the trigger and saw the old permissions, while the API 36 job
+          # on an identical runner happened to win that race. Poll for a bounded
+          # time instead, so the outcome depends on the rule being applied
+          # rather than on scheduling luck.
+          for _ in $(seq 1 30); do
+            if [[ -e /dev/kvm && -r /dev/kvm && -w /dev/kvm ]]; then
+              break
+            fi
+            sleep 1
+          done
+
           if [[ ! -e /dev/kvm ]]; then
             echo "::error::/dev/kvm is absent: this runner has no nested virtualization, so the emulator would fall back to software emulation."
             exit 1
           fi
           if [[ ! -r /dev/kvm || ! -w /dev/kvm ]]; then
-            echo "::error::/dev/kvm is not readable and writable by the runner user."
+            echo "::error::/dev/kvm still is not readable and writable by $(id -un) after 30s."
+            ls -l /dev/kvm
             exit 1
           fi
 
