@@ -53,6 +53,7 @@ RESULT_ROOTS = (
 )
 
 WALL_CLOCK_FILE = "emulator-diagnostics/wall-clock.txt"
+EXCLUSIONS_FILE = "emulator-diagnostics/excluded-tests.txt"
 
 ASSUMPTION_MARKER = "AssumptionViolatedException"
 
@@ -151,6 +152,15 @@ def parse(files):
     }
 
 
+def read_exclusions():
+    """Tests the CI deliberately did not run on this API level, if any."""
+    try:
+        with open(EXCLUSIONS_FILE, encoding="utf-8") as handle:
+            return [line.strip() for line in handle if line.strip()]
+    except OSError:
+        return []
+
+
 def read_wall_clock():
     try:
         with open(WALL_CLOCK_FILE, encoding="utf-8") as handle:
@@ -181,6 +191,7 @@ def main():
 
     result = parse(files)
     wall_clock = read_wall_clock()
+    exclusions = read_exclusions()
 
     print(f"API {api_level} instrumentation results (from {root})")
     fields = {
@@ -201,6 +212,8 @@ def main():
         mark = "expected" if name in allowed_skips else "UNEXPLAINED"
         print(f"  SKIPPED [{mark}] {name}")
         print(f"          {reason}")
+    for name in exclusions:
+        print(f"  EXCLUDED (documented cloud-emulator limitation) {name}")
 
     problems = []
     if result["failed"]:
@@ -231,6 +244,11 @@ def main():
             handle.write("| API | tests | passed | failed | skipped | duration |\n")
             handle.write("| --- | --- | --- | --- | --- | --- |\n")
             handle.write(summary + "\n\n")
+            if exclusions:
+                handle.write("Excluded from cloud CI on this API level:\n\n")
+                for name in exclusions:
+                    handle.write(f"- `{name}`\n")
+                handle.write("\n")
             if result["skips"]:
                 handle.write("Skipped:\n\n")
                 for name, reason in sorted(result["skips"]):
