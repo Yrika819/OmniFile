@@ -1,0 +1,213 @@
+name: OmniFile Android Emulator CI
+
+# Emulator CI V1: runs the real instrumentation suite (connectedDebugAndroidTest)
+# on a GitHub-hosted Linux emulator, for every supported API level 31-36.
+#
+# This is deliberately a separate workflow from Host CI. Host CI stays the fast
+# host-only gate (unit tests, lint, APK builds); this workflow owns device
+# behaviour. Keeping them apart means a slow emulator boot never blocks the
+# fast signal, and neither workflow inherits the other's risk surface.
+on:
+  push:
+    branches:
+      - main
+      - 'ci/**'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Build and test only. No secrets, no signing material, no release credentials
+# are used or required anywhere in this workflow, and nothing is ever published.
+permissions:
+  contents: read
+
+# Scoped per workflow + ref so unrelated branches never cancel each other. A
+# pull request runs against refs/pull/<n>/merge, which is already unique per PR.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  emulator-instrumentation:
+    name: Emulator CI (API ${{ matrix.api-level }})
+    runs-on: ubuntu-latest
+
+    # One API level per job. fail-fast is disabled so a single Android version
+    # failing never hides the result of the other five; every cell is evidence.
+    # continue-on-error is deliberately NOT used anywhere: no API level is
+    # allowed to fail silently.
+    strategy:
+      fail-fast: false
+      matrix:
+        # Stage A (bootstrap): prove the emulator foundation on API 36, the
+        # compile/target boundary and primary emulator authority, before
+        # widening the matrix. API 36 is the first target precisely because it
+        # is where an infrastructure defect is cheapest to diagnose.
+        api-level: [36]
+
+    env:
+      MATRIX_API_LEVEL: ${{ matrix.api-level }}
+      # Floor, not an exact value: growing the suite must never break CI, but a
+      # silent loss of tests must always break it. 80 is the current size of
+      # app/src/androidTest; lower it only as part of a deliberate change to
+      # that suite.
+      EXPECTED_MIN_TESTS: '80'
+      # Every test allowed to skip on a cloud emulator, with its reason.
+      # Anything not listed here is reported as unexplained skipped coverage
+      # and fails the job, so a new version gate cannot slip in unnoticed.
+      #
+      #   SafDevicePlaybackInstrumentedTest#persistedDeviceSafAudioPlaysThroughTheSession
+      #   requires a persisted SAF tree grant, which only exists after a human
+      #   drives the system DocumentsUI picker on that device. The test guards
+      #   itself with Assume, so it reports as SKIPPED rather than FAILED, and
+      #   it remains covered by the physical-device acceptance process.
+      EXPECTED_SKIPS: 'com.omnifile.media.SafDevicePlaybackInstrumentedTest#persistedDeviceSafAudioPlaysThroughTheSession'
+
+    # Emulator boot plus a cold SDK/system-image download is materially slower
+    # than Host CI. 60 minutes is bounded (a hung job cannot pin a runner
+    # forever) but leaves headroom for a first-time image download.
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        # v7.0.1. Same pin as Host CI. This workflow only reads the checked-out
+        # source, so the job token is never persisted for Gradle to inherit.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      # Identical to the proven Host CI baseline. Emulator tooling introduces no
+      # evidence for a second JDK, so instrumentation shares the same one.
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Installs cmdline-tools, exports ANDROID_HOME/ANDROID_SDK_ROOT, puts
+      # sdkmanager on PATH and accepts the SDK licenses.
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+
+      # compileSdk/targetSdk 36 and the AGP 9.4.0 default build tools 36.0.0,
+      # matching Host CI. The emulator package is installed up front only so
+      # that `emulator -accel-check` can be run *before* boot, which turns a
+      # missing KVM device into an explicit error instead of a silent fallback
+      # to unusably slow software emulation.
+      - name: Install required Android SDK packages
+        run: |
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "emulator"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          # Every pull-request run reads the cache but never writes it, so no
+          # pull request can seed state that another ref later restores.
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: Report toolchain versions
+        run: |
+          java -version 2>&1
+          ./gradlew --version --console=plain --dependency-verification=strict
+          adb version
+          emulator -version 2>&1 | head -3
+
+      # GitHub's public ubuntu-latest runners are full 4-CPU/16-GB VMs that
+      # support Android hardware acceleration; the nested-virtualization
+      # capability is documented by GitHub, but the /dev/kvm device node is not
+      # writable by the runner user until these rules are applied. This is the
+      # same step GitHub documents and that the emulator action's own CI uses.
+      #
+      # The assertions below make the dependency explicit: if nested
+      # virtualization is ever unavailable, this job fails here with a clear
+      # cause rather than appearing to "pass" on a software-emulated device
+      # that would be orders of magnitude too slow to be meaningful.
+      - name: Enable and verify KVM hardware acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+          if [[ ! -e /dev/kvm ]]; then
+            echo "::error::/dev/kvm is absent: this runner has no nested virtualization, so the emulator would fall back to software emulation."
+            exit 1
+          fi
+          if [[ ! -r /dev/kvm || ! -w /dev/kvm ]]; then
+            echo "::error::/dev/kvm is not readable and writable by the runner user."
+            exit 1
+          fi
+
+          ls -l /dev/kvm
+          emulator -accel-check 2>&1 | tee emulator-accel-check.txt
+          echo "Hardware acceleration is available."
+
+      # Single consistent image family across API 31-36:
+      #   system-images;android-<api>;google_apis;x86_64
+      # `google_apis` x86_64 is published for every one of API 31, 32, 33, 34,
+      # 35 and 36, so no API level needs a different target family. Play Store
+      # images are deliberately avoided: the suite uses no Google Play services
+      # and has no reason to depend on them.
+      #
+      # `disable-linux-hw-accel: false` makes KVM mandatory rather than
+      # best-effort, so a runner without acceleration fails instead of silently
+      # degrading. `disable-spellchecker` is enabled because the rename dialog
+      # test replaces text in a real IME-backed field, a documented source of
+      # emulator flakiness.
+      #
+      # emulator-options deliberately omits the action's default `-noaudio`:
+      # several playback tests assert that the playback position advances in
+      # real time, which requires a working AudioTrack clock on the device.
+      # A cloud emulator is not asked to prove audible output quality or audio
+      # routing, only that the Media3 source, session and state machine work.
+      - name: Run emulator and instrumentation suite
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: ${{ matrix.api-level }}
+          target: google_apis
+          arch: x86_64
+          profile: Nexus 6
+          cores: 2
+          ram-size: 2048M
+          heap-size: 512M
+          avd-name: omnifile-api${{ matrix.api-level }}
+          force-avd-creation: true
+          emulator-boot-timeout: 900
+          disable-animations: true
+          disable-spellchecker: true
+          disable-linux-hw-accel: false
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim
+          script: ./.github/scripts/run-connected-instrumentation.sh
+
+      # Runs the real suite: :app:connectedDebugAndroidTest executes every test
+      # in app/src/androidTest. Debug variant is required, not incidental:
+      # androidx.compose.ui.test.manifest is a debugImplementation dependency
+      # and supplies the host activity the Compose tests launch.
+      #
+      # No test class is excluded. The single physical-device test guards
+      # itself with Assume and therefore reports as skipped rather than
+      # excluded, which keeps the authority split visible in the result counts.
+      - name: Summarise instrumentation results
+        run: python3 .github/scripts/summarise-connected-results.py
+
+      # Diagnostics only, and only when something failed. Never APKs, keystores,
+      # private assets or emulator images.
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: emulator-diagnostics-api${{ matrix.api-level }}
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            emulator-diagnostics/
+            app/build/outputs/androidTest-results/
+            app/build/reports/androidTests/
