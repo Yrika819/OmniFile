@@ -147,9 +147,19 @@ class MediaSessionServiceInstrumentedTest {
         awaitPlayback()
 
         instrumentation.runOnMainSync { coordinator.stop() }
-        Thread.sleep(1500)
 
-        val services = shell("dumpsys activity services ${context.packageName}")
+        // Poll rather than sleep for a fixed 1.5s. A fixed wait is the same
+        // latent flake as the playback bound above: under matrix load the
+        // service may still be settling, and the assertion would then pass only
+        // because the check ran too early. Wait out the transition, but never
+        // longer than the bound.
+        val deadline = System.currentTimeMillis() + 30_000
+        var services = shell("dumpsys activity services ${context.packageName}")
+        while (services.contains("isForeground=true") && System.currentTimeMillis() < deadline) {
+            Thread.sleep(250)
+            services = shell("dumpsys activity services ${context.packageName}")
+        }
+
         assertTrue(
             "a stopped media service must not stay foreground: $services",
             !services.contains("isForeground=true"),

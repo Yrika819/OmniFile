@@ -197,7 +197,14 @@ class MediaPlaybackInstrumentedTest {
         instrumentation.runOnMainSync { coordinator.play(entry) }
         awaitState { it.status == PlaybackStatus.READY && it.isPlaying }
 
-        val ended = awaitState(timeoutMs = 8000) { it.status == PlaybackStatus.ENDED }
+        // A two second clip normally reaches ENDED in two or three seconds, but
+        // the matrix runs six emulators at once on four-core runners, and a cold
+        // audio output can leave the player in BUFFERING well past the four
+        // times margin the previous eight second bound allowed. That produced an
+        // intermittent `expected:<ENDED> but was:<BUFFERING>`. Thirty seconds
+        // is still a real assertion: a player that never ends, or that ends
+        // without playing, still fails it.
+        val ended = awaitState(timeoutMs = 30_000) { it.status == PlaybackStatus.ENDED }
         assertEquals(PlaybackStatus.ENDED, ended.status)
         assertEquals(WAV_NAME, ended.item?.displayName)
     }
