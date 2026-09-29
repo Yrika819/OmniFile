@@ -57,10 +57,8 @@ jobs:
         #
         # `expected-tests` is the number of test cases the suite must report
         # for that API level. It is a floor, not an exact match, so growing the
-        # suite never breaks CI while silently losing tests always does. API 35
-        # is 78 rather than 80 because two playback tests are excluded there;
-        # see .github/scripts/run-connected-instrumentation.sh for the evidence
-        # and for why the exclusion lives in CI rather than in the test.
+        # suite never breaks CI while silently losing tests always does. Every
+        # level runs the same full suite; nothing is excluded.
         include:
           - api-level: 31
             target: google_apis
@@ -76,7 +74,7 @@ jobs:
             expected-tests: '80'
           - api-level: 35
             target: google_apis
-            expected-tests: '78'
+            expected-tests: '80'
           - api-level: 36
             target: google_apis
             expected-tests: '80'

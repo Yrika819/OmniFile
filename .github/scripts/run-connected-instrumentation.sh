@@ -27,23 +27,24 @@ mkdir -p "${DIAGNOSTICS_DIR}"
 
 start_epoch=$(date +%s)
 
-# Cloud-emulator exclusions, declared here in CI rather than in the test
-# sources. Keeping them on this side matters: an @SdkSuppress in the test would
-# also disable the test on a real API 35 phone, which is exactly the platform
-# where it passes. Declared in CI, the two tests below keep running in the
-# physical-device acceptance process.
+# Android 15 denies this app every AUDIOFOCUS_GAIN request on a headless
+# emulator:
+#   "AS.HardeningEnforcer: Focus request DENIED ... req:1 procState:4"
+#   "AS.AudioService: Audio focus request blocked by hardening"
+# ExoPlayer then never receives focus and stays in READY with isPlaying=false
+# and positionMs=0, even though the source opens, the duration is parsed and
+# SEEKABLE is reported correctly. Four playback tests assert on an advancing
+# position, so all four fail for an environmental reason while the product
+# behaves correctly. API 31, 32, 33, 34 and 36 grant focus normally.
 #
-# Rationale for API 35, verified over three matrix runs:
-#   Android 15 denies this app every AUDIOFOCUS_GAIN request on the emulator:
-#     "AS.HardeningEnforcer: Focus request DENIED ... req:1 procState:4"
-#     "AS.AudioService: Audio focus request blocked by hardening"
-#   ExoPlayer therefore never receives focus and stays in READY with
-#   isPlaying=false and positionMs=0, even though the source opens, the 2000ms
-#   duration is parsed and SEEKABLE is reported correctly. The product is
-#   behaving; the emulator's audio output simply is not there to render.
-#   The same tests pass on API 31, 32, 33, 34 and 36, so this is an Android 15
-#   framework behaviour on a headless emulator, not a product or test defect.
-#   Audible output and audio routing remain physical-device acceptance.
+# The hardening enforcer is gated on the device being interactive. A headless
+# emulator with no window leaves the device dimmed, so wake it and clear the
+# keyguard before the suite. This is a warm-up, not a gate: if focus is still
+# refused the suite runs anyway and its own assertions decide the outcome.
+adb shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1 || true
+adb shell wm dismiss-keyguard >/dev/null 2>&1 || true
+adb shell svc power stayon true >/dev/null 2>&1 || true
+
 gradle_args=(
   :app:connectedDebugAndroidTest
   --no-daemon
@@ -55,17 +56,6 @@ gradle_args=(
 )
 
 : > "${DIAGNOSTICS_DIR}/excluded-tests.txt"
-if [[ "${MATRIX_API_LEVEL:-}" == "35" ]]; then
-  gradle_args+=(
-    "-Pandroid.testInstrumentationRunnerArguments.notClass=com.omnifile.media.MediaPlaybackInstrumentedTest#serviceConnectsAndLocalWavPlaysWithTruthfulState,com.omnifile.media.MediaPlaybackInstrumentedTest#wavPlaysToEndedState"
-  )
-  cat >> "${DIAGNOSTICS_DIR}/excluded-tests.txt" <<'EXCLUDED'
-com.omnifile.media.MediaPlaybackInstrumentedTest#serviceConnectsAndLocalWavPlaysWithTruthfulState
-com.omnifile.media.MediaPlaybackInstrumentedTest#wavPlaysToEndedState
-EXCLUDED
-  echo "API 35: excluding 2 playback tests that require a granted audio focus."
-  echo "API 35: reason: Android 15 denies AUDIOFOCUS_GAIN on a headless emulator; ExoPlayer cannot start rendering."
-fi
 
 status=0
 ./gradlew "${gradle_args[@]}" \
