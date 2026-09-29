@@ -40,12 +40,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Stage B: both boundaries at once. API 31 is the minSdk boundary and
-        # API 36 is the compile/target boundary. Running them together proves
-        # the infrastructure generalises below the current target before the
-        # matrix widens further. Neither is an optional sample, and an API 31
-        # failure is investigated rather than resolved by raising minSdk.
-        api-level: [31, 36]
+        # Every supported release from minSdk to the current target. API 31
+        # is the minSdk boundary and API 36 is the compile/target boundary;
+        # both are first-class authority targets, not optional samples, and an
+        # API 31 failure is investigated rather than resolved by raising minSdk.
+        #
+        # One consistent image family covers the whole range:
+        # system-images;android-<api>;google_apis;x86_64, published for every
+        # one of these six API levels, so no level needs a different target.
+        api-level: [31, 32, 33, 34, 35, 36]
 
     env:
       MATRIX_API_LEVEL: ${{ matrix.api-level }}
