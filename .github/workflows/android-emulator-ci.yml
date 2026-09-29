@@ -243,9 +243,12 @@ jobs:
       # androidx.compose.ui.test.manifest is a debugImplementation dependency
       # and supplies the host activity the Compose tests launch.
       #
-      # No test class is excluded. The single physical-device test guards
-      # itself with Assume and therefore reports as skipped rather than
-      # excluded, which keeps the authority split visible in the result counts.
+      # No test class is excluded. API 35 alone skips the four tests marked
+      # @RequiresAudioClock, because that emulator cannot grant audio focus;
+      # the script lists exactly which ones, and the reason, in the run log and
+      # the job summary. The physical-device test guards itself with Assume and
+      # therefore reports as skipped rather than excluded, which keeps the
+      # authority split visible in the result counts on every API level.
       - name: Summarise instrumentation results
         run: python3 .github/scripts/summarise-connected-results.py
 
