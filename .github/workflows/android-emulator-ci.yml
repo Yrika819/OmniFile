@@ -40,11 +40,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Stage A (bootstrap): prove the emulator foundation on API 36, the
-        # compile/target boundary and primary emulator authority, before
-        # widening the matrix. API 36 is the first target precisely because it
-        # is where an infrastructure defect is cheapest to diagnose.
-        api-level: [36]
+        # Stage B: both boundaries at once. API 31 is the minSdk boundary and
+        # API 36 is the compile/target boundary. Running them together proves
+        # the infrastructure generalises below the current target before the
+        # matrix widens further. Neither is an optional sample, and an API 31
+        # failure is investigated rather than resolved by raising minSdk.
+        api-level: [31, 36]
 
     env:
       MATRIX_API_LEVEL: ${{ matrix.api-level }}
