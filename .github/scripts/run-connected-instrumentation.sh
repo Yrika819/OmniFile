@@ -62,21 +62,29 @@ gradle_args=(
   -Dkotlin.compiler.execution.strategy=in-process
 )
 
-: > "${DIAGNOSTICS_DIR}/excluded-tests.txt"
+# One runner argument per marker. Both take a single class name, so the two
+# markers are applied through two distinct arguments rather than one
+# comma-separated list: a comma-separated notAnnotation was observed applying
+# only the first name, the same single-value limit that made a comma-separated
+# notClass exclude just one of two methods in the same class.
+#
+#   notClass        always  -> wavPlaysToEndedState, addressed by Class#method
+#   notAnnotation   API 35  -> the three tests that need audio focus granted
 if [[ "${MATRIX_API_LEVEL:-}" == "35" ]]; then
   gradle_args+=(
-    "-Pandroid.testInstrumentationRunnerArguments.notAnnotation=com.omnifile.media.RequiresAudioClock,com.omnifile.media.RequiresAudioOutput"
+    "-Pandroid.testInstrumentationRunnerArguments.notClass=com.omnifile.media.MediaPlaybackInstrumentedTest#wavPlaysToEndedState"
+    "-Pandroid.testInstrumentationRunnerArguments.notAnnotation=com.omnifile.media.RequiresAudioClock"
   )
   cat >> "${DIAGNOSTICS_DIR}/excluded-tests.txt" <<'EXCLUDED'
-com.omnifile.media.MediaPlaybackInstrumentedTest#serviceConnectsAndLocalWavPlaysWithTruthfulState
 com.omnifile.media.MediaPlaybackInstrumentedTest#wavPlaysToEndedState
+com.omnifile.media.MediaPlaybackInstrumentedTest#serviceConnectsAndLocalWavPlaysWithTruthfulState
 com.omnifile.media.MediaSessionServiceInstrumentedTest#sessionIsVisibleToSystemWithTruthfulTitleWhilePlaying
 com.omnifile.media.MediaSessionServiceInstrumentedTest#stoppedServiceIsNoLongerForeground
 EXCLUDED
   echo "API 35: skipping 4 audio-dependent tests; this emulator cannot grant audio focus."
 else
   gradle_args+=(
-    "-Pandroid.testInstrumentationRunnerArguments.notAnnotation=com.omnifile.media.RequiresAudioOutput"
+    "-Pandroid.testInstrumentationRunnerArguments.notClass=com.omnifile.media.MediaPlaybackInstrumentedTest#wavPlaysToEndedState"
   )
   cat >> "${DIAGNOSTICS_DIR}/excluded-tests.txt" <<'EXCLUDED'
 com.omnifile.media.MediaPlaybackInstrumentedTest#wavPlaysToEndedState
