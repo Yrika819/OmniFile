@@ -134,11 +134,7 @@ class MediaSessionServiceInstrumentedTest {
                 "media-playback foreground service must be foreground during playback: $services",
                 services.contains("isForeground=true"),
             )
-            // dumpsys prints the FGS type as a bitmask; 0x2 is FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK.
-            assertTrue(
-                "foreground service type must be mediaPlayback (0x2): $services",
-                services.contains("types=0x00000002") || services.contains("types=0x00000012"),
-            )
+            assertMediaPlaybackForegroundServiceType(services)
         }
     }
 
@@ -179,6 +175,25 @@ class MediaSessionServiceInstrumentedTest {
             Thread.sleep(50)
         }
         throw AssertionError("playback did not start: ${coordinator.state.value}")
+    }
+
+    // AOSP prints the foreground service type bitmask as `types=...`, but the
+    // literal rendering is not stable across releases: API 34 emits
+    // `types=00000002` while API 35 and later emit `types=0x00000002`. Matching
+    // a hard-coded literal therefore asserts the formatter rather than the
+    // behaviour, and it failed on API 34 where the product was correct.
+    // Parsing the mask and checking the mediaPlayback bit is version-independent
+    // and stricter, because it also accepts a mask that combines mediaPlayback
+    // with another foreground service type.
+    private fun assertMediaPlaybackForegroundServiceType(dump: String) {
+        val types = Regex("types=(0[xX])?([0-9a-fA-F]+)").find(dump)
+            ?: throw AssertionError("dumpsys reported no foreground service types: $dump")
+        val mask = types.groupValues[2].toLong(16)
+        val mediaPlayback = 0x2L // ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+        assertTrue(
+            "foreground service type mask 0x%X must include mediaPlayback (0x2): %s".format(mask, dump),
+            mask and mediaPlayback == mediaPlayback,
+        )
     }
 
     private fun shell(command: String): String {
