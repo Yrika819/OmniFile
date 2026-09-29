@@ -191,7 +191,7 @@ class MediaPlaybackInstrumentedTest {
     }
 
     @Test
-    @RequiresAudioClock
+    @RequiresAudioOutput
     fun wavPlaysToEndedState() {
         val entry = prepareWav()
         instrumentation.runOnMainSync { coordinator.play(entry) }
