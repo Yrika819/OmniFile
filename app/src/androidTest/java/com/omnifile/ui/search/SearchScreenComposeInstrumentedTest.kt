@@ -1,5 +1,6 @@
 package com.omnifile.ui.search
 
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -118,13 +119,22 @@ class SearchScreenComposeInstrumentedTest {
 
     @Test
     fun queryClearAndBackAreExposedAsIndependentActions() {
-        var query = "initial"
+        // SearchScreen composes its clear affordance conditionally on the query
+        // (SearchScreen.kt: `if (query.isNotEmpty())`). A plain captured var is
+        // not observable, so the composition never recomposes when the query
+        // changes and the clear button's presence is evaluated against a stale
+        // value. Whether the click then reached a live node depended on an
+        // unrelated recomposition happening to land first, which made this test
+        // fail intermittently across API levels. Use snapshot state, matching
+        // FilesScreenComposeInstrumentedTest, so the screen is driven the way
+        // the real observable state drives it.
+        val query = mutableStateOf("initial")
         var backCalls = 0
         composeRule.setContent {
             OmniFileTheme {
                 SearchScreen(
                     state = SearchUiState.Results(
-                        query = query,
+                        query = query.value,
                         scope = SearchScope.CurrentFolder(rootEntry().ref.providerId, rootEntry()),
                         hits = emptyList(),
                         failures = emptyList(),
@@ -134,9 +144,9 @@ class SearchScreenComposeInstrumentedTest {
                         truncated = false,
                     ),
                     onBack = { backCalls++ },
-                    onQueryChanged = { query = it },
+                    onQueryChanged = { query.value = it },
                     onSubmitQuery = {},
-                    onClearQuery = { query = "" },
+                    onClearQuery = { query.value = "" },
                     onOpenResult = {},
                 )
             }
@@ -146,7 +156,7 @@ class SearchScreenComposeInstrumentedTest {
         composeRule.onNodeWithTag("search.clear").performClick()
         composeRule.onNodeWithTag("search.back").performClick()
         assertEquals(1, backCalls)
-        assertEquals("", query)
+        assertEquals("", query.value)
     }
 
     private fun rootEntry() = entry("Documents", EntryKind.DIRECTORY)
