@@ -289,6 +289,37 @@ public final class TestDocumentsProvider extends DocumentsProvider {
         return node;
     }
 
+    /**
+     * Waits for background pipe I/O to settle so that a read of document state
+     * is never served from a pre-commit snapshot.
+     *
+     * openWritePipe commits node.content on a background thread once the writer
+     * closes its descriptor, which is how a real DocumentsProvider behaves.
+     * The product then immediately re-reads the document to verify finalization,
+     * and a size derived from node.content would be missing if the commit had
+     * not landed yet. That surfaced as a cross-version intermittent
+     * StorageError.IoFailure in the SAF transfer runtime tests, which
+     * OperationManager correctly maps to RETRYABLE_FAILURE.
+     *
+     * Every entry point that observes document state waits here, so the fixture
+     * behaves like a provider that has committed by the time it is asked. The
+     * write thread itself never re-enters the provider, so this cannot deadlock,
+     * and the bound keeps a stuck writer from hanging a test.
+     */
+    private static void awaitSettled() {
+        if (pendingIo.get() <= 0) return;
+        long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (pendingIo.get() > 0) {
+            if (System.nanoTime() >= deadlineNanos) return;
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+    }
+
     private static void beginIo() {
         pendingIo.incrementAndGet();
     }
@@ -330,6 +361,7 @@ public final class TestDocumentsProvider extends DocumentsProvider {
 
     @Override
     public Cursor queryDocument(String documentId, String[] projection) {
+        awaitSettled();
         if (providerUnavailable) throw new IllegalStateException("controlled provider unavailable");
         documentId = normalizeDocumentId(documentId);
         MatrixCursor cursor = new MatrixCursor(DOCUMENT_COLUMNS);
@@ -375,6 +407,7 @@ public final class TestDocumentsProvider extends DocumentsProvider {
 
     @Override
     public String createDocument(String parentDocumentId, String mimeType, String displayName) throws FileNotFoundException {
+        awaitSettled();
         if (providerUnavailable) throw new IllegalStateException("controlled provider unavailable");
         parentDocumentId = normalizeDocumentId(parentDocumentId);
         createCalls++;
@@ -404,6 +437,7 @@ public final class TestDocumentsProvider extends DocumentsProvider {
     @Override
     public ParcelFileDescriptor openDocument(String documentId, String mode, CancellationSignal signal)
             throws FileNotFoundException {
+        if (mode == null || !mode.contains("w")) awaitSettled();
         if (providerUnavailable) throw new IllegalStateException("controlled provider unavailable");
         documentId = normalizeDocumentId(documentId);
         Node node = NODES.get(documentId);
@@ -505,6 +539,7 @@ public final class TestDocumentsProvider extends DocumentsProvider {
 
     @Override
     public String renameDocument(String documentId, String displayName) throws FileNotFoundException {
+        awaitSettled();
         documentId = normalizeDocumentId(documentId);
         renameCalls++;
         Node node = NODES.get(documentId);
