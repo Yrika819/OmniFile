@@ -83,14 +83,14 @@ class PdfRendererService : Service() {
                 }
                 PdfRendererProtocol.CLOSE -> {
                     if (acceptedSessionId.get() != sessionId) {
-                        replyChannel?.let { sendSimple(it, PdfRendererProtocol.CLOSED, requestId) }
+                        replyChannel?.let { sendSimple(it, PdfRendererProtocol.CLOSED, requestId, sessionId) }
                         return
                     }
                     startDeadline(requestId, sessionId)
                     renderExecutor.execute {
                         val ownedSession = acceptedSessionId.compareAndSet(sessionId, null)
                         if (ownedSession && activeSessionId == sessionId) closeDocument()
-                        replyChannel?.let { sendSimple(it, PdfRendererProtocol.CLOSED, requestId) }
+                        replyChannel?.let { sendSimple(it, PdfRendererProtocol.CLOSED, requestId, sessionId) }
                         finishDeadline(requestId, sessionId)
                         if (ownedSession) stopSelf()
                     }
@@ -103,7 +103,7 @@ class PdfRendererService : Service() {
                     acceptedSessionId.set(sessionId)
                     Log.i(TAG, "open_received")
                     val descriptor = data.getParcelable<ParcelFileDescriptor>(PdfRendererProtocol.DESCRIPTOR) ?: run {
-                        sendError(replyTo, requestId, PdfRendererProtocol.ERROR_UNAVAILABLE)
+                        sendError(replyTo, requestId, sessionId, PdfRendererProtocol.ERROR_UNAVAILABLE)
                         return
                     }
                     startDeadline(requestId, sessionId)
@@ -115,7 +115,7 @@ class PdfRendererService : Service() {
                         return
                     }
                     if (acceptedSessionId.get() != sessionId) {
-                        sendError(replyTo, requestId, PdfRendererProtocol.ERROR_UNAVAILABLE)
+                        sendError(replyTo, requestId, sessionId, PdfRendererProtocol.ERROR_UNAVAILABLE)
                         return
                     }
                     val pageIndex = data.getInt(PdfRendererProtocol.PAGE_INDEX, -1)
@@ -140,12 +140,12 @@ class PdfRendererService : Service() {
             renderer = opened
             sourceDescriptor = descriptor
             activeSessionId = sessionId
-            sendSimple(replyTo, PdfRendererProtocol.OPENED, requestId) { putInt(PdfRendererProtocol.PAGE_COUNT, opened.pageCount) }
+            sendSimple(replyTo, PdfRendererProtocol.OPENED, requestId, sessionId) { putInt(PdfRendererProtocol.PAGE_COUNT, opened.pageCount) }
             Log.i(TAG, "open_succeeded")
         } catch (failure: Throwable) {
             Log.w(TAG, "open_failed_${failure.javaClass.simpleName}")
             runCatching { descriptor.close() }
-            sendError(replyTo, requestId, classifyOpenFailure(failure))
+            sendError(replyTo, requestId, sessionId, classifyOpenFailure(failure))
         } finally {
             finishDeadline(requestId, sessionId)
         }
@@ -158,17 +158,17 @@ class PdfRendererService : Service() {
         try {
             val current = renderer
             if (current == null || activeSessionId != sessionId) {
-                sendError(replyTo, requestId, PdfRendererProtocol.ERROR_UNAVAILABLE)
+                sendError(replyTo, requestId, sessionId, PdfRendererProtocol.ERROR_UNAVAILABLE)
                 return
             }
             if (pageIndex !in 0 until current.pageCount) {
-                sendError(replyTo, requestId, PdfRendererProtocol.ERROR_INVALID_PAGE)
+                sendError(replyTo, requestId, sessionId, PdfRendererProtocol.ERROR_INVALID_PAGE)
                 return
             }
             page = current.openPage(pageIndex)
             val dimensions = PdfPageGeometry.bounded(page.width, page.height)
                 ?: run {
-                    sendError(replyTo, requestId, PdfRendererProtocol.ERROR_RESOURCE)
+                    sendError(replyTo, requestId, sessionId, PdfRendererProtocol.ERROR_RESOURCE)
                     return
                 }
             bitmap = Bitmap.createBitmap(dimensions.width, dimensions.height, Bitmap.Config.ARGB_8888)
@@ -184,12 +184,13 @@ class PdfRendererService : Service() {
                 SharedMemory.unmap(mapped)
             }
             if (!outputMemory.setProtect(OsConstants.PROT_READ)) {
-                sendError(replyTo, requestId, PdfRendererProtocol.ERROR_UNAVAILABLE)
+                sendError(replyTo, requestId, sessionId, PdfRendererProtocol.ERROR_UNAVAILABLE)
                 return
             }
             val result = Message.obtain(null, PdfRendererProtocol.PAGE)
             result.data = android.os.Bundle().apply {
                 putLong(PdfRendererProtocol.REQUEST_ID, requestId)
+                putString(PdfRendererProtocol.SESSION_ID, sessionId)
                 putInt(PdfRendererProtocol.WIDTH, dimensions.width)
                 putInt(PdfRendererProtocol.HEIGHT, dimensions.height)
                 putParcelable(PdfRendererProtocol.SHARED_MEMORY, outputMemory)
@@ -199,7 +200,7 @@ class PdfRendererService : Service() {
             runCatching { outputMemory.close() }
             shared = null
         } catch (failure: Throwable) {
-            sendError(replyTo, requestId, classifyRenderFailure(failure))
+            sendError(replyTo, requestId, sessionId, classifyRenderFailure(failure))
         } finally {
             runCatching { page?.close() }
             runCatching { bitmap?.recycle() }
@@ -243,20 +244,22 @@ class PdfRendererService : Service() {
         target: Messenger,
         what: Int,
         requestId: Long,
+        sessionId: String,
         addData: android.os.Bundle.() -> Unit = {},
     ) {
         runCatching {
             target.send(Message.obtain(null, what).apply {
                 data = android.os.Bundle().apply {
                     putLong(PdfRendererProtocol.REQUEST_ID, requestId)
+                putString(PdfRendererProtocol.SESSION_ID, sessionId)
                     addData()
                 }
             })
         }
     }
 
-    private fun sendError(target: Messenger, requestId: Long, errorKind: Int) {
-        sendSimple(target, PdfRendererProtocol.ERROR, requestId) {
+    private fun sendError(target: Messenger, requestId: Long, sessionId: String, errorKind: Int) {
+        sendSimple(target, PdfRendererProtocol.ERROR, requestId, sessionId) {
             putInt(PdfRendererProtocol.ERROR_KIND, errorKind)
         }
     }

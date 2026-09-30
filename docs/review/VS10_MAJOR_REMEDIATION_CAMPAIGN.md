@@ -68,3 +68,37 @@ including allocation/packaging failure after staging. Snapshot candidates now re
 until the executor's atomic delivery transition. The added post-adoption exception test requires
 physical cleanup and slot release. Combined M1/M2 host checkpoint: 111 tests, zero failures,
 errors or skips; debug and instrumentation APK builds also passed with strict verification.
+
+## M2 checkpoint
+
+`OwningResponse` has WAITING/HOLDING/TRANSFERRED/DISPOSED ownership, with a resource-free
+availability deferred. Callback offer atomically gives the holder ownership or closes the
+rejected incoming response. Consumer transfer is atomic and checks cancellation. All pre-transfer
+cancellation, timeout, disconnect, error and pending-removal paths dispose the holder; post-transfer
+cleanup belongs solely to the consumer's `use`/`finally`. Message and SharedMemory travel together
+in one owning response, including malformed dimensions and consumer exceptions. Duplicate, wrong
+request and wrong session callbacks close incoming memory. Worker responses now carry the session
+ID, which was previously absent. A touched binding cleanup race was also repaired: abort cannot
+mark a not-yet-completed bind as unbound and then leave the late successful bind registered.
+
+Host ownership checkpoint: 17 tests, including 500 varied deterministic handoffs and 500 concurrent
+callback/failure barrier races; zero failures/errors/skips. Each fake resource rejects a second close.
+The consumer-after-transfer test pauses with ownership and proves disconnect leaves it open until
+consumer cancellation runs its final close.
+
+API31 AOSP ATD real Android checkpoint: both `SharedMemoryOwnershipInstrumentedTest` cases
+passed (2 tests, zero failures/errors/skips). Fifty measured actual SharedMemory cycles, after five
+warmups: FD samples `[63,63,63,63,63,63,63,63,63,63]`. Twenty-five actual Messenger PAGE accept/
+cancel-before-transfer cycles: `[63,63,63,63,63,63]`. No GC invocation or waiting establishes closure.
+The debug observation carries Unit only, is session-scoped, does not block the callback, requires
+BuildConfig.DEBUG and is inert through normal/release input. No monotonic FD retention appeared
+in these measured races; this is targeted evidence, not a claim about unrelated resources.
+
+The first software Google API31 invocation failed APK installation because PackageManager had
+not booted; Gradle nevertheless said BUILD SUCCESSFUL. No tests ran, and it was not accepted as
+evidence. After prolonged first-boot scanning, targeted work changed to AOSP ATD and required
+boot-complete and PackageManager readiness. The later full matrix retains Google APIs images.
+
+Focused callback/exception review found no ambiguous SharedMemory owner: callback until offer;
+holder until transfer; consumer thereafter; closed after final disposal. Availability completion,
+exceptional completion and map removal never establish or discard ownership on their own.

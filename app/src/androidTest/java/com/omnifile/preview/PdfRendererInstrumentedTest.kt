@@ -236,7 +236,7 @@ class PdfRendererInstrumentedTest {
 
     private fun assertNoStagedSnapshots() {
         val workspace = File(File(context.noBackupFilesDir, "preview"), "pdf")
-        assertTrue(workspace.listFiles().orEmpty().none { it.name.endsWith(".ready") || it.name.endsWith(".partial") })
+        assertTrue(workspace.listFiles().orEmpty().none { it.name.endsWith(".ready") || it.name.endsWith(".partial") || it.name.endsWith(".candidate") })
     }
 
     private fun assertContainsRenderedColor(page: PdfRenderedPage) {

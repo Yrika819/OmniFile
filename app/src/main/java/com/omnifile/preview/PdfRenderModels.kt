@@ -49,3 +49,8 @@ interface PdfRendererClient {
 fun interface PdfRendererClientFactory {
     fun create(): PdfRendererClient
 }
+
+/** Session-scoped debug observation; carries no resource and does not delay the callback. */
+internal interface PdfResponseArrivalTestHook {
+    fun armAcceptedPageResponseForTest(): kotlinx.coroutines.Deferred<Unit>
+}
