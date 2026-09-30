@@ -103,4 +103,48 @@ class SharedMemoryOwnershipInstrumentedTest {
             lifecycle.cancel(); dispatcher.drain(); client.close(); snapshot.close(); document.delete(); root.delete()
         }
     }
+    @Test fun fiveWorkerDeathsWithAcceptedUntransferredPagesCloseRequestOwnersAndRetry() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val root = File(context.cacheDir, "vs10-response-death").apply { mkdirs() }
+        val document = File(root, "fixture.pdf").apply { writeBytes(ownershipTestPdf(1)) }
+        val provider = LocalStorageProvider(root.toPath(), ProviderId("response-death-test"))
+        val entry = (provider.listChildren((provider.root() as StorageResult.Success).value.ref) as StorageResult.Success).value.single()
+        val source = (provider.openPreviewSource(entry) as StorageResult.Success).value
+        val store = PdfSnapshotStore(context.noBackupFilesDir)
+        val request = PreviewRequest(PreviewItem(entry.ref, entry.displayName, "Test", entry.mimeType, entry.sizeBytes), source)
+        val counts = mutableListOf<Int>()
+        try {
+            repeat(5) {
+                val snapshot = (store.stage(request) as PdfStageResult.Ready).snapshot
+                try {
+                    val client = AndroidPdfRendererClientFactory(context).create()
+                    val dispatcher = ManualDispatcher()
+                    val lifecycle = CoroutineScope(SupervisorJob() + dispatcher)
+                    try {
+                        withTimeout(10_000) { client.open(snapshot) }
+                        val accepted = (client as PdfResponseArrivalTestHook).armAcceptedPageResponseForTest()
+                        var failure: PdfRendererFailure? = null
+                        val consumer = lifecycle.launch {
+                            try { client.renderPage(0); fail("Death must reject the untransferred PAGE") }
+                            catch (error: PdfRendererFailure) { failure = error }
+                        }
+                        dispatcher.drain(); withTimeout(10_000) { accepted.await() }
+                        (client as PdfRendererDeathTestHook).killRendererForTest()
+                        dispatcher.drain()
+                        assertTrue(consumer.isCompleted)
+                        assertEquals(PdfRendererFailureKind.WORKER_DIED, failure?.kind)
+                    } finally { lifecycle.cancel(); dispatcher.drain(); client.close() }
+                    val retry = AndroidPdfRendererClientFactory(context).create()
+                    try {
+                        assertEquals(1, withTimeout(10_000) { retry.open(snapshot) })
+                        assertTrue(retry.renderPage(0).pixels.isNotEmpty())
+                    } finally { retry.close() }
+                } finally { snapshot.close() }
+                counts.add(fdCount())
+            }
+            Log.i("VS10Ownership", "accepted_page_death_retry_5_cycles_fd_samples=$counts")
+            assertTrue("Accepted PAGE death FD growth: $counts", counts.last() <= counts.first() + 3)
+        } finally { document.delete(); root.delete() }
+    }
+
 }

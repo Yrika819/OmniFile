@@ -92,6 +92,9 @@ EXCLUDED
   echo "API ${MATRIX_API_LEVEL}: skipping 1 test that needs the emulator audio output to run a clip to completion."
 fi
 
+# Generated reports must belong to this invocation, never an earlier green run.
+rm -rf app/build/outputs/androidTest-results app/build/test-results/connectedDebugAndroidTest app/build/test-results/connected
+
 status=0
 ./gradlew "${gradle_args[@]}" \
   2>&1 | tee "${DIAGNOSTICS_DIR}/connected-androidtest.log" || status=$?
@@ -105,19 +108,9 @@ import re
 import sys
 import xml.etree.ElementTree as ET
 
-expected = {
-    "com.omnifile.preview.PdfRendererInstrumentedTest#localPdfUsesPlatformRendererAndSupportsPageNavigation",
-    "com.omnifile.preview.PdfRendererInstrumentedTest#pipeBackedSafSourceStagesAfterFreshGrantValidationAndRenders",
-    "com.omnifile.preview.PdfRendererInstrumentedTest#malformedAndTruncatedPdfStayTypedAndOversizeIsRejectedBeforeRendererOpen",
-    "com.omnifile.preview.PdfRendererInstrumentedTest#rendererServiceIsPrivateAndIsolated",
-    "com.omnifile.preview.PdfRendererInstrumentedTest#repeatedOpenRenderCloseCyclesLeaveNoSnapshotArtifacts",
-    "com.omnifile.preview.PdfRendererInstrumentedTest#concurrentPlatformPageRequestsAreSerializedAndReplacementClosesOldDocument",
-    "com.omnifile.preview.PdfRendererInstrumentedTest#rendererProcessDeathReturnsTypedFailureAndFreshOpenCanRetry",
-    "com.omnifile.ui.preview.PdfPreviewNavigationInstrumentedTest#filesPreviewKeepsCurrentPdfPageAcrossRecreationAndBackReturnsToFiles",
-    "com.omnifile.ui.preview.PdfPreviewNavigationInstrumentedTest#searchPreviewBackReturnsToTheSearchResults",
-    "com.omnifile.ui.preview.PreviewScreenInstrumentedTest#pdfWorkerFailureShowsOnlySanitizedTextAndRetry",
-    "com.omnifile.ui.preview.PreviewScreenInstrumentedTest#pdfPreviewShowsBoundedPageAndAccessiblePreviousNextControls",
-}
+with open(".github/scripts/required-vs10-instrumentation.txt", encoding="utf-8") as contract:
+    expected = {line.strip() for line in contract if line.strip()}
+
 roots = (
     "app/build/outputs/androidTest-results/connected",
     "app/build/outputs/androidTest-results",
@@ -125,14 +118,16 @@ roots = (
 )
 files = []
 for root in roots:
-    files.extend(glob.glob(root + "/**/TEST-*.xml", recursive=True))
+    files = [path for path in glob.glob(root + "/**/TEST-*.xml", recursive=True) if "UnitTest" not in path]
+    if files:
+        break
 
 observed = {}
 for path in sorted(set(files)):
     try:
         report = ET.parse(path).getroot()
-    except ET.ParseError:
-        continue
+    except ET.ParseError as error:
+        sys.exit(f"Unparseable instrumentation XML: {error}")
     for case in report.iter("testcase"):
         identifier = f"{case.get('classname', '?')}#{case.get('name', '?')}"
         if identifier not in expected:
@@ -143,7 +138,7 @@ for path in sorted(set(files)):
         assumption = "AssumptionViolatedException" in (
             (failure.get("message") or "") + (failure.text or "") + (failure.get("type") or "")
         ) if failure is not None else False
-        if case.find("skipped") is not None or assumption:
+        if case.find("skipped") is not None or case.find("assumption") is not None or assumption:
             result = "SKIPPED"
         elif failure is not None:
             result = "FAILED"
@@ -158,6 +153,8 @@ for path in sorted(set(files)):
             print(f"PDF_TEST_FAILURE {identifier} type={failure.get('type', 'unknown')} message={message}")
         else:
             result = "PASSED"
+        if identifier in observed:
+            sys.exit(f"Duplicate instrumentation evidence: {identifier}")
         observed[identifier] = result
 
 for identifier in sorted(expected):
@@ -188,7 +185,8 @@ capture() {
 capture adb-devices.txt adb devices -l
 capture emulator-getprop.txt adb shell getprop
 capture logcat.txt adb logcat -d -v threadtime -b all -t 20000
-grep -E 'OmniPdf(Client|Worker|Init):' "${DIAGNOSTICS_DIR}/logcat.txt" | tail -n 150 | sed 's/^/PDF_WORKER_LOG /' || true
+grep -E '(OmniPdf(Client|Worker|Init)|VS10Ownership):' "${DIAGNOSTICS_DIR}/logcat.txt" | tail -n 150 | sed 's/^/PDF_WORKER_LOG /' || true
+grep 'VS10Ownership:' "${DIAGNOSTICS_DIR}/logcat.txt" | sed 's/^/OWNERSHIP_RESOURCE_LOG /' || true
 capture dumpsys-media-session.txt adb shell dumpsys media_session
 capture dumpsys-omnifile-services.txt adb shell dumpsys activity services com.omnifile
 capture dumpsys-audio-flinger.txt adb shell dumpsys media.audio_flinger

@@ -19,6 +19,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.file.Files
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -205,6 +206,70 @@ class PdfRendererInstrumentedTest {
         assertEquals(2, retry.pageCount)
         retry.session.close()
         assertNoStagedSnapshots()
+    }
+
+    @Test
+    fun tenWorkerDeathRetryCyclesRemainUsableAndReleaseSnapshots() = runBlocking {
+        Files.write(localRoot.resolve("death-cycles.pdf"), syntheticPdf(2))
+        val provider = LocalStorageProvider(localRoot, ProviderId("vs10-death-cycles"))
+        val entry = provider.listChildren(provider.root().success().ref).success().single()
+        val fdSamples = mutableListOf<Int>()
+        repeat(10) { cycle ->
+            val first = render(provider, entry).requirePdfPage()
+            (first.session as PdfRendererDeathTestHook).killRendererForTest()
+            first.session.invalidate()
+            val retry = render(provider, entry).requirePdfPage()
+            assertEquals(2, retry.pageCount)
+            assertContainsRenderedColor(retry.session.renderPage(1))
+            retry.session.close()
+            assertNoStagedSnapshots()
+            fdSamples.add(File("/proc/self/fd").list().orEmpty().size)
+        }
+        android.util.Log.i("VS10Ownership", "death_retry_10_cycles_fd_samples=$fdSamples")
+        assertTrue("Worker death FD growth: $fdSamples", fdSamples.last() <= fdSamples.first() + 4)
+    }
+
+    @Test
+    fun twentyFiveViewModelDocumentAndPageReplacementsKeepExactOwner() = runBlocking {
+        Files.write(localRoot.resolve("A.pdf"), syntheticPdf(3))
+        Files.write(localRoot.resolve("B.pdf"), syntheticPdf(3))
+        val provider = LocalStorageProvider(localRoot, ProviderId("vs10-vm-replacements"))
+        val entries = provider.listChildren(provider.root().success().ref).success().associateBy { it.displayName }
+        val vm = PreviewViewModel(engine)
+        val fdSamples = mutableListOf<Int>()
+        try {
+            repeat(25) { cycle ->
+                val a = entries.getValue("A.pdf")
+                val b = entries.getValue("B.pdf")
+                fun open(entry: StorageEntry) = vm.open(PreviewItem(entry.ref, entry.displayName, "Test", entry.mimeType, entry.sizeBytes)) {
+                    provider.openPreviewSource(entry)
+                }
+                open(a)
+                val first = withTimeout(20_000) { vm.state.first {
+                    (it is PreviewUiState.Ready && it.item.identity == a.ref) || it is PreviewUiState.Error
+                } }
+                assertTrue("Expected A Ready, got $first", first is PreviewUiState.Ready)
+                vm.nextPage()
+                open(b)
+                val second = withTimeout(20_000) { vm.state.first {
+                    (it is PreviewUiState.Ready && it.item.identity == b.ref) || it is PreviewUiState.Error
+                } }
+                assertTrue("Expected B Ready, got $second", second is PreviewUiState.Ready)
+                val ready = second as PreviewUiState.Ready
+                vm.nextPage(); vm.nextPage()
+                val navigated = withTimeout(20_000) { vm.state.first {
+                    (it is PreviewUiState.Ready && (it.payload as? PreviewPayload.PdfPage)?.pageIndex == 2) || it is PreviewUiState.Error
+                } }
+                assertTrue("B must remain navigable: $navigated", navigated is PreviewUiState.Ready)
+                vm.close()
+                withTimeout(5_000) { vm.state.first { it == PreviewUiState.Idle } }
+                (ready.payload as PreviewPayload.PdfPage).session.close()
+                assertNoStagedSnapshots()
+                if (cycle % 5 == 4) fdSamples.add(File("/proc/self/fd").list().orEmpty().size)
+            }
+        } finally { vm.close() }
+        android.util.Log.i("VS10Ownership", "vm_replacement_25_cycles_fd_samples=$fdSamples")
+        assertTrue("Replacement FD growth: $fdSamples", fdSamples.last() <= fdSamples.first() + 4)
     }
 
     private suspend fun render(provider: com.omnifile.preview.PreviewSourceProvider, entry: StorageEntry): PreviewPayload {

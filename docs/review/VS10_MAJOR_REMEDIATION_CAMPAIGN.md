@@ -102,3 +102,134 @@ boot-complete and PackageManager readiness. The later full matrix retains Google
 Focused callback/exception review found no ambiguous SharedMemory owner: callback until offer;
 holder until transfer; consumer thereafter; closed after final disposal. Availability completion,
 exceptional completion and map removal never establish or discard ownership on their own.
+
+## M3 checkpoint and controller integration
+
+Production ViewModel actions, generations, installed document, drain token, latest queued
+page intent, current logical page, and published state are confined to Main.immediate.
+Background operations offer immutable candidates into an OwningResponse; only Unit crosses
+withContext. Main accepts and publishes without suspension. Stale candidates invalidate their
+exact session. Old opening/drain finally blocks clear bookkeeping only by identity. Session
+invalidation schedules independently owned cleanup and does not run I/O on Main.
+
+Controller reservations serialize opening. Preview obtains the reservation during the same
+read acquisition, before staging handoff: waiting consumes its absolute deadline and one slot.
+The snapshot and reservation leases transfer together under the scope lock. Snapshot workspace
+initialization/reconciliation is lazy and occurs in a registered acquisition operation, not
+application construction. Metadata reads on a handle are also registered operations.
+
+The controller retains an exact active cleanup owner before renderer creation/open can fail.
+Accepted candidates waiting for prior cleanup have a strong pending-snapshot registry. Cleanup
+runs on one serial IO lane and survives caller cancellation. A new native client cannot open
+until the prior exact owner's cleanup completes. Cleanup failure retains the prior owner and
+prevents unsafe native reuse. Controller clearing uses compareAndSet(exactOwner, null).
+
+The Android client observes CLOSED for its exact shutdown session/request, or actual service
+/Binder death, before unbinding and completing cleanup. Generic transport failure does not
+prove death and retains ownership. The request send/close decision is serialized off Main.
+A cancelled request with no response sends CANCEL; cancelling an already accepted PAGE closes
+the holder without killing a reusable worker. The worker's PdfRenderer alone owns its input
+descriptor after successful construction. Native close failure kills the isolated process and
+cannot emit CLOSED. These are directly touched ownership fixes, not a new state architecture.
+
+M3 host inventory: 14 ViewModel ownership tests and four controller ownership tests. The VM
+suite exercises 500 varied acquisition/replacement/drain/Back orderings with deferred gates.
+Existing PDF host and Preview regressions remain enabled. Checkpoint totals: 129 focused tests,
+zero failures/errors/skips; debug APK and instrumentation APK build passed with strict verification.
+Full Cloud Host gate: 263 tests in 36 suites, zero failures/errors/skips; lint zero errors and
+27 warnings; assembleDebug and assembleDebugAndroidTest passed; strict dependency verification
+passed. No dependency added.
+
+Failures diagnosed in M3: eager-workspace fixture assumptions and synchronous physical-cleanup
+assertions were changed to explicit initialization/cleanup barriers. One new cancellation test
+initially cancelled during staging rather than controller acceptance; it now waits for the
+pending-snapshot ownership boundary. A missing async import and misordered Gradle task option
+were corrected. No test disabled, no outcome assertion weakened, no unexplained flake.
+
+Focused M3 review: stale A has no Main-owned write after generation/identity rejection. Old
+cleanup cannot clear B (CAS), and old drains cannot erase B's drain or queue (identity). Worker
+death remains qualified by session/request and exact ViewModel owner. Main performs memory-only
+logical transitions; acquisition, bind, native operations, SharedMemory copy and cleanup run off
+Main. Main confinement and controller CAS apply at different ownership layers; no competing
+ViewModel synchronization system remains. No unresolved Blocker/Major identified at checkpoint.
+
+Remote authority rechecked at 19:50 UTC: main and VS10 remote still matched the frozen starting
+SHAs. Regression review against main and pre-remediation VS10 found no new dependency, permission,
+minSdk change, provider, ZIP PDF, sharing/conversion, persistent cache, Copy/Move or playback change.
+
+CI evidence strengthened: 17 mandatory named PDF/acquisition/ownership tests; missing XML,
+malformed XML, duplicate mandatory evidence, skips/assumptions and absent cases fail. Eight
+synthetic audit scenarios passed with their expected exit codes. Generated results are cleared
+before each invocation. Floors increased by six new instrumentation methods to 85 (31–34/36)
+and 82 (35); existing audio exclusions unchanged. Resource logs receive separate output.
+
+## Final local candidate review and evidence
+
+A fresh whole-diff review found that the direct controller open entry point waited for its
+reservation outside admission. It now uses the same scoped preparation as PreviewEngine, via
+the snapshot store's runner, with no nested admission. New tests prove direct-open Busy under
+two occupied slots and reservation waiting expiring under the acquisition deadline. A separate
+controller test proves old cleanup can time out a replacement without creating another native
+owner. The old cleanup owner stays retained. The unused legacy snapshot dispatcher parameter
+was removed; fixed acquisition lanes are the only staging execution policy.
+
+Host test counts after these additions: ReadAcquisition 43; end-to-end PdfAcquisition 14;
+OwningResponse 17; PreviewOwnership 14; PdfControllerOwnership 7; existing Preview/PDF 37.
+Focused total 132. Full total 266 in 36 suites, no failures/errors/skips. The injected Unconfined
+host-test seam serializes all ownership actions and background resumptions through a dispatcher
+that creates no threads; release ownership always uses Main. Production's default remains Main.
+The controller ownership observation is debug guarded, resource-free and local to the fixture.
+
+API31 AOSP ATD targeted evidence (software emulation; no KVM):
+
+- Real SAF query expiration: actual ten-second deadline, retained slot until physical query
+  return, late Cursor closed. Real SAF open expiration: late descriptor closed. Two cases green.
+- SharedMemory: 50 measured varied actual-memory handoffs after five warmups, samples
+  `[63,63,63,63,63,63,63,63,63,63]`.
+- Messenger accepted PAGE / cancellation: 25 cycles, samples `[63,63,63,63,63,63]`.
+- Worker death with an accepted, untransferred PAGE: five death/Retry cycles, samples
+  `[63,63,63,63,63]`; holding responses reject transfer and close on disconnect.
+- Native renderer: 32 large-page open/render/close cycles passed, no staging artifacts.
+- Ten worker-death/Retry cycles passed, samples `[63,63,63,63,63,63,63,63,63,63]`.
+- Twenty-five Main ViewModel document/page replacement cycles passed in an isolated run;
+  samples `[63,63,64,63,63]`. B remained navigable, Back awaited exact physical cleanup.
+- Concurrent native page/replacement case passed separately; Local render, SAF pipe, malformed/
+  truncated/oversize, isolation boundary and single worker-death cases passed.
+- Files recreation/page preservation/Back passed. Search results/preview/Back passed separately
+  after matching CI's zero animation scales and disabled spell checker. Five Preview screen
+  regressions passed. In total 21 unique targeted methods have passing local Android evidence.
+
+Failure record: the first new SAF fixture omitted DocumentsProvider's required MANAGE_DOCUMENTS
+protection declarations; both cases failed before acquisition. The fixture was corrected to
+match the existing test setup, with no app permission change. A combined class selector executed
+only its first class, so later targeted work explicitly selected each class and checked XML counts.
+The nine-case native stress invocation passed seven cases, including the 32-cycle and ten-death
+stress, but two opens timed out before worker application creation. Android started/bound the
+processes (PIDs 3735 and 3765), then killed them when the unchanged ten-second startup timeout
+expired; no OmniPdfInit/worker_created event occurred for either. System logs show slow operations
+and runtime GC pauses of ~0.7–0.8 seconds. This is classified as unaccelerated emulator startup
+limitation. Both affected tests passed separately without a product limit change. The replacement
+test now observes Error immediately rather than masking it behind a later twenty-second waiter.
+Search's first timeout occurred waiting for results, before PDF acquisition; matching the CI UI
+settings and isolating the case produced a pass. These failed invocations remain in the evidence
+record; authoritative KVM matrices must still validate the final SHA. No product test excluded,
+no assertion weakened, no safety limit raised, no GC correctness mechanism used.
+
+Resource observations show no monotonic main-process FD retention attributable to these races.
+Worker logs show intentional restarts/deaths and OS "isolated not needed" disposal; no claim of
+perfectly identical system telemetry or provider physical termination is made.
+
+The final mandatory CI contract contains 18 named tests. Floors are 86 for API31–34/36 and 83
+for API35 (seven added instrumentation methods; legacy audio exclusions unchanged). Eight
+negative/positive XML-gate audit scenarios passed. Missing/skipped mandatory ownership cases,
+absent/malformed XML and duplicate evidence fail. No new PDF exclusion exists.
+
+Final local review: zero unresolved Blocker, zero unresolved Major. The direct-open admission
+finding, false native-close acknowledgement risk, snapshot post-adoption packaging ownership,
+and cancellation/response handoff issues are fixed inside the frozen scope. Directly touched
+small findings include exact callback session qualification, late bind cleanup, late unpublished
+bitmap disposal, legacy staging suffix assertions, eager filesystem initialization and obsolete
+staging dispatcher injection. No unrelated Minor/Nit cleanup performed. The original independent
+audit's detailed Minor/Nit inventory was not supplied or present in the repository; it cannot
+be claimed closed. Lint retains its existing 27 warning classes/locations, including inner-Handler
+lifetime heuristics; callback resources have explicit lifetime owners.
