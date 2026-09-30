@@ -129,6 +129,30 @@ class PdfAcquisitionTest {
         }
     }
 
+    @Test fun exceptionAfterSnapshotAdoptionKeepsCandidateCleanupOwned() = runBlocking {
+        val root = Files.createTempDirectory("pdf-adoption-exception")
+        ReadAcquisitionExecutor().use { runner ->
+            val store = PdfSnapshotStore(root.toFile(), acquisitions = runner)
+            val source = PreviewSource(item.identity, "Test", null, null, PreviewCapabilities(true, true, true)) {
+                var done = false
+                StorageResult.Success(object : SequentialReadHandle {
+                    override val expectedBytes: Long? = null
+                    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+                        if (done) return -1
+                        done = true; val bytes = "%PDF-1.4".toByteArray(); bytes.copyInto(buffer, offset); return bytes.size
+                    }
+                    override fun close() = Unit
+                })
+            }
+            try {
+                runner.acquire<Unit> { store.stage(PreviewRequest(item, source)); throw java.io.IOException("after adoption") }
+                fail("Expected post-adoption failure")
+            } catch (_: java.io.IOException) { }
+            assertTrue(runner.awaitIdle()); assertTrue(store.workspace.listFiles().orEmpty().isEmpty())
+        }
+        root.toFile().deleteRecursively(); Unit
+    }
+
     @Test fun grantLossDuringAcquisitionKeepsPermissionFailure() = runBlocking {
         ReadAcquisitionExecutor().use { runner ->
             val source = PreviewSource(item.identity, "Test", null, null, PreviewCapabilities(true, true, true)) {

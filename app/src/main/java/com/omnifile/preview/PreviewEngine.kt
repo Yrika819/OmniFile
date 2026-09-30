@@ -24,7 +24,7 @@ open class PreviewEngine(
         startingPage: Int = 0,
     ): ResolvedPreview {
         val prepared = try {
-            acquisitions.acquire(dispose = { value: PreparedPreview -> value.snapshot?.close() }, successful = { it.payload !is PreviewPayload.Failure }) { scope ->
+            acquisitions.acquire(dispose = { value: PreparedPreview -> value.pdf?.disposeCandidate() }, successful = { it.payload !is PreviewPayload.Failure }, transfer = { it.pdf?.transferCandidate() }) { scope ->
                 val source = when (val result = scope.operation { resolveSource() }) {
                     is StorageResult.Success -> result.value
                     is StorageResult.Failure -> return@acquire PreparedPreview("", PreviewPayload.Failure(previewError(result.error)))
@@ -44,7 +44,7 @@ open class PreviewEngine(
         resolveAndLoad(request.item, { StorageResult.Success(request.source) }, request.startingPage).payload
 
     private suspend fun finish(prepared: PreparedPreview, startingPage: Int): ResolvedPreview {
-        val snapshot = prepared.snapshot ?: return ResolvedPreview(prepared.label, prepared.payload)
+        val snapshot = prepared.pdf?.snapshot ?: return ResolvedPreview(prepared.label, prepared.payload)
         // Delivery is now owned here. No suspension until the controller takes responsibility.
         val result = pdfController!!.openSnapshot(snapshot, startingPage)
         return ResolvedPreview(prepared.label, when (result) {
@@ -56,7 +56,7 @@ open class PreviewEngine(
     private data class PreparedPreview(
         val label: String,
         val payload: PreviewPayload = PreviewPayload.Unsupported,
-        val snapshot: PdfSnapshot? = null,
+        val pdf: PdfStageResult.Ready? = null,
     )
 
     private suspend fun prepare(request: PreviewRequest): PreparedPreview {
@@ -87,7 +87,7 @@ open class PreviewEngine(
             PreviewContentType.PDF -> {
                 if (!source.capabilities.canStagePdf || pdfController == null) plain(PreviewPayload.Unsupported)
                 else when (val staged = pdfController.snapshots.stage(request)) {
-                    is PdfStageResult.Ready -> PreparedPreview(source.sourceLabel, snapshot = staged.snapshot)
+                    is PdfStageResult.Ready -> PreparedPreview(source.sourceLabel, pdf = staged)
                     is PdfStageResult.Failure -> plain(PreviewPayload.Failure(staged.error))
                 }
             }

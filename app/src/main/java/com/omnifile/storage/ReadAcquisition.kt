@@ -46,7 +46,7 @@ class ReadAcquisitionExecutor(
     internal val retainedSlots: Int get() = 2 - admission.availablePermits()
     internal val workThreadCount: Int get() = work.poolSize
 
-    suspend fun <T> acquire(dispose: (T) -> Unit = {}, successful: (T) -> Boolean = { true }, block: suspend (ReadAcquisitionScope) -> T): T {
+    suspend fun <T> acquire(dispose: (T) -> Unit = {}, successful: (T) -> Boolean = { true }, transfer: (T) -> Unit = {}, block: suspend (ReadAcquisitionScope) -> T): T {
         lateinit var scope: ReadAcquisitionScope
         val timer = synchronized(lifecycleLock) {
             if (stopped.get() || !admission.tryAcquire()) throw ReadAcquisitionException(ReadAcquisitionFailure.BUSY)
@@ -62,7 +62,7 @@ class ReadAcquisitionExecutor(
                 work.execute {
                     try {
                         val result = runBlocking(scope) { scope.checkActive(); block(scope) }
-                        scope.complete(result, successful(result), dispose)
+                        scope.complete(result, successful(result), { transfer(result) }, dispose)
                     } catch (error: Throwable) {
                         scope.fail(error)
                     } finally { scope.workerReturned() }
@@ -133,6 +133,7 @@ class ReadAcquisitionScope internal constructor(
     private var outcomeSuccessful = true
     private var resultReady = false
     private var result: Any? = null
+    private var resultTransfer: (() -> Unit)? = null
     private var resultDisposer: (() -> Unit)? = null
     private var error: Throwable? = null
 
@@ -202,13 +203,13 @@ class ReadAcquisitionScope internal constructor(
         result
     }
 
-    internal fun <T> complete(value: T, successful: Boolean = true, disposer: (T) -> Unit) = synchronized(lock) {
+    internal fun <T> complete(value: T, successful: Boolean = true, transfer: () -> Unit = {}, disposer: (T) -> Unit) = synchronized(lock) {
         try { checkLocked() } catch (_: Throwable) { queueLocked { disposer(value) }; return@synchronized }
         outcomeSuccessful = successful
         resultReady = true
         result = value
         resultDisposer = { disposer(value) }
-        disposeLeasesLocked()
+        resultTransfer = transfer
         available.complete(Unit)
     }
 
@@ -227,6 +228,7 @@ class ReadAcquisitionScope internal constructor(
         logical = state
         resultDisposer?.let { queueLocked(it) }
         resultDisposer = null
+        resultTransfer = null
         result = null
         tickets.forEach { ticket -> ticket.cancellation?.let { queueLocked(it) }; ticket.cancellation = null }
         tickets.clear()
@@ -245,6 +247,9 @@ class ReadAcquisitionScope internal constructor(
     internal fun take(): Any? = synchronized(lock) {
         checkLocked()
         check(resultReady && !delivered)
+        resultTransfer?.invoke() // memory-only lease transfer; no suspension or I/O
+        resultTransfer = null
+        disposeLeasesLocked()
         logical = if (outcomeSuccessful) ReadAcquisitionState.SUCCEEDED else ReadAcquisitionState.FAILED
         delivered = true
         resultDisposer = null

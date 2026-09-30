@@ -62,3 +62,9 @@ Focused ownership review:
 
 ViewModel/controller acceptance races and SharedMemory handoff remain the separately scheduled
 M3/M2 findings; this checkpoint does not claim those are remediated.
+
+Additional M1 exception review found that adopted snapshots need a lease through delivery,
+including allocation/packaging failure after staging. Snapshot candidates now retain that lease
+until the executor's atomic delivery transition. The added post-adoption exception test requires
+physical cleanup and slot release. Combined M1/M2 host checkpoint: 111 tests, zero failures,
+errors or skips; debug and instrumentation APK builds also passed with strict verification.

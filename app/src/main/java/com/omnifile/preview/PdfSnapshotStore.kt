@@ -13,7 +13,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 
 sealed interface PdfStageResult {
-    data class Ready(val snapshot: PdfSnapshot) : PdfStageResult
+    data class Ready(val snapshot: PdfSnapshot, internal val acquisitionLease: com.omnifile.storage.ReadLease<PdfSnapshot>? = null) : PdfStageResult
     data class Failure(val error: PreviewError) : PdfStageResult
 }
 
@@ -69,8 +69,8 @@ class PdfSnapshotStore(
         if (scope != null) return stageScoped(item, source, scope)
         return try {
             acquisitions.acquire(dispose = { result: PdfStageResult ->
-                (result as? PdfStageResult.Ready)?.snapshot?.close()
-            }, successful = { it is PdfStageResult.Ready }) { stageScoped(item, source, it) }
+                (result as? PdfStageResult.Ready)?.disposeCandidate()
+            }, successful = { it is PdfStageResult.Ready }, transfer = { (it as? PdfStageResult.Ready)?.transferCandidate() }) { stageScoped(item, source, it) }
         } catch (error: com.omnifile.storage.ReadAcquisitionException) {
             PdfStageResult.Failure(acquisitionError(error))
         }
@@ -140,12 +140,14 @@ class PdfSnapshotStore(
                 }
             }
             // No filesystem operation in the commit decision, and no ready-looking rename.
-            val snapshot = fileLease.adopt { file ->
+            val adopted = fileLease.adopt { file ->
+                val snapshot = PdfSnapshot(id, file, this)
+                val deliveryLease = scope.own(snapshot, afterWorkerReturns = true) { it.close() }
                 check(active.putIfAbsent(id, file) == null)
-                PdfSnapshot(id, file, this)
+                PdfStageResult.Ready(snapshot, deliveryLease)
             }
             fileLease = null
-            return PdfStageResult.Ready(snapshot) // worker owns delivery until executor adoption
+            return adopted
         } catch (_: PdfInputTooLarge) {
             return PdfStageResult.Failure(PreviewError.PdfInputTooLarge)
         } catch (_: PdfSourceReadFailure) {
@@ -208,4 +210,13 @@ class PdfSnapshotStore(
         val ARTIFACT_NAME = Regex("[0-9a-fA-F-]{36}\\.(partial|ready|candidate)")
 
     }
+}
+
+
+internal fun PdfStageResult.Ready.disposeCandidate() {
+    acquisitionLease?.close() ?: snapshot.close()
+}
+
+internal fun PdfStageResult.Ready.transferCandidate() {
+    acquisitionLease?.transfer()
 }
