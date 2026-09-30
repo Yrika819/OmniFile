@@ -45,6 +45,7 @@ fun ArchiveScreen(
     modifier: Modifier = Modifier,
     onBack: () -> Unit,
     onOpenDirectory: (ArchiveNode) -> Unit,
+    onPreview: (ArchiveNode) -> Unit = {},
     onEnterSelection: (ArchiveNode) -> Unit,
     onToggleSelection: (ArchiveNode) -> Unit,
     onExtract: () -> Unit,
@@ -107,6 +108,7 @@ fun ArchiveScreen(
                     state,
                     Modifier.weight(1f),
                     onOpenDirectory,
+                    onPreview,
                     onEnterSelection,
                     onToggleSelection,
                 )
@@ -125,6 +127,7 @@ private fun ArchiveContent(
     state: ArchiveUiState.Content,
     modifier: Modifier = Modifier,
     onOpenDirectory: (ArchiveNode) -> Unit,
+    onPreview: (ArchiveNode) -> Unit,
     onEnterSelection: (ArchiveNode) -> Unit,
     onToggleSelection: (ArchiveNode) -> Unit,
 ) {
@@ -150,6 +153,7 @@ private fun ArchiveContent(
                         onClick = {
                             if (state.selection.isNotEmpty()) onToggleSelection(entry)
                             else if (entry.kind == EntryKind.DIRECTORY) onOpenDirectory(entry)
+                            else if (entry.status == ArchiveEntryStatus.SUPPORTED) onPreview(entry)
                         },
                         onLongClick = { onEnterSelection(entry) },
                     )
@@ -164,6 +168,10 @@ private fun ArchiveContent(
                 }
                 if (entry.status != ArchiveEntryStatus.SUPPORTED) {
                     Text("Unsafe", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                } else if (entry.kind == EntryKind.FILE) {
+                    TextButton(onClick = { if (state.selection.isEmpty()) onPreview(entry) }, enabled = state.selection.isEmpty()) {
+                        Text("Preview")
+                    }
                 }
             }
             HorizontalDivider()

@@ -21,7 +21,7 @@ import java.nio.file.attribute.BasicFileAttributes
 class LocalStorageProvider(
     rootDirectory: Path,
     override val id: ProviderId,
-) : StorageTransferProvider, PlaybackSourceProvider {
+) : StorageTransferProvider, PlaybackSourceProvider, com.omnifile.preview.PreviewSourceProvider {
     private val rootDirectory = rootDirectory.toAbsolutePath().normalize()
     private val filesystemRoot = rootDirectory.root
         ?: throw IllegalArgumentException("Local root must be absolute")
@@ -103,6 +103,26 @@ class LocalStorageProvider(
             }
         }
         entryFor(child, localParent)
+    }
+
+
+    override suspend fun openPreviewSource(entry: StorageEntry): StorageResult<com.omnifile.preview.PreviewSource> {
+        if (entry.ref.providerId != id || entry.kind != EntryKind.FILE ||
+            StorageCapability.READ_SEQUENTIAL !in entry.capabilities
+        ) return StorageResult.Failure(StorageError.Unsupported)
+        val locator = when (val result = encodeDurableLocator(entry.ref)) {
+            is StorageResult.Success -> result.value
+            is StorageResult.Failure -> return result
+        }
+        return StorageResult.Success(
+            com.omnifile.preview.PreviewSource(
+                identity = entry.ref,
+                sourceLabel = "Local storage",
+                mimeType = entry.mimeType,
+                sizeBytes = entry.sizeBytes,
+                capabilities = com.omnifile.preview.PreviewCapabilities(sequentialReadable = true, canReopen = true),
+            ) { openSequentialRead(locator) },
+        )
     }
 
     override suspend fun resolvePlaybackSource(entry: StorageEntry): StorageResult<PlaybackSource> = guarded {

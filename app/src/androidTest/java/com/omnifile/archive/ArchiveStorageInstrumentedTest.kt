@@ -10,6 +10,10 @@ import com.omnifile.storage.LocalStorageProvider
 import com.omnifile.storage.ProviderId
 import com.omnifile.storage.SafStorageProvider
 import com.omnifile.storage.StorageResult
+import com.omnifile.preview.PreviewEngine
+import com.omnifile.preview.PreviewItem
+import com.omnifile.preview.PreviewPayload
+import com.omnifile.preview.PreviewRequest
 import com.omnifile.storage.TestDocumentsProvider
 import java.io.ByteArrayOutputStream
 import java.nio.file.Files
@@ -74,7 +78,13 @@ class ArchiveStorageInstrumentedTest {
         val repository = FilesRepository(mapOf(saf.id to saf))
         val document = (ArchiveRepository(repository).open(archive) as ArchiveOpenResult.Success).document
         val folder = document.list().single { it.displayName == "folder" }
-        assertEquals("file.txt", document.list(folder.path).single().displayName)
+        val file = document.list(folder.path).single()
+        assertEquals("file.txt", file.displayName)
+        val source = (ArchiveRepository(repository).previewSource(document, file) as StorageResult.Success).value
+        val preview = PreviewEngine().load(
+            PreviewRequest(PreviewItem(file.ref, file.displayName, "fixture.zip / ${file.path}", null, file.sizeBytes), source),
+        ) as PreviewPayload.Text
+        assertEquals("device", preview.content)
 
         val local = LocalStorageProvider(localRoot, ProviderId("local-vs08"))
         val destination = local.root().requireSuccess()

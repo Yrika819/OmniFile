@@ -56,6 +56,7 @@ fun FilesScreen(
     onPickTree: () -> Unit,
     onOpenDirectory: (StorageEntry) -> Unit,
     onOpenArchive: (StorageEntry) -> Unit = {},
+    onPreviewEntry: (StorageEntry) -> Unit = {},
     onOpenSearch: () -> Unit = {},
     onPlayEntry: (StorageEntry) -> Unit = {},
     onEnterSelection: (StorageEntry) -> Unit,
@@ -184,6 +185,7 @@ fun FilesScreen(
                     selection = null,
                     onOpenDirectory = onOpenDestinationDirectory,
                     onOpenArchive = {},
+                    onPreviewEntry = {},
                     onEnterSelection = {},
                     onToggleSelection = {},
                 )
@@ -193,6 +195,7 @@ fun FilesScreen(
                     selection = state.selection,
                     onOpenDirectory = onOpenDirectory,
                     onOpenArchive = onOpenArchive,
+                    onPreviewEntry = onPreviewEntry,
                     onEnterSelection = onEnterSelection,
                     onToggleSelection = onToggleSelection,
                     onPlayEntry = onPlayEntry,
@@ -293,6 +296,7 @@ private fun EntryList(
     selection: FilesSelectionState?,
     onOpenDirectory: (StorageEntry) -> Unit,
     onOpenArchive: (StorageEntry) -> Unit,
+    onPreviewEntry: (StorageEntry) -> Unit,
     onEnterSelection: (StorageEntry) -> Unit,
     onToggleSelection: (StorageEntry) -> Unit,
     onPlayEntry: (StorageEntry) -> Unit = {},
@@ -312,6 +316,7 @@ private fun EntryList(
                 selectionMode = selection != null,
                 onOpenDirectory = onOpenDirectory,
                 onOpenArchive = onOpenArchive,
+                onPreviewEntry = onPreviewEntry,
                 onEnterSelection = onEnterSelection,
                 onToggleSelection = onToggleSelection,
                 onPlayEntry = onPlayEntry,
@@ -357,6 +362,7 @@ private fun EntryRow(
     selectionMode: Boolean,
     onOpenDirectory: (StorageEntry) -> Unit,
     onOpenArchive: (StorageEntry) -> Unit,
+    onPreviewEntry: (StorageEntry) -> Unit,
     onEnterSelection: (StorageEntry) -> Unit,
     onToggleSelection: (StorageEntry) -> Unit,
     onPlayEntry: (StorageEntry) -> Unit = {},
@@ -385,6 +391,7 @@ private fun EntryRow(
                     if (selectionMode) onToggleSelection(entry)
                     else if (entry.kind == EntryKind.DIRECTORY) onOpenDirectory(entry)
                     else if (ArchiveSupport.isZip(entry)) onOpenArchive(entry)
+                    else if (!entry.isPlaybackEligible) onPreviewEntry(entry)
                 },
                 onLongClick = { onEnterSelection(entry) },
             )

@@ -144,6 +144,41 @@ class FilesScreenComposeInstrumentedTest {
     }
 
     @Test
+    fun regularFileRowInvokesPreviewWhileAudioKeepsItsExplicitPlayAction() {
+        val text = entry("notes.txt", setOf(StorageCapability.READ_SEQUENTIAL))
+        val audio = entry("song.mp3", setOf(StorageCapability.READ_SEQUENTIAL)).copy(mimeType = "audio/mpeg")
+        var previewed: StorageEntry? = null
+        var played: StorageEntry? = null
+        composeRule.setContent {
+            OmniFileTheme {
+                FilesScreen(
+                    state = content(listOf(text, audio)),
+                    onSelectLocal = {},
+                    onPickTree = {},
+                    onOpenDirectory = {},
+                    onPreviewEntry = { previewed = it },
+                    onPlayEntry = { played = it },
+                    onEnterSelection = {},
+                    onToggleSelection = {},
+                    onClearSelection = {},
+                    onRenameSelected = {},
+                    onDeleteSelected = {},
+                    mutationInFlight = false,
+                    onBack = {},
+                    onRetry = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("files.entry.notes.txt").performClick()
+        assertEquals(text.ref, previewed?.ref)
+        composeRule.onNodeWithTag("files.entry.song.mp3").performClick()
+        assertEquals(text.ref, previewed?.ref)
+        composeRule.onNodeWithTag("files.play.song.mp3").performClick()
+        assertEquals(audio.ref, played?.ref)
+    }
+
+    @Test
     fun distinctEntryRefsWithCollidingHashCodesRenderAsDistinctRows() {
         val entries = listOf(
             entry("first.txt", emptySet(), CollisionEntryRef("first")),
