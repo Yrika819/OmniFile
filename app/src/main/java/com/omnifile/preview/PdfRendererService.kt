@@ -15,6 +15,7 @@ import android.system.OsConstants
 import android.util.Log
 import java.io.IOException
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicReference
 
 /** Runs PDFium-backed platform rendering only in the manifest-declared isolated process. */
 class PdfRendererService : Service() {
@@ -28,6 +29,7 @@ class PdfRendererService : Service() {
     private var renderer: PdfRenderer? = null
     private var sourceDescriptor: ParcelFileDescriptor? = null
     private var activeSessionId: String? = null
+    private val acceptedSessionId = AtomicReference<String?>(null)
     private var activeRequestId: Long = -1L
     private var activeRequestSessionId: String? = null
     private var deadline: Runnable? = null
@@ -74,17 +76,17 @@ class PdfRendererService : Service() {
                     }
                 }
                 PdfRendererProtocol.CLOSE -> {
-                    val ownedSession = activeSessionId == sessionId
-                    if (!ownedSession) {
+                    if (acceptedSessionId.get() != sessionId) {
                         replyChannel?.let { sendSimple(it, PdfRendererProtocol.CLOSED, requestId) }
                         return
                     }
                     startDeadline(requestId, sessionId)
                     renderExecutor.execute {
-                        closeDocument()
+                        val ownedSession = acceptedSessionId.compareAndSet(sessionId, null)
+                        if (ownedSession && activeSessionId == sessionId) closeDocument()
                         replyChannel?.let { sendSimple(it, PdfRendererProtocol.CLOSED, requestId) }
                         finishDeadline(requestId, sessionId)
-                        stopSelf()
+                        if (ownedSession) stopSelf()
                     }
                 }
                 PdfRendererProtocol.OPEN -> {
@@ -92,6 +94,7 @@ class PdfRendererService : Service() {
                         Log.w(TAG, "open_without_reply_channel")
                         return
                     }
+                    acceptedSessionId.set(sessionId)
                     Log.i(TAG, "open_received")
                     val descriptor = data.getParcelable<ParcelFileDescriptor>(PdfRendererProtocol.DESCRIPTOR) ?: run {
                         sendError(replyTo, requestId, PdfRendererProtocol.ERROR_UNAVAILABLE)
@@ -103,6 +106,10 @@ class PdfRendererService : Service() {
                 PdfRendererProtocol.RENDER -> {
                     val replyTo = replyChannel ?: run {
                         Log.w(TAG, "render_without_reply_channel")
+                        return
+                    }
+                    if (acceptedSessionId.get() != sessionId) {
+                        sendError(replyTo, requestId, PdfRendererProtocol.ERROR_UNAVAILABLE)
                         return
                     }
                     val pageIndex = data.getInt(PdfRendererProtocol.PAGE_INDEX, -1)
