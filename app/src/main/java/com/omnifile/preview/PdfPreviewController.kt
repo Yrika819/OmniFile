@@ -40,6 +40,11 @@ class PdfPreviewController(
             is PdfStageResult.Ready -> result.snapshot
             is PdfStageResult.Failure -> return PdfOpenResult.Failure(result.error)
         }
+        return openSnapshot(snapshot, requestedPage)
+    }
+
+    /** Takes snapshot ownership on entry, before any suspending renderer work. */
+    internal suspend fun openSnapshot(snapshot: PdfSnapshot, requestedPage: Int): PdfOpenResult {
         val client = try {
             clients.create()
         } catch (_: OutOfMemoryError) {

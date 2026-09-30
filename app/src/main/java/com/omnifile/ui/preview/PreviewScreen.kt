@@ -188,15 +188,16 @@ private fun ErrorMessage(error: PreviewError, onRetry: () -> Unit) {
         PreviewError.PdfPageCountLimit -> "This PDF has too many pages to preview."
         PreviewError.EncryptedOrUnsupported -> "Encrypted or unsupported PDFs cannot be previewed."
         PreviewError.StagingFailure -> "The PDF preview could not be staged."
-        PreviewError.StagingTimeout -> "The file did not respond in time."
+        PreviewError.AcquisitionBusy -> "Storage is still busy. Try again."
+        PreviewError.AcquisitionTimeout -> "The file did not respond in time."
         PreviewError.RendererTimeout -> "PDF rendering took too long."
         PreviewError.RendererFailure -> "The PDF renderer stopped unexpectedly."
         PreviewError.Cancelled -> "Preview was cancelled."
         is PreviewError.IoFailure -> "The file could not be read."
         PreviewError.Unknown -> "This file could not be previewed."
     }
-    val retryable = error == PreviewError.ProviderUnavailable || error == PreviewError.SourceVanished ||
-        error == PreviewError.PermissionOrGrantMissing || error == PreviewError.StagingTimeout ||
+    val retryable = error == PreviewError.AcquisitionBusy || error == PreviewError.ProviderUnavailable || error == PreviewError.SourceVanished ||
+        error == PreviewError.PermissionOrGrantMissing || error == PreviewError.AcquisitionTimeout ||
         error == PreviewError.StagingFailure || error == PreviewError.RendererTimeout ||
         error == PreviewError.RendererFailure || error is PreviewError.IoFailure
     Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

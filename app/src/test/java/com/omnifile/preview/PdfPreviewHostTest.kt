@@ -55,8 +55,8 @@ class PdfPreviewHostTest {
             val staged = store.stage(request) as PdfStageResult.Ready
 
             assertEquals(PreviewLimits.MAX_PDF_BYTES.toLong(), staged.snapshot.sizeBytes)
-            assertTrue(staged.snapshot.file.name.endsWith(".ready"))
-            assertTrue(staged.snapshot.file.name.matches(Regex("[0-9a-fA-F-]{36}\\.ready")))
+            assertTrue(staged.snapshot.file.name.endsWith(".candidate"))
+            assertTrue(staged.snapshot.file.name.matches(Regex("[0-9a-fA-F-]{36}\\.candidate")))
             assertEquals(1, stats.opens.get())
             staged.snapshot.close()
             assertEquals(0, store.workspace.listFiles().orEmpty().size)
@@ -128,9 +128,10 @@ class PdfPreviewHostTest {
     }
 
     @Test
-    fun stagingDeadlineClosesBlockedSourceAndLeavesNoReadyArtifact() = runBlocking {
+    fun absoluteDeadlineClosesBlockedSourceAndLeavesNoAdoptedArtifact() = runBlocking {
         withWorkspace { root ->
-            val store = PdfSnapshotStore(root.toFile(), Dispatchers.IO, stageIdleTimeoutMillis = 40)
+            val acquisitions = com.omnifile.storage.ReadAcquisitionExecutor(timeoutMillis = 40)
+            val store = PdfSnapshotStore(root.toFile(), Dispatchers.IO, acquisitions = acquisitions)
             val item = item("stalled-provider")
             val readStarted = CountDownLatch(1)
             val closed = CountDownLatch(1)
@@ -146,8 +147,9 @@ class PdfPreviewHostTest {
                 })
             }
             val result = store.stage(PreviewRequest(item, source)) as PdfStageResult.Failure
-            assertEquals(PreviewError.StagingTimeout, result.error)
+            assertEquals(PreviewError.AcquisitionTimeout, result.error)
             assertTrue(readStarted.await(1, TimeUnit.SECONDS))
+            assertTrue(acquisitions.awaitIdle())
             assertEquals(0L, closed.count)
             assertEquals(0, store.workspace.listFiles().orEmpty().size)
         }
@@ -353,7 +355,7 @@ class PdfPreviewHostTest {
         val releaseDocumentA = CompletableDeferred<Unit>()
         val documentAStarted = CompletableDeferred<Unit>()
         val sessionA = FakeDocumentSession(1)
-        val engine = object : PreviewEngine() {
+        val engine = object : ResolvingPdfFakePreviewEngine() {
             override suspend fun load(request: PreviewRequest): PreviewPayload {
                 if (request.item.displayName == "A.pdf") {
                     documentAStarted.complete(Unit)
@@ -386,7 +388,7 @@ class PdfPreviewHostTest {
                 page()
             },
         )
-        val pageEngine = object : PreviewEngine() {
+        val pageEngine = object : ResolvingPdfFakePreviewEngine() {
             override suspend fun load(request: PreviewRequest): PreviewPayload =
                 PreviewPayload.PdfPage(page(), 0, 2, stalePageSession)
         }
@@ -417,7 +419,7 @@ class PdfPreviewHostTest {
             }
             page()
         }
-        val engine = object : PreviewEngine() {
+        val engine = object : ResolvingPdfFakePreviewEngine() {
             override suspend fun load(request: PreviewRequest): PreviewPayload =
                 PreviewPayload.PdfPage(page(), 0, 3, session)
         }
@@ -576,5 +578,13 @@ class PdfPreviewHostTest {
 
     private companion object {
         fun page() = PdfRenderedPage(2, 2, ByteArray(16))
+    }
+}
+
+
+private abstract class ResolvingPdfFakePreviewEngine : PreviewEngine() {
+    override suspend fun resolveAndLoad(item: PreviewItem, resolveSource: suspend () -> StorageResult<PreviewSource>, startingPage: Int): ResolvedPreview {
+        val source = (resolveSource() as StorageResult.Success).value
+        return ResolvedPreview(source.sourceLabel, load(PreviewRequest(item, source, startingPage)))
     }
 }

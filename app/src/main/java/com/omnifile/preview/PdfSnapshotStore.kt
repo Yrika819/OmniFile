@@ -7,15 +7,10 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.nio.file.Files
 import java.util.UUID
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runInterruptible
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 
 sealed interface PdfStageResult {
     data class Ready(val snapshot: PdfSnapshot) : PdfStageResult
@@ -40,8 +35,7 @@ class PdfSnapshot internal constructor(
 class PdfSnapshotStore(
     noBackupFilesDir: File,
     private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO,
-    private val clockNanos: () -> Long = System::nanoTime,
-    private val stageIdleTimeoutMillis: Long = PreviewLimits.PDF_STAGE_IDLE_TIMEOUT_MILLIS,
+    private val acquisitions: com.omnifile.storage.ReadAcquisitionExecutor = com.omnifile.storage.ReadAcquisitionExecutor.appWide,
 ) {
     private val noBackupRoot = noBackupFilesDir.canonicalFile
     internal val workspace = File(File(noBackupRoot, "preview"), "pdf")
@@ -71,6 +65,22 @@ class PdfSnapshotStore(
     suspend fun stage(request: PreviewRequest): PdfStageResult = stage(request.item, request.source)
 
     internal suspend fun stage(item: PreviewItem, source: PreviewSource): PdfStageResult {
+        val scope = com.omnifile.storage.ReadAcquisitionScope.current()
+        if (scope != null) return stageScoped(item, source, scope)
+        return try {
+            acquisitions.acquire(dispose = { result: PdfStageResult ->
+                (result as? PdfStageResult.Ready)?.snapshot?.close()
+            }, successful = { it is PdfStageResult.Ready }) { stageScoped(item, source, it) }
+        } catch (error: com.omnifile.storage.ReadAcquisitionException) {
+            PdfStageResult.Failure(acquisitionError(error))
+        }
+    }
+
+    private suspend fun stageScoped(
+        item: PreviewItem,
+        source: PreviewSource,
+        scope: com.omnifile.storage.ReadAcquisitionScope,
+    ): PdfStageResult {
         if (source.identity.providerId != item.identity.providerId ||
             source.identity.identityKey != item.identity.identityKey
         ) return PdfStageResult.Failure(PreviewError.SourceVanished)
@@ -83,108 +93,61 @@ class PdfSnapshotStore(
         if (!workspaceAvailable) return PdfStageResult.Failure(PreviewError.StagingFailure)
 
         val id = UUID.randomUUID().toString()
-        val partial = File(workspace, "$id.partial")
-        var ready: File? = null
-        var handle: SequentialReadHandle? = null
-        var closeHandle: (() -> Unit)? = null
+        val candidate = File(workspace, "$id.candidate")
+        var fileLease: com.omnifile.storage.ReadLease<File>? = null
         try {
-            if (!isDirectOwnedPath(partial) || !partial.createNewFile()) {
-                return PdfStageResult.Failure(PreviewError.StagingFailure)
-            }
-            handle = when (val opened = source.open()) {
+            // Claim the path before creation; a late creation stays worker-owned until own().
+            scope.blockingOperation(dispose = { created: Boolean -> if (created) deleteOwned(candidate) }) {
+                if (!isDirectOwnedPath(candidate)) throw IOException("PDF workspace unavailable")
+                candidate.createNewFile()
+            }.also { if (!it) throw IOException("PDF candidate unavailable") }
+            fileLease = scope.own(candidate, afterWorkerReturns = true) { deleteOwned(it) }
+            val input = when (val opened = source.open()) {
                 is StorageResult.Success -> opened.value
                 is StorageResult.Failure -> return PdfStageResult.Failure(previewError(opened.error))
             }
-            val expected = handle.expectedBytes
-            if (expected != null && expected > PreviewLimits.MAX_PDF_BYTES) {
-                return PdfStageResult.Failure(PreviewError.PdfInputTooLarge)
-            }
-
-            val input = handle ?: return PdfStageResult.Failure(PreviewError.StagingFailure)
-            val inputClosed = AtomicBoolean(false)
-            fun closeInput() {
-                if (inputClosed.compareAndSet(false, true)) input.close()
-            }
-            closeHandle = ::closeInput
-            try {
-                FileOutputStream(partial, false).use { output ->
+            input.use {
+                if (it.expectedBytes != null && it.expectedBytes!! > PreviewLimits.MAX_PDF_BYTES) {
+                    return PdfStageResult.Failure(PreviewError.PdfInputTooLarge)
+                }
+                val output = scope.blockingOperation(dispose = { stream: FileOutputStream -> stream.close() }) {
+                    FileOutputStream(candidate, false)
+                }
+                val outputLease = scope.own(output) { it.close() }
+                try {
                     val buffer = ByteArray(32 * 1024)
-                    var noProgressReads = 0
-                    var lastProgressAt = clockNanos()
                     var bytesWritten = 0
+                    var noProgressReads = 0
                     while (true) {
-                        if (clockNanos() - lastProgressAt >= stageIdleTimeoutMillis * 1_000_000L) {
-                            throw PdfStageTimeout()
-                        }
-                        val requestLength = minOf(buffer.size, PreviewLimits.MAX_PDF_BYTES - bytesWritten + 1)
-                        val timedOut = AtomicBoolean(false)
-                        val deadline = READ_DEADLINES.schedule({
-                            timedOut.set(true)
-                            runCatching { closeInput() }
-                        }, stageIdleTimeoutMillis, TimeUnit.MILLISECONDS)
-                        val maybeCount = try {
-                            try {
-                                withTimeoutOrNull(stageIdleTimeoutMillis) {
-                                    withContext(ioDispatcher) {
-                                        runInterruptible { input.read(buffer, 0, requestLength) }
-                                    }
-                                }
-                            } catch (cancel: CancellationException) {
-                                if (timedOut.get()) throw PdfStageTimeout()
-                                throw cancel
-                            } catch (_: IOException) {
-                                if (timedOut.get()) throw PdfStageTimeout()
-                                throw PdfSourceReadFailure()
-                            }
-                        } finally {
-                            deadline.cancel(false)
-                        }
-                        val count = maybeCount ?: throw PdfStageTimeout()
-                        if (timedOut.get()) throw PdfStageTimeout()
+                        val count = try { it.read(buffer, 0, minOf(buffer.size, PreviewLimits.MAX_PDF_BYTES - bytesWritten + 1)) }
+                        catch (_: IOException) { throw PdfSourceReadFailure() }
                         if (count < 0) break
                         if (count == 0) {
-                            noProgressReads++
-                            if (noProgressReads > PreviewLimits.MAX_CONSECUTIVE_NO_PROGRESS_READS) {
-                                throw PdfSourceReadFailure()
-                            }
+                            if (++noProgressReads > PreviewLimits.MAX_CONSECUTIVE_NO_PROGRESS_READS) throw PdfSourceReadFailure()
                             continue
                         }
                         noProgressReads = 0
-                        lastProgressAt = clockNanos()
-                        if (count > PreviewLimits.MAX_PDF_BYTES - bytesWritten) {
-                            throw PdfInputTooLarge()
-                        }
-                        output.write(buffer, 0, count)
+                        if (count > PreviewLimits.MAX_PDF_BYTES - bytesWritten) throw PdfInputTooLarge()
+                        scope.blockingOperation { output.write(buffer, 0, count) }
                         bytesWritten += count
                     }
-                    output.fd.sync()
+                    scope.blockingOperation { output.fd.sync() }
+                } finally { outputLease.close() }
+            }
+            scope.blockingOperation {
+                if (!isOwnedArtifact(candidate, workspace.canonicalFile) || candidate.length() > PreviewLimits.MAX_PDF_BYTES) {
+                    throw IOException("PDF candidate unavailable")
                 }
-            } finally {
-                try {
-                    closeInput()
-                } catch (_: IOException) {
-                    throw PdfSourceReadFailure()
-                }
             }
-            handle = null // close completed successfully before the READY transition
-            val finalFile = File(workspace, "$id.ready")
-            if (!isDirectOwnedPath(finalFile) || Files.exists(finalFile.toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS) ||
-                !partial.renameTo(finalFile) ||
-                !isOwnedArtifact(finalFile, workspace.canonicalFile) || finalFile.length() > PreviewLimits.MAX_PDF_BYTES
-            ) {
-                return PdfStageResult.Failure(PreviewError.StagingFailure)
+            // No filesystem operation in the commit decision, and no ready-looking rename.
+            val snapshot = fileLease.adopt { file ->
+                check(active.putIfAbsent(id, file) == null)
+                PdfSnapshot(id, file, this)
             }
-            ready = finalFile
-            val snapshot = PdfSnapshot(id, finalFile, this)
-            if (active.putIfAbsent(id, finalFile) != null) {
-                return PdfStageResult.Failure(PreviewError.StagingFailure)
-            }
-            ready = null
-            return PdfStageResult.Ready(snapshot)
+            fileLease = null
+            return PdfStageResult.Ready(snapshot) // worker owns delivery until executor adoption
         } catch (_: PdfInputTooLarge) {
             return PdfStageResult.Failure(PreviewError.PdfInputTooLarge)
-        } catch (_: PdfStageTimeout) {
-            return PdfStageResult.Failure(PreviewError.StagingTimeout)
         } catch (_: PdfSourceReadFailure) {
             return PdfStageResult.Failure(PreviewError.ProviderUnavailable)
         } catch (cancel: CancellationException) {
@@ -193,24 +156,19 @@ class PdfSnapshotStore(
             return PdfStageResult.Failure(PreviewError.PermissionOrGrantMissing)
         } catch (_: IOException) {
             return PdfStageResult.Failure(PreviewError.StagingFailure)
-        } catch (_: Exception) {
-            return PdfStageResult.Failure(PreviewError.StagingFailure)
-        } finally {
-            runCatching { closeHandle?.invoke() ?: handle?.close() }
-            ready?.let { deleteOwned(it) }
-            deleteOwned(partial)
-        }
+        } finally { fileLease?.close() }
     }
 
     internal fun release(snapshot: PdfSnapshot) {
         val owned = active[snapshot.id] ?: return
-        if (owned == snapshot.file && active.remove(snapshot.id, snapshot.file)) deleteOwned(snapshot.file)
+        if (owned == snapshot.file) {
+            deleteOwned(snapshot.file)
+            active.remove(snapshot.id, snapshot.file)
+        }
     }
 
     private fun deleteOwned(file: File) {
-        runCatching {
-            if (isOwnedArtifact(file, workspace.canonicalFile)) Files.deleteIfExists(file.toPath())
-        }
+        if (isOwnedArtifact(file, workspace.canonicalFile)) Files.deleteIfExists(file.toPath())
     }
 
     private fun isOwnedArtifact(file: File, canonicalRoot: File): Boolean {
@@ -244,13 +202,10 @@ class PdfSnapshotStore(
     }
 
     private class PdfInputTooLarge : IOException()
-    private class PdfStageTimeout : IOException()
     private class PdfSourceReadFailure : IOException()
 
     private companion object {
-        val ARTIFACT_NAME = Regex("[0-9a-fA-F-]{36}\\.(partial|ready)")
-        val READ_DEADLINES = Executors.newSingleThreadScheduledExecutor { runnable ->
-            Thread(runnable, "omnifile-pdf-stage-deadline").apply { isDaemon = true }
-        }
+        val ARTIFACT_NAME = Regex("[0-9a-fA-F-]{36}\\.(partial|ready|candidate)")
+
     }
 }

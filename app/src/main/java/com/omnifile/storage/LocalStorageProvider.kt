@@ -110,7 +110,7 @@ class LocalStorageProvider(
         if (entry.ref.providerId != id || entry.kind != EntryKind.FILE ||
             StorageCapability.READ_SEQUENTIAL !in entry.capabilities
         ) return StorageResult.Failure(StorageError.Unsupported)
-        val locator = when (val result = encodeDurableLocator(entry.ref)) {
+        val locator = when (val result = ReadAcquisitionScope.current()?.operation { encodeDurableLocator(entry.ref) } ?: encodeDurableLocator(entry.ref)) {
             is StorageResult.Success -> result.value
             is StorageResult.Failure -> return result
         }

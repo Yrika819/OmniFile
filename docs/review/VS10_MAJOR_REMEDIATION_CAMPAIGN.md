@@ -1,0 +1,64 @@
+# VS10 major remediation campaign
+
+Authority reconciled before edits on 2026-09-30 UTC:
+
+- main: `a51f4de9a66b69206cb333eb467c7d66aa4d5ea6`
+- VS10: `b10fc6f2b7320762a862746bcd1abda05f18b5d9`
+- clean worktree; explicit branch fetch was necessary because the clone's fetch refspec included only main.
+
+## M1 checkpoint
+
+`ReadAcquisitionExecutor.appWide` owns two admissions for all PreviewViewModels and Local/SAF
+reads used by Preview. An admission covers resolution, classification, staging, and delivery.
+No nested admission occurs: snapshot staging uses the current scope when present. Renderer work
+starts after acquisition delivery, outside its work lanes.
+
+Two fixed work threads run provider calls; two fixed revocation threads drain cleanup. Both
+executors have two-entry queues. There is no admission queue. A scope schedules at most one
+revocation drainer. Repeated Busy retries schedule neither work nor cleanup. The scheduled
+deadline executor has one thread and removes cancelled timer tasks. Notification awaits resume
+on Default, ensuring even an Unconfined consumer cannot run provider work on the deadline thread.
+
+ACTIVE changes once to SUCCEEDED, FAILED, EXPIRED, or CANCELLED. Completion makes a result
+available while the scope still owns it. The terminal success/failure decision is at delivery,
+under the same lock as expiry. The injected monotonic deadline starts before resolution and
+is checked before/after operations and adoption. No progress resets the deadline. The production
+maximum is ten seconds; constructor validation forbids increasing it.
+
+Tickets register before provider operations. Expiry claims each still-registered cancellation
+once and queues it. Lease adoption/rejection is atomic; a returning worker initially owns the
+raw resource. A late resource gets cleanup ownership. Normal close claims its lease and close
+ticket atomically and runs on the charged worker. Expiry never closes or cancels synchronously.
+SAF queries and descriptor opens receive CancellationSignal; isChildDocument has no cancellable
+variant. All signals run through revocation. Local authority/containment remains provider-owned.
+
+Random `.candidate` files are written, synced, closed, validated, and logically adopted. There
+is no `.ready` rename in acquisition. Reconciliation recognizes old `.partial`/`.ready` artifacts
+for backward cleanup. Candidate deletion waits for physical worker return to prevent recreation
+by a late open/write. Accepted snapshots stay owned by a delivery holder until transfer to the
+controller. Expired undelivered snapshots are disposed.
+
+An admission releases only after terminal state, physical worker return, completed cleanup,
+and delivery relinquishment. Failed/interrupted cleanup permanently retains the admission and
+its resource-bearing action. A strong executor registry retains such scopes; accounting alone
+would not be an ownership proof. Shutdown rejects new work and never interrupts or reclaims
+retained admissions. Idle isolated runners shut down their revocation executor.
+
+Focused checkpoint: 93 tests, 0 failures/errors/skips. Acquisition primitive: 43 tests;
+end-to-end PDF acquisition: 13; existing Preview/PDF suites: 37. Stress includes 1,000 varied
+terminal/delivery orderings plus two 1,000-Retry saturation scenarios. No sleeps establish races.
+A test-harness error (Kotlin expression-bodied JUnit methods returning Boolean) and an old
+synchronous-state assertion were diagnosed and corrected without weakening outcome assertions.
+
+Focused ownership review:
+
+- Physical work escape: no provider dispatcher change in Local/SAF/resolver path; detached
+  charged work remains owned by the runner until return.
+- Late adoption: scope lock and terminal check reject it, including available-but-undelivered results.
+- Deadline blocking: no close, signal cancellation, provider callback, or filesystem work in expiry.
+- Retry growth: saturation rejects before worker submission; fixed work/revocation resources.
+- Late handle: worker ownership transitions to lease or cleanup; no ownerless resource interval.
+- Premature release: worker return, drainer completion, deferred candidate cleanup and delivery all gate it.
+
+ViewModel/controller acceptance races and SharedMemory handoff remain the separately scheduled
+M3/M2 findings; this checkpoint does not claim those are remediated.

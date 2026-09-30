@@ -68,36 +68,9 @@ class PreviewViewModel(
         currentSourceLabel = ""
         _state.value = PreviewUiState.Loading(item)
         job = lifecycleScope.launch(dispatcher) {
-            val source = try {
-                when (val result = resolveSource()) {
-                    is StorageResult.Success -> result.value
-                    is StorageResult.Failure -> {
-                        publishSourceFailure(owner, item, result.error)
-                        return@launch
-                    }
-                }
-            } catch (cancel: kotlinx.coroutines.CancellationException) {
-                throw cancel
-            } catch (_: SecurityException) {
-                publish(owner, PreviewUiState.Error(item, PreviewError.PermissionOrGrantMissing))
-                return@launch
-            } catch (error: IOException) {
-                publish(owner, PreviewUiState.Error(item, PreviewError.IoFailure(error.message)))
-                return@launch
-            } catch (_: Exception) {
-                publish(owner, PreviewUiState.Error(item, PreviewError.Unknown))
-                return@launch
-            }
-            if (owner != generation.get()) return@launch
-            if (source.identity.providerId != item.identity.providerId ||
-                source.identity.identityKey != item.identity.identityKey
-            ) {
-                publish(owner, PreviewUiState.Error(item, PreviewError.ProviderUnavailable))
-                return@launch
-            }
-            val request = PreviewRequest(item, source, requestedStartingPage)
             try {
-                when (val result = engine.load(request)) {
+                val resolved = engine.resolveAndLoad(item, resolveSource, requestedStartingPage)
+                when (val result = resolved.payload) {
                     PreviewPayload.Unsupported -> publish(owner, PreviewUiState.Unsupported(item))
                     is PreviewPayload.Failure -> publish(owner, PreviewUiState.Error(item, result.error))
                     else -> {
@@ -108,14 +81,14 @@ class PreviewViewModel(
                         if (result is PreviewPayload.PdfPage) {
                             pdfSession = result.session
                             currentPageIndex = result.pageIndex
-                            currentSourceLabel = source.sourceLabel
+                            currentSourceLabel = resolved.sourceLabel
                             if (owner != generation.get()) {
                                 if (pdfSession === result.session) pdfSession = null
                                 result.session.invalidate()
                                 return@launch
                             }
                         }
-                        publish(owner, PreviewUiState.Ready(item, source.sourceLabel, result))
+                        publish(owner, PreviewUiState.Ready(item, resolved.sourceLabel, result))
                     }
                 }
             } catch (cancel: kotlinx.coroutines.CancellationException) {

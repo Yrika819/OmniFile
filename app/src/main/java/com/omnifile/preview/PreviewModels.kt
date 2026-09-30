@@ -35,7 +35,23 @@ class PreviewSource(
     val capabilities: PreviewCapabilities,
     private val opener: suspend () -> StorageResult<SequentialReadHandle>,
 ) {
-    suspend fun open(): StorageResult<SequentialReadHandle> = opener()
+    suspend fun open(): StorageResult<SequentialReadHandle> {
+        val scope = com.omnifile.storage.ReadAcquisitionScope.current() ?: return opener()
+        return scope.operation {
+            when (val result = opener()) {
+                is StorageResult.Failure -> result
+                is StorageResult.Success -> {
+                    val lease = scope.own(result.value) { it.close() }
+                    StorageResult.Success(object : SequentialReadHandle {
+                        override val expectedBytes: Long? get() = result.value.expectedBytes
+                        override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
+                            scope.blockingOperation { result.value.read(buffer, offset, length) }
+                        override fun close() = lease.close()
+                    })
+                }
+            }
+        }
+    }
 }
 
 data class PreviewRequest(val item: PreviewItem, val source: PreviewSource, val startingPage: Int = 0) {
@@ -71,7 +87,7 @@ object PreviewLimits {
     const val MAX_PDF_PAGES = 100
     const val MAX_PDF_PAGE_PIXELS = 1_000_000L
     const val MAX_PDF_PAGE_SIDE = 1600
-    const val PDF_STAGE_IDLE_TIMEOUT_MILLIS = 10_000L
+    const val PDF_ACQUISITION_TIMEOUT_MILLIS = 10_000L
     const val PDF_RENDER_TIMEOUT_MILLIS = 10_000L
 }
 
@@ -179,7 +195,8 @@ sealed interface PreviewError {
     data object PdfPageCountLimit : PreviewError
     data object EncryptedOrUnsupported : PreviewError
     data object StagingFailure : PreviewError
-    data object StagingTimeout : PreviewError
+    data object AcquisitionTimeout : PreviewError
+    data object AcquisitionBusy : PreviewError
     data object RendererTimeout : PreviewError
     data object RendererFailure : PreviewError
     data object Cancelled : PreviewError
