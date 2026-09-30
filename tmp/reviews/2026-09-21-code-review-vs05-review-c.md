@@ -8,9 +8,9 @@
 - Review generation: `1`
 - Review trigger: `post-implementation`
 - Parent review report ID: `cr-20260921-vs05reviewa`
-- Parent review report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-search-v1/tmp/reviews/2026-09-21-code-review-vs05-review-a.md`
+- Parent review report path: `~/Desktop/File Manager-worktrees/omnifile-search-v1/tmp/reviews/2026-09-21-code-review-vs05-review-a.md`
 - Parent resolution ID: `rr-20260921-vs05reviewa`
-- Parent resolution path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-search-v1/tmp/reviews/2026-09-21-receiving-code-review-vs05-review-a.md`
+- Parent resolution path: `~/Desktop/File Manager-worktrees/omnifile-search-v1/tmp/reviews/2026-09-21-receiving-code-review-vs05-review-a.md`
 - Generated at: `2026-09-21T03:24:00Z`
 - Report path: `tmp/reviews/2026-09-21-code-review-vs05-review-c.md`
 - Source skill: `code-review`

@@ -12,7 +12,7 @@
 - Parent resolution ID: `None`
 - Parent resolution path: `None`
 - Generated at: `2026-09-19T20:10:00Z`
-- Report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/tmp/reviews/2026-09-19-code-review-review-d.md`
+- Report path: `~/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/tmp/reviews/2026-09-19-code-review-review-d.md`
 - Source skill: `code-review`
 - Status: `Review incomplete`
 - Git mutation during review: `None`
@@ -129,8 +129,8 @@ None.
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `A1` | `guard` | [`OperationStateMachine.kt:84-108`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationStateMachine.kt#L84-L108) | `Destination proof and source-delete completion are enforced.` |
-| `A2` | `ordering` | [`OperationManager.kt:98-124`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L98-L124) | `Delete is after durable destination transition.` |
+| `A1` | `guard` | [`OperationStateMachine.kt:84-108`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationStateMachine.kt#L84-L108) | `Destination proof and source-delete completion are enforced.` |
+| `A2` | `ordering` | [`OperationManager.kt:98-124`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L98-L124) | `Delete is after durable destination transition.` |
 
 ### Dismissed Coordinator Candidates
 

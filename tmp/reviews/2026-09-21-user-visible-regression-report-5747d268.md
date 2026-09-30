@@ -3,7 +3,7 @@
 ## Scope
 
 - Baseline: `a95b3e28f47954b879b389ce6d5a5f17d4704407`
-- Target: current worktree `/Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1`, including `HEAD d6a8289` and unstaged implementation/test/documentation changes.
+- Target: current worktree `~/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1`, including `HEAD d6a8289` and unstaged implementation/test/documentation changes.
 - Review mode: read-only; no source, staging, commit, push, or Git metadata changes.
 - Focus: SAF containment, persisted grants, finalization ambiguity, operation-owned partials, source-version Move gating, retry/restart state, and route-matrix truthfulness.
 - This is a scoped SAF/transfer review, not a general repository review.
@@ -39,8 +39,8 @@ User impact: A supported SAF→Local Copy interrupted by provider disappearance 
 Surface: SAF containment and durable operation error mapping.
 
 Look here first:
-- [`SafStorageProvider.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L622)
-- [`OperationManager.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L435)
+- [`SafStorageProvider.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L622)
+- [`OperationManager.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L435)
 
 Evidence and behavior delta:
 - `isWithinSelectedTree()` preserves `SecurityException` as permission loss, but catches every other `Exception` and returns `false` at `SafStorageProvider.kt:630-631`.
@@ -57,8 +57,8 @@ User impact: A caller that omits the operation ID can write, finalize, or delete
 Surface: SAF and Local transfer-provider partial ownership boundary.
 
 Look here first:
-- [`SafStorageProvider.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L503)
-- [`StorageModel.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/StorageModel.kt#L147)
+- [`SafStorageProvider.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L503)
+- [`StorageModel.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/StorageModel.kt#L147)
 
 Evidence and behavior delta:
 - `StorageTransferProvider.deleteOperationPartial()` exposes `operationId: String?` (`StorageModel.kt:147-150`), and analogous write/finalize APIs also accept nullable IDs.
@@ -76,8 +76,8 @@ User impact: If a provider rename/finalization takes effect but returns no usabl
 Surface: Finalization acknowledgement and retry/restart state.
 
 Look here first:
-- [`TransferEngine.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/TransferEngine.kt#L155)
-- [`OperationManager.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L124)
+- [`TransferEngine.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/TransferEngine.kt#L155)
+- [`OperationManager.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L124)
 
 Evidence and limits:
 - `FinalizationResult.Ambiguous` returns `Failed(AmbiguousFinalization, partial)` without a final locator (`TransferEngine.kt:162-165`).
@@ -93,8 +93,8 @@ User impact: After process recreation with multiple unrelated readable tree gran
 Surface: Persisted grant restoration.
 
 Look here first:
-- [`SafTreeGrantStore.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafTreeGrantStore.kt#L54)
-- [`SafTreeGrantStore.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafTreeGrantStore.kt#L70)
+- [`SafTreeGrantStore.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafTreeGrantStore.kt#L54)
+- [`SafTreeGrantStore.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafTreeGrantStore.kt#L70)
 
 Evidence and limits:
 - Restoration returns all platform-persisted tree grants (`SafTreeGrantStore.kt:54-67`), then `restoredReadTree()` selects `minByOrNull { treeDepth(uri) }` (`SafTreeGrantStore.kt:70-74`).

@@ -13,11 +13,11 @@
 ## Global Constraints
 
 - Base exactly `97a63de6c7546b4dfec9439df328fba593a4cc0c`.
-- Branch exactly `development/core-v1-selection-mutations-v1` in isolated worktree `/Users/yuta/Desktop/File Manager-worktrees/omnifile-selection-mutations-v1`.
+- Branch exactly `development/core-v1-selection-mutations-v1` in isolated worktree `~/Desktop/File Manager-worktrees/omnifile-selection-mutations-v1`.
 - Preserve `com.omnifile`, `OmniFile`, minSdk 31, targetSdk 36, compileSdk 36, versionCode 1, versionName 0.1.0, and the existing Gradle/Kotlin/Compose toolchain.
 - Keep strict dependency verification enabled for every final Gradle command; never use `--dependency-verification=off`.
 - Do not add Copy, Move, Share, archive, media, network, cloud, or durable operation architecture.
-- Do not mutate `/Users/yuta/Desktop/File Manager` root originals or the VS01 worktree.
+- Do not mutate `~/Desktop/File Manager` root originals or the VS01 worktree.
 - Root/session-root mutation must remain unavailable.
 - `EntryRef` plus provider/location scope is the only selection identity authority.
 
@@ -49,7 +49,7 @@
 **Interfaces:** Tests define `FilesViewModel.enterSelection`, `toggleSelection`, `clearSelection`, `isSelectionMode`, and selected `EntryRef` behavior without asserting private implementation details.
 
 - [ ] Step 1: Add tests for long-press entry/single selection, multi-select toggle, deselect-last exits, explicit clear, navigation clear, provider/location boundary clear, Back-before-navigation, renamed old-ref removal, and deleted-ref removal.
-- [ ] Step 2: Run `ANDROID_HOME=/Users/yuta/Library/Android/sdk GRADLE_USER_HOME=/private/tmp/omnifile-gradle-cache ./gradlew testDebugUnitTest --tests com.omnifile.files.FilesViewModelTest --dependency-verification=strict` and confirm the new tests fail for missing behavior.
+- [ ] Step 2: Run `ANDROID_HOME=~/Library/Android/sdk GRADLE_USER_HOME=/private/tmp/omnifile-gradle-cache ./gradlew testDebugUnitTest --tests com.omnifile.files.FilesViewModelTest --dependency-verification=strict` and confirm the new tests fail for missing behavior.
 - [ ] Step 3: Commit only the red tests with `test(files): define VS02 selection transitions`.
 
 ### Task 3: Implement minimal selection model and navigation integration

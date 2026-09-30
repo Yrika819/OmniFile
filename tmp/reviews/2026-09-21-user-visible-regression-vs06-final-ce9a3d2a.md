@@ -40,10 +40,10 @@ None.
 
 ## Intentional Changes
 
-- `I1` Permanent destinations are Home/Search/Music/Settings and Files is detail - explicitly required by the VS06 brief and saved authority - [`AppShell.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/ui/shell/AppShell.kt#L25).
-- `I2` Top-level Search defaults to This device while Files contextual Search uses CurrentFolder - required origin distinction using one Search contract - [`MainActivity.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/MainActivity.kt#L101).
-- `I3` Music is an honest empty state and Settings is read-only current information - VS06 explicitly defers playback/full settings and forbids inert controls - [`MusicScreen.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/ui/music/MusicScreen.kt#L14).
-- `I4` ThisDevice includes only live OmniFile Local/SAF roots and can show partial results - required truthful storage scope - [`SupportedRootRegistry.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/storage/SupportedRootRegistry.kt#L47).
+- `I1` Permanent destinations are Home/Search/Music/Settings and Files is detail - explicitly required by the VS06 brief and saved authority - [`AppShell.kt`](~/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/ui/shell/AppShell.kt#L25).
+- `I2` Top-level Search defaults to This device while Files contextual Search uses CurrentFolder - required origin distinction using one Search contract - [`MainActivity.kt`](~/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/MainActivity.kt#L101).
+- `I3` Music is an honest empty state and Settings is read-only current information - VS06 explicitly defers playback/full settings and forbids inert controls - [`MusicScreen.kt`](~/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/ui/music/MusicScreen.kt#L14).
+- `I4` ThisDevice includes only live OmniFile Local/SAF roots and can show partial results - required truthful storage scope - [`SupportedRootRegistry.kt`](~/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/storage/SupportedRootRegistry.kt#L47).
 
 ## Coverage Ledger
 
@@ -115,9 +115,9 @@ None.
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `I1` | `shell` | [`AppShell.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/ui/shell/AppShell.kt#L25) | `Permanent destination output.` |
-| `I2` | `search` | [`SearchViewModel.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/search/SearchViewModel.kt#L99) | `Shared Search contract and generation gate.` |
-| `I4` | `roots` | [`SupportedRootRegistry.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/storage/SupportedRootRegistry.kt#L47) | `Truthful ThisDevice roots.` |
+| `I1` | `shell` | [`AppShell.kt`](~/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/ui/shell/AppShell.kt#L25) | `Permanent destination output.` |
+| `I2` | `search` | [`SearchViewModel.kt`](~/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/search/SearchViewModel.kt#L99) | `Shared Search contract and generation gate.` |
+| `I4` | `roots` | [`SupportedRootRegistry.kt`](~/Desktop/File%20Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/storage/SupportedRootRegistry.kt#L47) | `Truthful ThisDevice roots.` |
 
 ### Blind Spots
 

@@ -1,0 +1,127 @@
+name: OmniFile Host CI
+
+# Host CI V1: Linux-hosted verification only.
+# No emulator, no managed device, no release signing, no artifact publishing.
+on:
+  push:
+    branches:
+      - main
+      - 'ci/**'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Read-only is sufficient for build/test/lint. No secrets are used.
+permissions:
+  contents: read
+
+# Scope the group per workflow + ref so unrelated branches never cancel
+# each other. PRs get refs/pull/<n>/merge, which is already unique per PR.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  host-ci:
+    name: Host CI (Linux)
+    runs-on: ubuntu-latest
+    # Bound cold-cache dependency restore, unit tests, lint and both debug
+    # APK builds. Generous enough for a cold Gradle/SDK cache, finite enough
+    # that a hung Gradle process cannot pin a runner indefinitely.
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        # v7.0.1. Host CI only reads the checked-out source; it never fetches
+        # from or pushes to origin after this step, so the job token is not
+        # persisted into .git/config for the Gradle process to inherit.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The committed wrapper JAR is the official Gradle 9.6.0 wrapper JAR;
+      # this proves it before Gradle is ever executed.
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      # AGP 9.4.0 requires JDK 17+; Temurin 21 is the supported LTS and avoids
+      # the JDK 25 JVM-target pressure seen on the local Android Studio JBR.
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Installs cmdline-tools, exports ANDROID_HOME/ANDROID_SDK_ROOT, puts
+      # sdkmanager on PATH and accepts the SDK licenses.
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+
+      # compileSdk/targetSdk 36 and the AGP 9.4.0 default build tools 36.0.0.
+      # No emulator, system image or AVD is installed.
+      - name: Install required Android SDK packages
+        run: |
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          # Every pull-request run reads the cache but never writes it, so no
+          # pull request can seed state that another ref later restores.
+          # Pushes and workflow_dispatch runs keep normal write access.
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: Report toolchain versions
+        run: |
+          java -version 2>&1
+          ./gradlew --version --console=plain --dependency-verification=strict
+
+      # Conservative project settings, matching the validated local baseline.
+      # No "|| true": any task failure fails the job.
+      - name: Host verification tasks
+        run: |
+          ./gradlew \
+            :app:testDebugUnitTest \
+            :app:lintDebug \
+            :app:assembleDebug \
+            :app:assembleDebugAndroidTest \
+            --no-daemon \
+            --max-workers=1 \
+            --console=plain \
+            --stacktrace \
+            --dependency-verification=strict \
+            -Dkotlin.compiler.execution.strategy=in-process
+
+      # Reports the executed test count so a silently reduced run is visible
+      # in the log. This is a report, not a gate: the suite is allowed to grow.
+      - name: Summarise unit test results
+        run: |
+          python3 - <<'PY'
+          import glob
+          import sys
+          import xml.etree.ElementTree as ET
+
+          results = sorted(glob.glob("app/build/test-results/testDebugUnitTest/TEST-*.xml"))
+          if not results:
+              sys.exit("No JUnit XML found in app/build/test-results/testDebugUnitTest")
+
+          totals = {"tests": 0, "failures": 0, "errors": 0, "skipped": 0}
+          for path in results:
+              root = ET.parse(path).getroot()
+              for key in totals:
+                  totals[key] += int(root.get(key, 0))
+
+          print(
+              "Unit test results: suites={} tests={} failures={} errors={} skipped={}".format(
+                  len(results),
+                  totals["tests"],
+                  totals["failures"],
+                  totals["errors"],
+                  totals["skipped"],
+              )
+          )
+          PY

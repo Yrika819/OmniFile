@@ -91,7 +91,7 @@ None.
 
 ### Runtime Evidence
 
-- Target: `Pixel 7a`, Android `16`, API `36`, stable serial `adb-35241JEHN08768-sNRKBY._adb-tls-connect._tcp`.
+- Target: `Pixel 7a`, Android `16`, API `36`, stable serial `<ANDROID_SERIAL>`.
 - Device state during final run: `device`, `mDreamingLockscreen=false`, OmniFile Activity foreground during smoke.
 - Final app APK: `d7429bd8d7d68a2d38b92620aed740214bbb977dd0b2aadf149ec17aa80b5c4b`.
 - Final test APK: `6881e010dc1a0455a967c1e13885aa72a6ac79b209ede489e15a93976b216814`.

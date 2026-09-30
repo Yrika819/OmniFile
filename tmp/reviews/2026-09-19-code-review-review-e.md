@@ -12,7 +12,7 @@
 - Parent resolution ID: `None`
 - Parent resolution path: `None`
 - Generated at: `2026-09-19T20:00:00Z`
-- Report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/tmp/reviews/2026-09-19-code-review-review-e.md`
+- Report path: `~/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/tmp/reviews/2026-09-19-code-review-review-e.md`
 - Source skill: `code-review`
 - Status: `Review complete`
 - Git mutation during review: `None`
@@ -107,8 +107,8 @@ Origin: `Coordinator`
 Coordinator verification: `FilesViewModel encodes content.location as destinationParent immediately after the action; no picker state, destination navigation, or confirmation exists.`
 
 Look here first:
-- [`FilesViewModel.kt:226-279`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt#L226-L279)
-- [`FilesScreen.kt:100-110`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L100-L110)
+- [`FilesViewModel.kt:226-279`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt#L226-L279)
+- [`FilesScreen.kt:100-110`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L100-L110)
 
 Failure mode:
 - Expected: `Copy/Move opens a provider-neutral eligible-directory picker, preserves source selection on cancel, and creates the durable operation only after destination confirmation.`
@@ -144,8 +144,8 @@ Origin: `Coordinator`
 Coordinator verification: `OperationsViewModel refreshes repository.findNonTerminal(), and OperationDao.findNonTerminal excludes COMPLETE, CONFLICTED, FAILED, and CANCELLED.`
 
 Look here first:
-- [`OperationsViewModel.kt:24-31`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationsViewModel.kt#L24-L31)
-- [`OperationDao.kt:14-18`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/persistence/OperationDao.kt#L14-L18)
+- [`OperationsViewModel.kt:24-31`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationsViewModel.kt#L24-L31)
+- [`OperationDao.kt:14-18`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/persistence/OperationDao.kt#L14-L18)
 
 Failure mode:
 - Expected: `The panel shows recent terminal durable operations, with error/conflict text and cancellation history.`
@@ -211,10 +211,10 @@ None.
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `F1` | `action` | [`FilesScreen.kt:100-110`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L100-L110) | `Buttons invoke transfer immediately.` |
-| `F1` | `destination` | [`FilesViewModel.kt:230-239`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt#L230-L239) | `Current location becomes destination parent.` |
-| `F2` | `query` | [`OperationsViewModel.kt:24-31`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationsViewModel.kt#L24-L31) | `Only non-terminal rows are loaded.` |
-| `T1` | `tests` | [`app/src/androidTest`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/androidTest) | `No completed new UI result.` |
+| `F1` | `action` | [`FilesScreen.kt:100-110`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L100-L110) | `Buttons invoke transfer immediately.` |
+| `F1` | `destination` | [`FilesViewModel.kt:230-239`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt#L230-L239) | `Current location becomes destination parent.` |
+| `F2` | `query` | [`OperationsViewModel.kt:24-31`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationsViewModel.kt#L24-L31) | `Only non-terminal rows are loaded.` |
+| `T1` | `tests` | [`app/src/androidTest`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/androidTest) | `No completed new UI result.` |
 
 ### Dismissed Coordinator Candidates
 

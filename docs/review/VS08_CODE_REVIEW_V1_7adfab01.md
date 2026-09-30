@@ -108,8 +108,8 @@ Origin: `Coordinator`
 Coordinator verification: `The source provider maps open-time failures to ArchiveError.Provider, but ZipArchiveReader catches subsequent IOException as ArchiveError.Io; ArchiveExtractor does the same for read/write-loop IOException. The UI maps ArchiveError.Io to a generic message.`
 
 Look here first:
-- [`ZipArchiveReader.kt` source exception mapping](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/archive/ZipArchiveReader.kt#L105)
-- [`ArchiveExtractor.kt` streaming exception mapping](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/archive/ArchiveExtractor.kt#L284)
+- [`ZipArchiveReader.kt` source exception mapping](~/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/archive/ZipArchiveReader.kt#L105)
+- [`ArchiveExtractor.kt` streaming exception mapping](~/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/archive/ArchiveExtractor.kt#L284)
 
 Failure mode:
 - Expected: `Provider loss remains distinguishable from corrupt/truncated archive input after the stream has opened.`
@@ -147,8 +147,8 @@ Origin: `Coordinator`
 Coordinator verification: `ArchivePath` preserves raw components and ArchiveExtractor.pathKey joins raw components. The existing duplicate fixture only covers byte-identical names; NFC/NFD-equivalent names are not compared canonically.`
 
 Look here first:
-- [`ArchiveExtractor.kt` raw target grouping](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/archive/ArchiveExtractor.kt#L357)
-- [`ArchiveModels.kt` path validation](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/archive/ArchiveModels.kt#L211)
+- [`ArchiveExtractor.kt` raw target grouping](~/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/archive/ArchiveExtractor.kt#L357)
+- [`ArchiveModels.kt` path validation](~/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/archive/ArchiveModels.kt#L211)
 
 Failure mode:
 - Expected: `Duplicate normalized output targets and file/directory normalization collisions fail before any output is created.`
@@ -230,11 +230,11 @@ No subagents were used; coordinator-only review was proportionate to the cohesiv
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `F1` | entry | [`ArchiveRepository.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/archive/ArchiveRepository.kt#L11) | source handle is opened through provider-neutral repository seam |
-| `F1` | risk | [`ZipArchiveReader.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/archive/ZipArchiveReader.kt#L105) | mid-stream IOException becomes generic Io |
-| `F2` | entry | [`ArchiveExtractor.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/archive/ArchiveExtractor.kt#L357) | raw target grouping is the duplicate-conflict gate |
-| `F2` | risk | [`ArchiveExtractorTest.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/test/java/com/omnifile/archive/ArchiveExtractorTest.kt#L42) | current duplicate coverage is byte-identical only |
-| `T1` | coverage gap | [`MainActivity.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/MainActivity.kt#L239) | Files callback wiring needs focused UI exercise |
+| `F1` | entry | [`ArchiveRepository.kt`](~/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/archive/ArchiveRepository.kt#L11) | source handle is opened through provider-neutral repository seam |
+| `F1` | risk | [`ZipArchiveReader.kt`](~/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/archive/ZipArchiveReader.kt#L105) | mid-stream IOException becomes generic Io |
+| `F2` | entry | [`ArchiveExtractor.kt`](~/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/archive/ArchiveExtractor.kt#L357) | raw target grouping is the duplicate-conflict gate |
+| `F2` | risk | [`ArchiveExtractorTest.kt`](~/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/test/java/com/omnifile/archive/ArchiveExtractorTest.kt#L42) | current duplicate coverage is byte-identical only |
+| `T1` | coverage gap | [`MainActivity.kt`](~/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/MainActivity.kt#L239) | Files callback wiring needs focused UI exercise |
 
 ### Dismissed Coordinator Candidates
 

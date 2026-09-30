@@ -12,7 +12,7 @@
 - Parent resolution ID: `None`
 - Parent resolution path: `None`
 - Generated at: `2026-09-20T12:00:00Z`
-- Report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-20-code-review-review-b-local-to-saf.md`
+- Report path: `~/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-20-code-review-review-b-local-to-saf.md`
 - Source skill: `code-review`
 - Status: `Review complete`
 - Git mutation during review: `None`
@@ -108,8 +108,8 @@ Origin: `Coordinator`
 Coordinator verification: `SafStorageProvider adds FINALIZE whenever the persisted grant has write access; the destination UI gates only CREATE_CHILD and WRITE. The created partial's FLAG_SUPPORTS_RENAME is checked only after enqueue and partial creation in finalizeOperationPartial.`
 
 Look here first:
-- [`SafStorageProvider.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L36)
-- [`FilesScreen.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L82)
+- [`SafStorageProvider.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L36)
+- [`FilesScreen.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L82)
 
 Failure mode:
 - Expected: `A route is advertised only when the provider's create/write/finalize chain is proven for the selected destination semantics, or the route remains Unsupported before destructive stages.`
@@ -189,9 +189,9 @@ None.
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `F1` | `entry` | [`FilesScreen.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L82) | `Destination confirmation is gated by parent create/write only.` |
-| `F1` | `risk` | [`SafStorageProvider.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L36) | `FINALIZE is advertised from grant mode.` |
-| `T1` | `test` | [`SafTransferRuntimeInstrumentedTest.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/androidTest/java/com/omnifile/operations/SafTransferRuntimeInstrumentedTest.kt#L1) | `Required route matrix exists but was not run.` |
+| `F1` | `entry` | [`FilesScreen.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L82) | `Destination confirmation is gated by parent create/write only.` |
+| `F1` | `risk` | [`SafStorageProvider.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L36) | `FINALIZE is advertised from grant mode.` |
+| `T1` | `test` | [`SafTransferRuntimeInstrumentedTest.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/androidTest/java/com/omnifile/operations/SafTransferRuntimeInstrumentedTest.kt#L1) | `Required route matrix exists but was not run.` |
 
 ### Dismissed Coordinator Candidates
 

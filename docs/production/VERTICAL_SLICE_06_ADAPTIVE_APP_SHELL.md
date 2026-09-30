@@ -3,7 +3,7 @@
 
 - Published VS05 base: `35dcf37ccadc7f86182ca1b038b59015a5962bba`
 - VS06 branch: `development/core-v1-app-shell-v1`
-- Worktree: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1`
+- Worktree: `~/Desktop/File Manager-worktrees/omnifile-app-shell-v1`
 - Status: implementation, review, documentation, and physical verification complete; branch/push equality is recorded at closure
 - Final debug APK SHA-256: `77d6e9ef730e2fe57f9735a7b332031887b2ba1a7ada88111460bc69a2477465`
 - Final debug androidTest APK SHA-256: `2d79c091ec3761c6a3438b2b7eb3bfe2826c601c6e1aa4bd56e9e96747bbb887`
@@ -130,10 +130,10 @@ The complete host differential was rerun on 2026-09-21 with serialized Gradle ex
 
 Toolchain inventory:
 
-- Android SDK: `/Users/yuta/Library/Android/sdk`
+- Android SDK: `~/Library/Android/sdk`
 - Gradle wrapper: `9.6.0`
 - Android Studio JBR: `/Applications/Android Studio.app/Contents/jbr/Contents/Home`, OpenJDK `25.0.3`
-- Historical comparison JDK: `/Users/yuta/.gradle/jdks/eclipse_adoptium-21-x86_64-os_x.2/jdk-21.0.7+6/Contents/Home`, Temurin `21.0.7+6`
+- Historical comparison JDK: `~/.gradle/jdks/eclipse_adoptium-21-x86_64-os_x.2/jdk-21.0.7+6/Contents/Home`, Temurin `21.0.7+6`
 - JDK 26 installations were present but were not selected for either comparison.
 
 ### Same-environment JDK 21 differential

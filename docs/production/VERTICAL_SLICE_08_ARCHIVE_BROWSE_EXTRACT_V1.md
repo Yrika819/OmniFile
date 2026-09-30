@@ -114,7 +114,7 @@ No silent overwrite exists. Existing destination files remain unchanged. If a pr
 - `:app:lintDebug`: **passed**. Findings are baseline/tooling only: update notices, existing exported Media3 service notice, obsolete API checks, unused scaffold resources, missing application icon, existing KTX suggestions, and native strip packaging warning.
 - `:app:assembleDebug`: **passed**.
 - `:app:assembleDebugAndroidTest`: **passed**.
-- Authoritative Java: Android Studio JBR `25.0.3`; SDK: `/Users/yuta/Library/Android/sdk`; Gradle was serialized with `--no-daemon --max-workers=1 -Dkotlin.compiler.execution.strategy=in-process --dependency-verification=strict`.
+- Authoritative Java: Android Studio JBR `25.0.3`; SDK: `~/Library/Android/sdk`; Gradle was serialized with `--no-daemon --max-workers=1 -Dkotlin.compiler.execution.strategy=in-process --dependency-verification=strict`.
 
 ## Security, intent, and regression review
 

@@ -7,7 +7,7 @@ Status: implemented and validated on the isolated branch `development/core-v1-fi
 - Product: `OmniFile`
 - Package: `com.omnifile`
 - Scaffold source: `4c997aa00d376be4298ebc361d5794803ddb6718`
-- Worktree: `/Users/yuta/.codex/worktrees/omnifile-files-browsing-v1/File Manager`
+- Worktree: `~/.codex/worktrees/omnifile-files-browsing-v1/File Manager`
 - Scope: read-only file browsing; no archive, media, Room, WorkManager, or final navigation shell
 
 ## Implemented boundary
@@ -25,15 +25,15 @@ Status: implemented and validated on the isolated branch `development/core-v1-fi
 Host command:
 
 ```text
-ANDROID_HOME=/Users/yuta/Library/Android/sdk GRADLE_USER_HOME=/private/tmp/omnifile-gradle-cache ./gradlew testDebugUnitTest --dependency-verification=off
+ANDROID_HOME=~/Library/Android/sdk GRADLE_USER_HOME=/private/tmp/omnifile-gradle-cache ./gradlew testDebugUnitTest --dependency-verification=off
 ```
 
 Result: `BUILD SUCCESSFUL`; 31 actionable tasks, including the host unit suite.
 
-Pixel 7a command, serial `adb-35241JEHN08768-sNRKBY._adb-tls-connect._tcp`:
+Pixel 7a command, serial `<ANDROID_SERIAL>`:
 
 ```text
-ANDROID_HOME=/Users/yuta/Library/Android/sdk GRADLE_USER_HOME=/private/tmp/omnifile-gradle-cache ANDROID_SERIAL=adb-35241JEHN08768-sNRKBY._adb-tls-connect._tcp ./gradlew connectedDebugAndroidTest --dependency-verification=off
+ANDROID_HOME=~/Library/Android/sdk GRADLE_USER_HOME=/private/tmp/omnifile-gradle-cache ANDROID_SERIAL=<ANDROID_SERIAL> ./gradlew connectedDebugAndroidTest --dependency-verification=off
 ```
 
 Result: `BUILD SUCCESSFUL`; 4/4 connected tests passed. This includes the production Files-screen/package/permission smoke tests and controlled Android SAF provider tests for root listing, nested listing, metadata, conservative capabilities, and selected-tree boundaries.
@@ -56,7 +56,7 @@ Artifact evidence:
 The historical caveat was reproduced from a new Gradle cache with:
 
 ```text
-ANDROID_HOME=/Users/yuta/Library/Android/sdk GRADLE_USER_HOME=/private/tmp/omnifile-gradle-final-verify.Q0GjP8 ./gradlew testDebugUnitTest --dependency-verification=strict
+ANDROID_HOME=~/Library/Android/sdk GRADLE_USER_HOME=/private/tmp/omnifile-gradle-final-verify.Q0GjP8 ./gradlew testDebugUnitTest --dependency-verification=strict
 ```
 
 The root cause was missing SHA-256 metadata, not a changed artifact, signature failure, repository change, lockfile mismatch, or dependency-version drift. Strict verification first rejected these three `MavenRepo` classpath metadata artifacts:
@@ -74,13 +74,13 @@ VS01 added no Gradle dependency/configuration delta relative to the Production S
 All final Gradle commands below used dependency verification enabled with `--dependency-verification=strict`; none used `--dependency-verification=off`:
 
 ```text
-ANDROID_HOME=/Users/yuta/Library/Android/sdk GRADLE_USER_HOME=/private/tmp/omnifile-gradle-cache ./gradlew clean testDebugUnitTest lintDebug assembleDebug --dependency-verification=strict
-ANDROID_HOME=/Users/yuta/Library/Android/sdk GRADLE_USER_HOME=/private/tmp/omnifile-gradle-cache ANDROID_SERIAL=adb-35241JEHN08768-sNRKBY._adb-tls-connect._tcp ./gradlew connectedDebugAndroidTest --dependency-verification=strict
+ANDROID_HOME=~/Library/Android/sdk GRADLE_USER_HOME=/private/tmp/omnifile-gradle-cache ./gradlew clean testDebugUnitTest lintDebug assembleDebug --dependency-verification=strict
+ANDROID_HOME=~/Library/Android/sdk GRADLE_USER_HOME=/private/tmp/omnifile-gradle-cache ANDROID_SERIAL=<ANDROID_SERIAL> ./gradlew connectedDebugAndroidTest --dependency-verification=strict
 ```
 
 - Independent fresh-cache host run: `testDebugUnitTest` — `BUILD SUCCESSFUL`; 31 actionable tasks.
 - Clean host run: `clean testDebugUnitTest lintDebug assembleDebug` — `BUILD SUCCESSFUL`; 58 actionable tasks. Host XML reports contain 10/10 unit tests with zero failures/errors.
-- Pixel 7a instrumentation, serial `adb-35241JEHN08768-sNRKBY._adb-tls-connect._tcp`: `connectedDebugAndroidTest` — `BUILD SUCCESSFUL`; 4/4 tests passed.
+- Pixel 7a instrumentation, serial `<ANDROID_SERIAL>`: `connectedDebugAndroidTest` — `BUILD SUCCESSFUL`; 4/4 tests passed.
 - Focused final-artifact regression: exact APK installation succeeded; cold launch returned `Status: ok`; the rendered UI exposed `Files`, `Browse files`, `Local files`, and `フォルダを選択`; a cleared crash buffer remained empty. The installed `base.apk` hash matched the local build hash.
 
 Final artifact evidence:

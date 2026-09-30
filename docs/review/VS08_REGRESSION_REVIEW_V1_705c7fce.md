@@ -39,8 +39,8 @@ None.
 
 ## Intentional Changes
 
-- `I1` ZIP containers recognized from existing Files/Search results open a non-top-level Archive detail surface; Back returns to the originating Files/Search state by explicit origin state. This is the requested VS08 behavior. [`AppNavigation.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/ui/shell/AppNavigation.kt#L4)
-- `I2` Extract is explicitly labeled Local-only because the current default SAF destination capability is not universally proven; no broken SAF destination route is advertised. [`ArchiveScreen.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/ui/archive/ArchiveScreen.kt#L74)
+- `I1` ZIP containers recognized from existing Files/Search results open a non-top-level Archive detail surface; Back returns to the originating Files/Search state by explicit origin state. This is the requested VS08 behavior. [`AppNavigation.kt`](~/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/ui/shell/AppNavigation.kt#L4)
+- `I2` Extract is explicitly labeled Local-only because the current default SAF destination capability is not universally proven; no broken SAF destination route is advertised. [`ArchiveScreen.kt`](~/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/ui/archive/ArchiveScreen.kt#L74)
 
 ## Coverage Ledger
 
@@ -112,11 +112,11 @@ None.
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `B1` | entry | [`FilesScreen.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L378) | ZIP row branch is isolated from directory and selection behavior |
-| `B2` | route | [`MainActivity.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/MainActivity.kt#L325) | Search archive result preserves owning Search route |
-| `B3` | output | [`ArchiveScreen.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/ui/archive/ArchiveScreen.kt#L45) | Archive remains a detail surface with explicit states |
-| `B4` | effect | [`ArchiveExtractor.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/archive/ArchiveExtractor.kt#L34) | safe extraction effect is bounded and rollback-aware |
-| `B5` | guard | [`AppNavigation.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/ui/shell/AppNavigation.kt#L51) | explicit archive origins preserve Back behavior |
+| `B1` | entry | [`FilesScreen.kt`](~/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L378) | ZIP row branch is isolated from directory and selection behavior |
+| `B2` | route | [`MainActivity.kt`](~/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/MainActivity.kt#L325) | Search archive result preserves owning Search route |
+| `B3` | output | [`ArchiveScreen.kt`](~/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/ui/archive/ArchiveScreen.kt#L45) | Archive remains a detail surface with explicit states |
+| `B4` | effect | [`ArchiveExtractor.kt`](~/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/archive/ArchiveExtractor.kt#L34) | safe extraction effect is bounded and rollback-aware |
+| `B5` | guard | [`AppNavigation.kt`](~/Desktop/File%20Manager-worktrees/omnifile-archive-v1/app/src/main/java/com/omnifile/ui/shell/AppNavigation.kt#L51) | explicit archive origins preserve Back behavior |
 
 ### Blind Spots
 

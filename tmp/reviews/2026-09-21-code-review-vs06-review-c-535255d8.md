@@ -12,7 +12,7 @@
 - Parent resolution ID: `None`
 - Parent resolution path: `None`
 - Generated at: `2026-09-21T07:05:00Z`
-- Report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1/tmp/reviews/2026-09-21-code-review-vs06-review-c-535255d8.md`
+- Report path: `~/Desktop/File Manager-worktrees/omnifile-app-shell-v1/tmp/reviews/2026-09-21-code-review-vs06-review-c-535255d8.md`
 - Source skill: `code-review`
 - Status: `Review complete`
 - Git mutation during review: `None`
@@ -138,9 +138,9 @@ None. Expanded-width physical evidence is a runtime limitation recorded below, n
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `A1` | `shell` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/ui/shell/AppShell.kt` | `Owns compact/rail destination presentation and selected semantics.` |
-| `A2` | `search` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/ui/search/SearchScreen.kt` | `Owns scope/context/result presentation and IME layout.` |
-| `A3` | `home` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/ui/home/HomeScreen.kt` | `Owns truthful source overview and SAF entry point.` |
+| `A1` | `shell` | `~/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/ui/shell/AppShell.kt` | `Owns compact/rail destination presentation and selected semantics.` |
+| `A2` | `search` | `~/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/ui/search/SearchScreen.kt` | `Owns scope/context/result presentation and IME layout.` |
+| `A3` | `home` | `~/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/ui/home/HomeScreen.kt` | `Owns truthful source overview and SAF entry point.` |
 
 ### Dismissed Coordinator Candidates
 

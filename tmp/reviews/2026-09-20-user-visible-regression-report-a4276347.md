@@ -42,11 +42,11 @@ None.
 
 ### I1 — Copy/Move actions for supported regular files
 
-The selection action surface intentionally adds Copy and Move for regular files while retaining capability gating. [FilesScreen.kt](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L77)
+The selection action surface intentionally adds Copy and Move for regular files while retaining capability gating. [FilesScreen.kt](~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/ui/files/FilesScreen.kt#L77)
 
 ### I2 — Explicit destination picker
 
-Copy/Move intentionally enters a provider-neutral destination-picker mode and requires explicit current-directory confirmation before durable enqueue. [FilesViewModel.kt](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt#L239)
+Copy/Move intentionally enters a provider-neutral destination-picker mode and requires explicit current-directory confirmation before durable enqueue. [FilesViewModel.kt](~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt#L239)
 
 ### I3 — SAF and directory transfer gating
 

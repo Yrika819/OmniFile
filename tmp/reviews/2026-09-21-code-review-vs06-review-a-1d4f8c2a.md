@@ -12,7 +12,7 @@
 - Parent resolution ID: `None`
 - Parent resolution path: `None`
 - Generated at: `2026-09-21T00:00:00Z`
-- Report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1/tmp/reviews/2026-09-21-code-review-vs06-review-a-1d4f8c2a.md`
+- Report path: `~/Desktop/File Manager-worktrees/omnifile-app-shell-v1/tmp/reviews/2026-09-21-code-review-vs06-review-a-1d4f8c2a.md`
 - Source skill: `code-review`
 - Status: `Review complete`
 - Git mutation during review: `None`
@@ -134,17 +134,17 @@ None for this pre-implementation review. Implementation must add the shell, rest
 
 ### Verification Commands
 
-- `git -C /Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1 status --short --branch` -> `clean VS06 worktree at 35dcf37`
-- `git -C /Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1 log -n 6 --oneline` -> `published VS05 Search architecture and evidence present`
+- `git -C ~/Desktop/File Manager-worktrees/omnifile-app-shell-v1 status --short --branch` -> `clean VS06 worktree at 35dcf37`
+- `git -C ~/Desktop/File Manager-worktrees/omnifile-app-shell-v1 log -n 6 --oneline` -> `published VS05 Search architecture and evidence present`
 - `find .../docs/ui-authority/v1 -type f` -> `saved authority bundle present`
 
 ### Supporting Code Links
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `A1` | `route` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/MainActivity.kt` | `Current two-surface route is the migration boundary.` |
-| `A2` | `search` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/search/SearchEngine.kt` | `Current engine is provider-neutral and bounded.` |
-| `A3` | `roots` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/storage/SafTreeGrantStore.kt` | `Current grant validation distinguishes live grants.` |
+| `A1` | `route` | `~/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/MainActivity.kt` | `Current two-surface route is the migration boundary.` |
+| `A2` | `search` | `~/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/search/SearchEngine.kt` | `Current engine is provider-neutral and bounded.` |
+| `A3` | `roots` | `~/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/storage/SafTreeGrantStore.kt` | `Current grant validation distinguishes live grants.` |
 
 ### Dismissed Coordinator Candidates
 

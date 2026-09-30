@@ -37,7 +37,7 @@
 
 - [ ] Write failing tests for empty/nested directories, regular files, Unicode names, nullable metadata, deterministic name ordering, root containment, deleted references, and two-provider identity isolation.
 - [ ] Implement the model and `LocalStorageProvider` using `java.nio.file.Path` only internally. Normalize the configured root once, reject references outside it, map regular files to sequential+seekable read capabilities, map directories to list capability, and sort direct children by display name without recursion.
-- [ ] Run `ANDROID_HOME=/Users/yuta/Library/Android/sdk GRADLE_USER_HOME=/private/tmp/omnifile-gradle-cache ./gradlew testDebugUnitTest --dependency-verification=off` and confirm the new host tests pass.
+- [ ] Run `ANDROID_HOME=~/Library/Android/sdk GRADLE_USER_HOME=/private/tmp/omnifile-gradle-cache ./gradlew testDebugUnitTest --dependency-verification=off` and confirm the new host tests pass.
 
 ### Task 2: SAF provider and controlled Android provider tests
 

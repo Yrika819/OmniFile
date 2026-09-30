@@ -12,7 +12,7 @@
 - Parent resolution ID: `None`
 - Parent resolution path: `None`
 - Generated at: `2026-09-19T19:30:00Z`
-- Report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/tmp/reviews/2026-09-19-code-review-review-b.md`
+- Report path: `~/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/tmp/reviews/2026-09-19-code-review-review-b.md`
 - Source skill: `code-review`
 - Status: `Review incomplete`
 - Git mutation during review: `None`
@@ -107,8 +107,8 @@ Origin: `Coordinator`
 Coordinator verification: `The method resolves any locator, reads attributes, then opens it with WRITE and TRUNCATE_EXISTING. isOperationPartial is enforced in finalizeOperationPartial and deleteOperationPartial, but not in openSequentialWrite.`
 
 Look here first:
-- [`LocalStorageProvider.kt:154-170`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/storage/LocalStorageProvider.kt#L154-L170)
-- [`LocalStorageProvider.kt:218-224`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/storage/LocalStorageProvider.kt#L218-L224)
+- [`LocalStorageProvider.kt:154-170`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/storage/LocalStorageProvider.kt#L154-L170)
+- [`LocalStorageProvider.kt:218-224`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/storage/LocalStorageProvider.kt#L218-L224)
 
 Failure mode:
 - Expected: `Only a locator created by createOperationPartial and still carrying the operation-owned partial identity can be opened for write.`
@@ -145,8 +145,8 @@ Origin: `Coordinator`
 Coordinator verification: `resolveDurablePath checks ancestors with NOFOLLOW_LINKS, but create uses Files.newByteChannel(partial) and finalize uses Files.move(partialPath, finalPath) after that check. The existing delete path uses withSecureParent/SecureDirectoryStream specifically to bind operations to a checked directory descriptor. The race is mechanically possible even though normal app-private use may not expose another actor.`
 
 Look here first:
-- [`LocalStorageProvider.kt:128-151`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/storage/LocalStorageProvider.kt#L128-L151)
-- [`LocalStorageProvider.kt:173-201`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/storage/LocalStorageProvider.kt#L173-L201)
+- [`LocalStorageProvider.kt:128-151`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/storage/LocalStorageProvider.kt#L128-L151)
+- [`LocalStorageProvider.kt:173-201`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/storage/LocalStorageProvider.kt#L173-L201)
 
 Failure mode:
 - Expected: `Creation and finalization must use the same descriptor-relative, no-symlink containment boundary as destructive Local mutation.`
@@ -216,10 +216,10 @@ None.
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `F1` | `entry` | [`LocalStorageProvider.kt:154-170`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/storage/LocalStorageProvider.kt#L154-L170) | `Any regular locator is opened with TRUNCATE_EXISTING.` |
-| `F2` | `create` | [`LocalStorageProvider.kt:142-150`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/storage/LocalStorageProvider.kt#L142-L150) | `Partial creation uses a path effect after a check.` |
-| `F2` | `finalize` | [`LocalStorageProvider.kt:190-199`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/storage/LocalStorageProvider.kt#L190-L199) | `Finalization uses path-based move after a no-replace precheck.` |
-| `T1` | `test` | [`LocalStorageTransferTest.kt:1-103`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/test/java/com/omnifile/storage/LocalStorageTransferTest.kt#L1-L103) | `Test source exists but did not yield runtime evidence.` |
+| `F1` | `entry` | [`LocalStorageProvider.kt:154-170`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/storage/LocalStorageProvider.kt#L154-L170) | `Any regular locator is opened with TRUNCATE_EXISTING.` |
+| `F2` | `create` | [`LocalStorageProvider.kt:142-150`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/storage/LocalStorageProvider.kt#L142-L150) | `Partial creation uses a path effect after a check.` |
+| `F2` | `finalize` | [`LocalStorageProvider.kt:190-199`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/storage/LocalStorageProvider.kt#L190-L199) | `Finalization uses path-based move after a no-replace precheck.` |
+| `T1` | `test` | [`LocalStorageTransferTest.kt:1-103`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/test/java/com/omnifile/storage/LocalStorageTransferTest.kt#L1-L103) | `Test source exists but did not yield runtime evidence.` |
 
 ### Dismissed Coordinator Candidates
 

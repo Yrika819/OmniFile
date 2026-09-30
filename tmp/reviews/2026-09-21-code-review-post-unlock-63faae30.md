@@ -12,7 +12,7 @@
 - Parent resolution ID: `None`
 - Parent resolution path: `None`
 - Generated at: `2026-09-21T00:50:09Z`
-- Report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-21-code-review-post-unlock-63faae30.md`
+- Report path: `~/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-21-code-review-post-unlock-63faae30.md`
 - Source skill: `code-review`
 - Status: `Review complete`
 - Git mutation during review: `None`
@@ -139,7 +139,7 @@ None.
 
 ### Verification Commands
 
-- `adb devices -l` -> `Pixel 7a` available through stable serial `adb-35241JEHN08768-sNRKBY._adb-tls-connect._tcp`; duplicate mDNS alias identified and not used.
+- `adb devices -l` -> `Pixel 7a` available through stable serial `<ANDROID_SERIAL>`; duplicate mDNS alias identified and not used.
 - `adb -s <stable> shell getprop ro.build.version.sdk` -> `36`; release `16`; `mDreamingLockscreen=false`.
 - `adb -s <stable> install -r app-debug.apk` -> `Success`; app APK SHA-256 `d7429bd8d7d68a2d38b92620aed740214bbb977dd0b2aadf149ec17aa80b5c4b`.
 - `adb -s <stable> install -r app-debug-androidTest.apk` -> `Success`; test APK SHA-256 `6881e010dc1a0455a967c1e13885aa72a6ac79b209ede489e15a93976b216814`.

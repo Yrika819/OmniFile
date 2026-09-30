@@ -12,7 +12,7 @@
 - Parent resolution ID: `None`
 - Parent resolution path: `None`
 - Generated at: `2026-09-20T23:20:00+09:00`
-- Report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-20-code-review-post-runtime-bc.md`
+- Report path: `~/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-20-code-review-post-runtime-bc.md`
 - Source skill: `code-review`
 - Status: `Review complete`
 - Git mutation during review: `None`
@@ -106,8 +106,8 @@ Origin: `R1`
 Coordinator verification: `Independent code-path trace and supplied runtime evidence.`
 
 Look here first:
-- [`OperationManager.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L331)
-- [`VERTICAL_SLICE_04_SAF_DURABLE_TRANSFER.md`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/docs/production/VERTICAL_SLICE_04_SAF_DURABLE_TRANSFER.md#L89)
+- [`OperationManager.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L331)
+- [`VERTICAL_SLICE_04_SAF_DURABLE_TRANSFER.md`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/docs/production/VERTICAL_SLICE_04_SAF_DURABLE_TRANSFER.md#L89)
 
 Failure mode:
 - Expected: `Unknown-size transfer retains and compares actual observed bytes before destructive completion.`
@@ -130,8 +130,8 @@ Origin: `R1`
 Coordinator verification: `Independent code-path trace and supplied runtime evidence.`
 
 Look here first:
-- [`OperationManager.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L120)
-- [`TransferEngine.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/TransferEngine.kt#L156)
+- [`OperationManager.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L120)
+- [`TransferEngine.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/TransferEngine.kt#L156)
 
 Failure mode:
 - Expected: `Reconcile a persisted final locator, then complete or retain conservative ambiguity.`
@@ -154,8 +154,8 @@ Origin: `R1`
 Coordinator verification: `Independent code-path trace and supplied runtime evidence.`
 
 Look here first:
-- [`OperationManager.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L208)
-- [`OperationStateMachine.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationStateMachine.kt#L49)
+- [`OperationManager.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L208)
+- [`OperationStateMachine.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationStateMachine.kt#L49)
 
 Failure mode:
 - Expected: `An ambiguous finalization remains interrupted and retryable/reconcilable.`
@@ -178,8 +178,8 @@ Origin: `R1`
 Coordinator verification: `Independent code-path trace and supplied runtime evidence.`
 
 Look here first:
-- [`SafStorageProvider.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L164)
-- [`OperationManager.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L272)
+- [`SafStorageProvider.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L164)
+- [`OperationManager.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L272)
 
 Failure mode:
 - Expected: `Move is advertised only when the provider can establish a safe source version proof; otherwise Move remains Unsupported.`
@@ -204,7 +204,7 @@ Origin: `R1`
 Coordinator verification: `Independent code-path trace and supplied runtime evidence.`
 
 Look here first:
-- [`OperationModels.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationModels.kt#L68)
+- [`OperationModels.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationModels.kt#L68)
 
 Failure mode:
 - Expected: `All valid provider locator fields round-trip, while legacy records remain readable.`

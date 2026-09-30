@@ -12,7 +12,7 @@
 - Parent resolution ID: `None`
 - Parent resolution path: `None`
 - Generated at: `2026-09-19T19:17:36Z`
-- Report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/tmp/reviews/2026-09-19-code-review-review-a.md`
+- Report path: `~/Desktop/File Manager-worktrees/omnifile-durable-copy-move-v1/tmp/reviews/2026-09-19-code-review-review-a.md`
 - Source skill: `code-review`
 - Status: `Review complete`
 - Git mutation during review: `None`
@@ -105,8 +105,8 @@ Origin: `Coordinator`
 Coordinator verification: `The legal transition table explicitly permits INTERRUPTED -> DESTINATION_COMPLETE and RETRYABLE_FAILURE -> DESTINATION_COMPLETE. requireTransition receives no destination inspection/finalization proof. OperationStore.transition passes only current state, next state, stage, and source-delete state. A subsequent DESTINATION_COMPLETE -> SOURCE_DELETE_PENDING transition is accepted, so the missing proof is on the path to source deletion.`
 
 Look here first:
-- [`OperationStateMachine.kt:48-67`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationStateMachine.kt#L48-L67)
-- [`OperationStore.kt:24-55`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/persistence/OperationStore.kt#L24-L55)
+- [`OperationStateMachine.kt:48-67`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationStateMachine.kt#L48-L67)
+- [`OperationStore.kt:24-55`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/persistence/OperationStore.kt#L24-L55)
 
 Failure mode:
 - Expected: `A recovery promotion to DESTINATION_COMPLETE must carry an explicit fact established by provider inspection/finalization reconciliation; only then may Move enter SOURCE_DELETE_PENDING.`
@@ -134,7 +134,7 @@ None.
 
 | ID | Severity | Surface | Missing coverage | Risk | Origin | Evidence | Issue key | Issue fingerprint | Expected basis |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `T1` | `Major` | `OperationDatabase`, `OperationStore`, generated schema | `No Android Room test currently creates, closes, reopens, queries non-terminal rows, exercises CAS updates, validates Long counters, or establishes the migration-test foundation.` | `A schema or converter/DAO defect could erase or fail to recover active Copy/Move truth while host state tests remain green.` | `Coordinator` | [`OperationDatabase.kt:5-11`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/persistence/OperationDatabase.kt#L5-L11); Android test inventory had no operations/persistence test. | `test-gap; entry=Room operation persistence; contract=active operation truth survives database close/reopen and schema migration; gap=no Room database and migration instrumentation exercises the durable schema` | `ifp-sha256:5492b11e9a096db8e39a2ccb3bf91337dbda7fafb3165615ba311098dc65ee59` | `kind:requirement; strength:authoritative; evidence:campaign Room/database and migration-test requirements` |
+| `T1` | `Major` | `OperationDatabase`, `OperationStore`, generated schema | `No Android Room test currently creates, closes, reopens, queries non-terminal rows, exercises CAS updates, validates Long counters, or establishes the migration-test foundation.` | `A schema or converter/DAO defect could erase or fail to recover active Copy/Move truth while host state tests remain green.` | `Coordinator` | [`OperationDatabase.kt:5-11`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/persistence/OperationDatabase.kt#L5-L11); Android test inventory had no operations/persistence test. | `test-gap; entry=Room operation persistence; contract=active operation truth survives database close/reopen and schema migration; gap=no Room database and migration instrumentation exercises the durable schema` | `ifp-sha256:5492b11e9a096db8e39a2ccb3bf91337dbda7fafb3165615ba311098dc65ee59` | `kind:requirement; strength:authoritative; evidence:campaign Room/database and migration-test requirements` |
 
 ## Review Coverage Ledger
 
@@ -180,10 +180,10 @@ None.
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `F1` | `entry` | [`OperationStateMachine.kt:48-67`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationStateMachine.kt#L48-L67) | `Recovery states can promote directly to destination complete.` |
-| `F1` | `risk` | [`OperationStateMachine.kt:84-100`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationStateMachine.kt#L84-L100) | `Only enum/source-delete facts are checked; destination evidence is absent.` |
-| `F1` | `caller` | [`OperationStore.kt:24-55`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/persistence/OperationStore.kt#L24-L55) | `Store API has no destination-completion proof parameter.` |
-| `T1` | `coverage gap` | [`OperationDatabase.kt:5-11`](file:///Users/yuta/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/persistence/OperationDatabase.kt#L5-L11) | `The Room database exists, but no Android database/migration test exercises it.` |
+| `F1` | `entry` | [`OperationStateMachine.kt:48-67`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationStateMachine.kt#L48-L67) | `Recovery states can promote directly to destination complete.` |
+| `F1` | `risk` | [`OperationStateMachine.kt:84-100`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/OperationStateMachine.kt#L84-L100) | `Only enum/source-delete facts are checked; destination evidence is absent.` |
+| `F1` | `caller` | [`OperationStore.kt:24-55`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/persistence/OperationStore.kt#L24-L55) | `Store API has no destination-completion proof parameter.` |
+| `T1` | `coverage gap` | [`OperationDatabase.kt:5-11`](file://~/Desktop/File%20Manager-worktrees/omnifile-durable-copy-move-v1/app/src/main/java/com/omnifile/operations/persistence/OperationDatabase.kt#L5-L11) | `The Room database exists, but no Android database/migration test exercises it.` |
 
 ### Dismissed Coordinator Candidates
 

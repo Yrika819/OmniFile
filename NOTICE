@@ -1,0 +1,35 @@
+# Third-Party Notices
+
+OmniFile itself is licensed under the Apache License, Version 2.0. See the
+[LICENSE](LICENSE) file for the full terms.
+
+This file is **not** a complete legal third-party register for a released
+artifact. It records the license family of OmniFile's direct dependencies so
+that the obligations are visible at a glance. The exact resolved dependency
+graph is represented by `app/gradle.lockfile`, and artifact checksums by
+`gradle/verification-metadata.xml`.
+
+## Direct dependency license families
+
+| Dependency family | License | Notes |
+|---|---|---|
+| AndroidX (Core KTX, Activity Compose, Test, Espresso) | Apache-2.0 | Google/Jetpack |
+| Jetpack Compose (incl. Material 3, Material 3 Adaptive) | Apache-2.0 | via `compose-bom` |
+| AndroidX Media3 (ExoPlayer, Session) | Apache-2.0 | Google |
+| AndroidX Room (runtime, ktx, compiler, testing) | Apache-2.0 | Google |
+| Kotlin (`kotlin-stdlib` via plugin), kotlinx.coroutines | Apache-2.0 | JetBrains |
+| JUnit 4 (`junit:junit:4.13.2`) | **EPL-1.0** | Used for unit tests only; *not* Apache-2.0 |
+
+## Notes
+
+- JUnit 4 is distributed under the Eclipse Public License 1.0. It is a
+  test-only dependency and is not redistributed in the application artifact.
+- Apache-2.0 dependencies do not require a NOTICE file to be carried, but are
+  listed here for transparency.
+- Before producing a distributable release, the full transitive dependency
+  graph should be reviewed and any required copyright/attribution notices
+  assembled for the exact artifact being shipped.
+
+The engineering document at `docs/production/NOTICE.md` records the internal
+scaffold for this review process. It is engineering documentation, not a
+completed legal register.

@@ -12,7 +12,7 @@
 - Parent resolution ID: `None`
 - Parent resolution path: `None`
 - Generated at: `2026-09-20T23:20:00+09:00`
-- Report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-20-code-review-post-runtime-e.md`
+- Report path: `~/Desktop/File Manager-worktrees/omnifile-saf-transfer-v1/tmp/reviews/2026-09-20-code-review-post-runtime-e.md`
 - Source skill: `code-review`
 - Status: `Review complete`
 - Git mutation during review: `None`
@@ -102,8 +102,8 @@ Origin: `R2`
 Coordinator verification: `Independent code-path trace and supplied Pixel evidence.`
 
 Look here first:
-- [`FilesViewModel.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt#L234)
-- [`FilesViewModel.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt#L326)
+- [`FilesViewModel.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt#L234)
+- [`FilesViewModel.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/files/FilesViewModel.kt#L326)
 
 Failure mode:
 - Expected: `Retry calls loadDestinationRoot or loadDestinationDirectory using preserved destination state.`
@@ -126,8 +126,8 @@ Origin: `R1`
 Coordinator verification: `Independent code-path trace and supplied Pixel evidence.`
 
 Look here first:
-- [`SafStorageProvider.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L566)
-- [`OperationManager.kt`](/Users/yuta/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L387)
+- [`SafStorageProvider.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/storage/SafStorageProvider.kt#L566)
+- [`OperationManager.kt`](~/Desktop/File%20Manager-worktrees/omnifile-saf-transfer-v1/app/src/main/java/com/omnifile/operations/OperationManager.kt#L387)
 
 Failure mode:
 - Expected: `Missing/revoked access maps to PermissionDenied or an explicit retryable interruption without source deletion.`

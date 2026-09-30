@@ -12,7 +12,7 @@
 - Parent resolution ID: `None`
 - Parent resolution path: `None`
 - Generated at: `2026-09-21T08:00:00Z`
-- Report path: `/Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1/tmp/reviews/2026-09-21-code-review-vs06-final-01e7dd84.md`
+- Report path: `~/Desktop/File Manager-worktrees/omnifile-app-shell-v1/tmp/reviews/2026-09-21-code-review-vs06-final-01e7dd84.md`
 - Source skill: `code-review`
 - Status: `Review complete`
 - Git mutation during review: `None`
@@ -154,10 +154,10 @@ None. Expanded-width physical and process-death evidence are documented runtime 
 
 | ID | Role | Link | Why it matters |
 | --- | --- | --- | --- |
-| `A1` | `shell` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/ui/shell/AppNavigation.kt` | `Route ownership and origin transitions.` |
-| `A2` | `roots` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/storage/SupportedRootRegistry.kt` | `Truthful supported-root aggregation.` |
-| `A3` | `search` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/search/SearchViewModel.kt` | `Generation/root-label publication gates.` |
-| `A4` | `device` | `/Users/yuta/Desktop/File Manager-worktrees/omnifile-app-shell-v1/docs/production/VERTICAL_SLICE_06_ADAPTIVE_APP_SHELL.md` | `Final evidence and limitations.` |
+| `A1` | `shell` | `~/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/ui/shell/AppNavigation.kt` | `Route ownership and origin transitions.` |
+| `A2` | `roots` | `~/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/storage/SupportedRootRegistry.kt` | `Truthful supported-root aggregation.` |
+| `A3` | `search` | `~/Desktop/File Manager-worktrees/omnifile-app-shell-v1/app/src/main/java/com/omnifile/search/SearchViewModel.kt` | `Generation/root-label publication gates.` |
+| `A4` | `device` | `~/Desktop/File Manager-worktrees/omnifile-app-shell-v1/docs/production/VERTICAL_SLICE_06_ADAPTIVE_APP_SHELL.md` | `Final evidence and limitations.` |
 
 ### Dismissed Coordinator Candidates
 

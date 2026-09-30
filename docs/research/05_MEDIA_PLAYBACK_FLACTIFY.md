@@ -1,6 +1,6 @@
 # FLACtify Playback Architecture Research
 
-Status: COMPLETE — `/Users/yuta/Desktop/FLACtify` inspected READ-ONLY  
+Status: COMPLETE — `~/Desktop/FLACtify` inspected READ-ONLY  
 Last inspected: 2026-09-17  
 Role of FLACtify: reference implementation for playback behavior, **not** architecture authority
 
