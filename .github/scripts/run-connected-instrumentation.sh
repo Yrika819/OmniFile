@@ -101,6 +101,7 @@ status=0
 pdf_audit_status=0
 python3 - <<'PY' || pdf_audit_status=$?
 import glob
+import re
 import sys
 import xml.etree.ElementTree as ET
 
@@ -146,6 +147,14 @@ for path in sorted(set(files)):
             result = "SKIPPED"
         elif failure is not None:
             result = "FAILED"
+            message = failure.get("message") or ""
+            # Keep actionable assertion text while avoiding file paths, URIs,
+            # opaque IDs, and stack traces in Actions logs.
+            message = re.sub(r"(?:content|file)://\S+", "<uri>", message)
+            message = re.sub(r"(?<![A-Za-z0-9])/(?:[^/\s]+/)+[^/\s:]*", "<path>", message)
+            message = re.sub(r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b", "<id>", message)
+            message = " ".join(message.split())[:400]
+            print(f"PDF_TEST_FAILURE {identifier} type={failure.get('type', 'unknown')} message={message}")
         else:
             result = "PASSED"
         observed[identifier] = result
