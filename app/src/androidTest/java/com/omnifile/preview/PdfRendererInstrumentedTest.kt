@@ -65,7 +65,7 @@ class PdfRendererInstrumentedTest {
         val provider = LocalStorageProvider(localRoot, ProviderId("vs10-local"))
         val entry = provider.listChildren(provider.root().success().ref).success().single()
         val result = render(provider, entry)
-        val payload = result as PreviewPayload.PdfPage
+        val payload = result.requirePdfPage()
 
         assertEquals(2, payload.pageCount)
         assertEquals(0, payload.pageIndex)
@@ -92,7 +92,7 @@ class PdfRendererInstrumentedTest {
         )
         val root = provider.root().success()
         val entry = provider.listChildren(root.ref).success().single { it.displayName == "scan.data" }
-        val result = render(provider, entry) as PreviewPayload.PdfPage
+        val result = render(provider, entry).requirePdfPage()
 
         assertEquals(1, result.pageCount)
         assertContainsRenderedColor(result.page)
@@ -109,7 +109,10 @@ class PdfRendererInstrumentedTest {
         val root = provider.root().success()
         val truncated = provider.listChildren(root.ref).success().single()
         val failure = render(provider, truncated) as PreviewPayload.Failure
-        assertTrue(failure.error == PreviewError.CorruptOrMalformed || failure.error == PreviewError.RendererFailure)
+        assertTrue(
+            "Unexpected malformed-PDF error ${failure.error}",
+            failure.error == PreviewError.CorruptOrMalformed || failure.error == PreviewError.RendererFailure,
+        )
 
         Files.write(localRoot.resolve("large.pdf"), ByteArray(PreviewLimits.MAX_PDF_BYTES + 1).apply {
             "%PDF-1.7\n".toByteArray().copyInto(this)
@@ -142,7 +145,7 @@ class PdfRendererInstrumentedTest {
         val provider = LocalStorageProvider(localRoot, ProviderId("vs10-cycles"))
         val entry = provider.listChildren(provider.root().success().ref).success().single()
         repeat(32) { cycle ->
-            val result = render(provider, entry) as PreviewPayload.PdfPage
+            val result = render(provider, entry).requirePdfPage()
             assertEquals(3, result.pageCount)
             assertBoundedRender(result.page)
             val rendered = result.session.renderPage(cycle % 3)
@@ -159,14 +162,14 @@ class PdfRendererInstrumentedTest {
         Files.write(localRoot.resolve("replacement.pdf"), syntheticPdf(1))
         val provider = LocalStorageProvider(localRoot, ProviderId("vs10-replacement"))
         val entries = provider.listChildren(provider.root().success().ref).success().associateBy { it.displayName }
-        val first = render(provider, entries.getValue("first.pdf")) as PreviewPayload.PdfPage
+        val first = render(provider, entries.getValue("first.pdf")).requirePdfPage()
 
         val pageOne = async { first.session.renderPage(1) }
         val pageTwo = async { first.session.renderPage(2) }
         assertTrue(pageOne.await().pixels.isNotEmpty())
         assertTrue(pageTwo.await().pixels.isNotEmpty())
 
-        val replacement = render(provider, entries.getValue("replacement.pdf")) as PreviewPayload.PdfPage
+        val replacement = render(provider, entries.getValue("replacement.pdf")).requirePdfPage()
         assertEquals(1, replacement.pageCount)
         try {
             first.session.renderPage(0)
@@ -186,7 +189,7 @@ class PdfRendererInstrumentedTest {
         val entry = provider.listChildren(provider.root().success().ref).success().single()
         val source = (provider.openPreviewSource(entry) as StorageResult.Success).value
         val item = PreviewItem(entry.ref, entry.displayName, "Test source", entry.mimeType, entry.sizeBytes)
-        val first = engine.load(PreviewRequest(item, source)) as PreviewPayload.PdfPage
+        val first = engine.load(PreviewRequest(item, source)).requirePdfPage()
 
         val processName = context.packageName + ":pdf_renderer"
         val pidOutput = instrumentation.uiAutomation.executeShellCommand("pidof $processName").use { descriptor ->
@@ -205,7 +208,7 @@ class PdfRendererInstrumentedTest {
             first.session.invalidate()
         }
 
-        val retry = withTimeout(20_000) { engine.load(PreviewRequest(item, source)) } as PreviewPayload.PdfPage
+        val retry = withTimeout(20_000) { engine.load(PreviewRequest(item, source)) }.requirePdfPage()
         assertEquals(2, retry.pageCount)
         retry.session.close()
         assertNoStagedSnapshots()
@@ -230,6 +233,12 @@ class PdfRendererInstrumentedTest {
             grantUriPermissions = true
         })
         return ContentResolver.wrap(provider)
+    }
+
+    private fun PreviewPayload.requirePdfPage(): PreviewPayload.PdfPage = when (this) {
+        is PreviewPayload.PdfPage -> this
+        is PreviewPayload.Failure -> throw AssertionError("Expected a PDF page; preview error was $error")
+        else -> throw AssertionError("Expected a PDF page; payload was ${this::class.simpleName}")
     }
 
     private fun assertNoStagedSnapshots() {
