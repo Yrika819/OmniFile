@@ -147,13 +147,14 @@ for path in sorted(set(files)):
             result = "SKIPPED"
         elif failure is not None:
             result = "FAILED"
-            message = failure.get("message") or ""
+            message = failure.get("message") or failure.text or ""
             # Keep actionable assertion text while avoiding file paths, URIs,
             # opaque IDs, and stack traces in Actions logs.
             message = re.sub(r"(?:content|file)://\S+", "<uri>", message)
             message = re.sub(r"(?<![A-Za-z0-9])/(?:[^/\s]+/)+[^/\s:]*", "<path>", message)
             message = re.sub(r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b", "<id>", message)
-            message = " ".join(message.split())[:400]
+            lines = [line.strip() for line in message.splitlines() if line.strip() and not line.lstrip().startswith("at ")]
+            message = " ".join(lines[:2])[:400]
             print(f"PDF_TEST_FAILURE {identifier} type={failure.get('type', 'unknown')} message={message}")
         else:
             result = "PASSED"
