@@ -188,7 +188,7 @@ capture() {
 capture adb-devices.txt adb devices -l
 capture emulator-getprop.txt adb shell getprop
 capture logcat.txt adb logcat -d -v threadtime -b all -t 20000
-grep -E 'OmniPdf(Client|Worker):' "${DIAGNOSTICS_DIR}/logcat.txt" | tail -n 100 | sed 's/^/PDF_WORKER_LOG /' || true
+grep -E 'OmniPdf(Client|Worker|Init):' "${DIAGNOSTICS_DIR}/logcat.txt" | tail -n 150 | sed 's/^/PDF_WORKER_LOG /' || true
 capture dumpsys-media-session.txt adb shell dumpsys media_session
 capture dumpsys-omnifile-services.txt adb shell dumpsys activity services com.omnifile
 capture dumpsys-audio-flinger.txt adb shell dumpsys media.audio_flinger

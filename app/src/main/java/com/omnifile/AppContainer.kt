@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.room.Room
 import com.omnifile.files.FilesRepository
 import com.omnifile.archive.ArchiveExtractor
@@ -30,15 +31,23 @@ class OmniFileApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        if (isPdfRendererProcess()) return
+        Log.i(PDF_INIT_TAG, "application_create_started")
+        if (isPdfRendererProcess()) {
+            Log.i(PDF_INIT_TAG, "worker_process_skip_graph")
+            return
+        }
+        Log.i(PDF_INIT_TAG, "normal_graph_initialization_started")
         val snapshots = PdfSnapshotStore(noBackupFilesDir)
         container = AppContainer(this, snapshots)
+        Log.i(PDF_INIT_TAG, "normal_graph_initialization_finished")
     }
 
     /** Exact manifest process name check; the isolated worker skips the normal app graph. */
     private fun isPdfRendererProcess(): Boolean =
         isPdfRendererProcessName(Application.getProcessName(), packageName)
 }
+
+private const val PDF_INIT_TAG = "OmniPdfInit"
 
 internal fun isPdfRendererProcessName(processName: String, packageName: String): Boolean =
     processName == "$packageName:pdf_renderer"
