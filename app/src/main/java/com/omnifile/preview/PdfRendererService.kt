@@ -12,6 +12,7 @@ import android.os.ParcelFileDescriptor
 import android.os.Process
 import android.os.SharedMemory
 import android.system.OsConstants
+import android.util.Log
 import java.io.IOException
 import java.util.concurrent.Executors
 
@@ -30,7 +31,15 @@ class PdfRendererService : Service() {
     private var activeRequestId: Long = -1L
     private var deadline: Runnable? = null
 
-    override fun onBind(intent: android.content.Intent?): IBinder = messenger.binder
+    override fun onCreate() {
+        super.onCreate()
+        Log.i(TAG, "worker_created")
+    }
+
+    override fun onBind(intent: android.content.Intent?): IBinder {
+        Log.i(TAG, "worker_bound")
+        return messenger.binder
+    }
 
     override fun onDestroy() {
         deadline?.let(mainHandler::removeCallbacks)
@@ -48,12 +57,16 @@ class PdfRendererService : Service() {
 
     private inner class IncomingHandler : Handler(Looper.getMainLooper()) {
         override fun handleMessage(message: Message) {
-            val replyTo = message.replyTo ?: return
+            val replyTo = message.replyTo ?: run {
+                Log.w(TAG, "request_without_reply_channel")
+                return
+            }
             val data = message.data.apply { classLoader = ParcelFileDescriptor::class.java.classLoader }
             val requestId = data.getLong(PdfRendererProtocol.REQUEST_ID, -1L)
             val sessionId = data.getString(PdfRendererProtocol.SESSION_ID) ?: return
             when (message.what) {
                 PdfRendererProtocol.OPEN -> {
+                    Log.i(TAG, "open_received")
                     val descriptor = data.getParcelable<ParcelFileDescriptor>(PdfRendererProtocol.DESCRIPTOR) ?: run {
                         sendError(replyTo, requestId, PdfRendererProtocol.ERROR_UNAVAILABLE)
                         return
@@ -91,13 +104,16 @@ class PdfRendererService : Service() {
         replyTo: Messenger,
     ) {
         try {
+            Log.i(TAG, "open_started")
             closeDocument()
             val opened = PdfRenderer(descriptor)
             renderer = opened
             sourceDescriptor = descriptor
             activeSessionId = sessionId
             sendSimple(replyTo, PdfRendererProtocol.OPENED, requestId) { putInt(PdfRendererProtocol.PAGE_COUNT, opened.pageCount) }
+            Log.i(TAG, "open_succeeded")
         } catch (failure: Throwable) {
+            Log.w(TAG, "open_failed_${failure.javaClass.simpleName}")
             runCatching { descriptor.close() }
             sendError(replyTo, requestId, classifyOpenFailure(failure))
         } finally {
@@ -235,5 +251,9 @@ class PdfRendererService : Service() {
             current = current.cause
         }
         return false
+    }
+
+    private companion object {
+        const val TAG = "OmniPdfWorker"
     }
 }
