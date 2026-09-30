@@ -219,8 +219,8 @@ Resource observations show no monotonic main-process FD retention attributable t
 Worker logs show intentional restarts/deaths and OS "isolated not needed" disposal; no claim of
 perfectly identical system telemetry or provider physical termination is made.
 
-The final mandatory CI contract contains 18 named tests. Floors are 86 for API31–34/36 and 83
-for API35 (seven added instrumentation methods; legacy audio exclusions unchanged). Eight
+The final mandatory CI contract contains 19 named tests. Floors are 87 for API31–34/36 and 84
+for API35 (eight added instrumentation methods; legacy audio exclusions unchanged). Eight
 negative/positive XML-gate audit scenarios passed. Missing/skipped mandatory ownership cases,
 absent/malformed XML and duplicate evidence fail. No new PDF exclusion exists.
 
@@ -231,5 +231,16 @@ small findings include exact callback session qualification, late bind cleanup, 
 bitmap disposal, legacy staging suffix assertions, eager filesystem initialization and obsolete
 staging dispatcher injection. No unrelated Minor/Nit cleanup performed. The original independent
 audit's detailed Minor/Nit inventory was not supplied or present in the repository; it cannot
-be claimed closed. Lint retains its existing 27 warning classes/locations, including inner-Handler
+be claimed closed. Lint reports 27 warnings, including inner-Handler
 lifetime heuristics; callback resources have explicit lifetime owners.
+
+
+Additional targeted acquisition evidence: replace A during a real non-cooperative SAF query;
+B renders through Local on the other admission and remains navigable. A is CANCELLED while its
+physical query still retains one slot. Releasing A closes its late Cursor and returns admission;
+it cannot publish into B. Back awaits B's physical close and leaves zero candidate artifacts.
+The three ReadAcquisition instrumentation cases passed together. Twenty-two unique targeted
+Android methods now have passing evidence. GitHub Host CI run 36778208036 passed on c31bb9b:
+36 suites, 266 tests, zero failures/errors/skips, lint and both APK builds green under strict
+verification. The added Android case advances the final CI SHA; that earlier Host run is a
+checkpoint, not final authority. No further production changes were made after that checkpoint.

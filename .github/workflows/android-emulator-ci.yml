@@ -58,30 +58,30 @@ jobs:
         # `expected-tests` is the number of test cases the suite must report
         # for that API level. It is a floor, not an exact match, so growing the
         # suite never breaks CI while silently losing tests always does. Every
-        # level runs 86: one test, wavPlaysToEndedState, needs the emulator audio
+        # level runs 87: one test, wavPlaysToEndedState, needs the emulator audio
         # output to run a clip to completion and is skipped everywhere. API 35
-        # runs 83, because that emulator cannot grant audio focus at all, so
+        # runs 84, because that emulator cannot grant audio focus at all, so
         # three more are skipped there. See
         # .github/scripts/run-connected-instrumentation.sh for the evidence.
         include:
           - api-level: 31
             target: google_apis
-            expected-tests: '86'
+            expected-tests: '87'
           - api-level: 32
             target: google_apis
-            expected-tests: '86'
+            expected-tests: '87'
           - api-level: 33
             target: google_apis
-            expected-tests: '86'
+            expected-tests: '87'
           - api-level: 34
             target: google_apis
-            expected-tests: '86'
+            expected-tests: '87'
           - api-level: 35
             target: google_apis
-            expected-tests: '83'
+            expected-tests: '84'
           - api-level: 36
             target: google_apis
-            expected-tests: '86'
+            expected-tests: '87'
 
     env:
       MATRIX_API_LEVEL: ${{ matrix.api-level }}
