@@ -96,6 +96,73 @@ status=0
 ./gradlew "${gradle_args[@]}" \
   2>&1 | tee "${DIAGNOSTICS_DIR}/connected-androidtest.log" || status=$?
 
+# Always print the named PDF cases, even when Gradle fails before the summary
+# step. This keeps the renderer/lifecycle evidence reviewable in the job log.
+pdf_audit_status=0
+python3 - <<'PY' || pdf_audit_status=$?
+import glob
+import sys
+import xml.etree.ElementTree as ET
+
+expected = {
+    "com.omnifile.preview.PdfRendererInstrumentedTest#localPdfUsesPlatformRendererAndSupportsPageNavigation",
+    "com.omnifile.preview.PdfRendererInstrumentedTest#pipeBackedSafSourceStagesAfterFreshGrantValidationAndRenders",
+    "com.omnifile.preview.PdfRendererInstrumentedTest#malformedAndTruncatedPdfStayTypedAndOversizeIsRejectedBeforeRendererOpen",
+    "com.omnifile.preview.PdfRendererInstrumentedTest#rendererServiceIsPrivateAndIsolated",
+    "com.omnifile.preview.PdfRendererInstrumentedTest#repeatedOpenRenderCloseCyclesLeaveNoSnapshotArtifacts",
+    "com.omnifile.preview.PdfRendererInstrumentedTest#concurrentPlatformPageRequestsAreSerializedAndReplacementClosesOldDocument",
+    "com.omnifile.preview.PdfRendererInstrumentedTest#rendererProcessDeathReturnsTypedFailureAndFreshOpenCanRetry",
+    "com.omnifile.ui.preview.PdfPreviewNavigationInstrumentedTest#filesPreviewKeepsCurrentPdfPageAcrossRecreationAndBackReturnsToFiles",
+    "com.omnifile.ui.preview.PdfPreviewNavigationInstrumentedTest#searchPreviewBackReturnsToTheSearchResults",
+    "com.omnifile.ui.preview.PreviewScreenInstrumentedTest#pdfWorkerFailureShowsOnlySanitizedTextAndRetry",
+    "com.omnifile.ui.preview.PreviewScreenInstrumentedTest#pdfPreviewShowsBoundedPageAndAccessiblePreviousNextControls",
+}
+roots = (
+    "app/build/outputs/androidTest-results/connected",
+    "app/build/outputs/androidTest-results",
+    "app/build/test-results",
+)
+files = []
+for root in roots:
+    files.extend(glob.glob(root + "/**/TEST-*.xml", recursive=True))
+
+observed = {}
+for path in sorted(set(files)):
+    try:
+        report = ET.parse(path).getroot()
+    except ET.ParseError:
+        continue
+    for case in report.iter("testcase"):
+        identifier = f"{case.get('classname', '?')}#{case.get('name', '?')}"
+        if identifier not in expected:
+            continue
+        failure = case.find("failure")
+        if failure is None:
+            failure = case.find("error")
+        assumption = "AssumptionViolatedException" in (
+            (failure.get("message") or "") + (failure.text or "") + (failure.get("type") or "")
+        ) if failure is not None else False
+        if case.find("skipped") is not None or assumption:
+            result = "SKIPPED"
+        elif failure is not None:
+            result = "FAILED"
+        else:
+            result = "PASSED"
+        observed[identifier] = result
+
+for identifier in sorted(expected):
+    result = observed.get(identifier, "MISSING")
+    print(f"PDF_TEST_RESULT {identifier} {result}")
+
+not_passed = [identifier for identifier in expected if observed.get(identifier) != "PASSED"]
+print(f"PDF_TESTS {len(observed)}/{len(expected)} passed={len(expected) - len(not_passed)}")
+if not_passed:
+    sys.exit("PDF instrumentation evidence incomplete: " + ", ".join(sorted(not_passed)))
+PY
+if [[ "${pdf_audit_status}" -ne 0 ]]; then
+  status=1
+fi
+
 end_epoch=$(date +%s)
 echo "instrumentation_wall_clock_seconds=$(( end_epoch - start_epoch ))" \
   > "${DIAGNOSTICS_DIR}/wall-clock.txt"
