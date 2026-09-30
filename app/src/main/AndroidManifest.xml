@@ -32,5 +32,10 @@
                 <action android:name="androidx.media3.session.MediaSessionService" />
             </intent-filter>
         </service>
+        <service
+            android:name=".preview.PdfRendererService"
+            android:exported="false"
+            android:isolatedProcess="true"
+            android:process=":pdf_renderer" />
     </application>
 </manifest>

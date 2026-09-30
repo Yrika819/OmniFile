@@ -12,11 +12,13 @@ import java.io.InputStream
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
-open class PreviewEngine {
+open class PreviewEngine(private val pdfController: PdfPreviewController? = null) {
     open suspend fun load(request: PreviewRequest): PreviewPayload {
         val source = request.source
         if (!source.capabilities.sequentialReadable) return PreviewPayload.Unsupported
-        if (source.identity.identityKey != request.item.identity.identityKey) return PreviewPayload.Unsupported
+        if (source.identity.providerId != request.item.identity.providerId ||
+            source.identity.identityKey != request.item.identity.identityKey
+        ) return PreviewPayload.Unsupported
         val firstHandle = when (val opened = source.open()) {
             is StorageResult.Success -> opened.value
             is StorageResult.Failure -> return PreviewPayload.Failure(previewError(opened.error))
@@ -42,6 +44,14 @@ open class PreviewEngine {
             PreviewContentType.IMAGE -> {
                 if (!source.capabilities.canReopen) PreviewPayload.Unsupported
                 else decodeImage(source)
+            }
+            PreviewContentType.PDF -> {
+                if (!source.capabilities.canStagePdf) PreviewPayload.Unsupported
+                else when (val opened = pdfController?.open(request, request.startingPage)) {
+                    null -> PreviewPayload.Unsupported
+                    is PdfOpenResult.Ready -> opened.payload
+                    is PdfOpenResult.Failure -> PreviewPayload.Failure(opened.error)
+                }
             }
             PreviewContentType.TEXT -> textPayload ?: PreviewPayload.Unsupported
             PreviewContentType.UNKNOWN -> PreviewPayload.Unsupported

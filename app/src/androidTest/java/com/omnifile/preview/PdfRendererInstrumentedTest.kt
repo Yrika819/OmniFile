@@ -1,0 +1,288 @@
+package com.omnifile.preview
+
+import android.content.ContentResolver
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.ProviderInfo
+import android.content.pm.ServiceInfo
+import android.os.ParcelFileDescriptor
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.omnifile.OmniFileApplication
+import com.omnifile.storage.EntryRef
+import com.omnifile.storage.LocalStorageProvider
+import com.omnifile.storage.ProviderId
+import com.omnifile.storage.SafStorageProvider
+import com.omnifile.storage.StorageEntry
+import com.omnifile.storage.StorageResult
+import com.omnifile.storage.TestDocumentsProvider
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.nio.file.Files
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+
+@RunWith(AndroidJUnit4::class)
+class PdfRendererInstrumentedTest {
+    private val instrumentation = InstrumentationRegistry.getInstrumentation()
+    private val context = instrumentation.targetContext
+    private val engine by lazy { (context.applicationContext as OmniFileApplication).container.previewEngine }
+    private lateinit var localRoot: java.nio.file.Path
+
+    @Before
+    fun setUp() {
+        TestDocumentsProvider.reset()
+        val testProvider = TestDocumentsProvider()
+        testProvider.attachInfo(instrumentation.context, ProviderInfo().apply {
+            authority = TestDocumentsProvider.AUTHORITY
+            readPermission = "android.permission.MANAGE_DOCUMENTS"
+            writePermission = "android.permission.MANAGE_DOCUMENTS"
+            exported = true
+            grantUriPermissions = true
+        })
+        localRoot = context.cacheDir.toPath().resolve("vs10-pdf-fixtures")
+        localRoot.toFile().deleteRecursively()
+        Files.createDirectories(localRoot)
+    }
+
+    @After
+    fun tearDown() {
+        localRoot.toFile().deleteRecursively()
+        TestDocumentsProvider.reset()
+    }
+
+    @Test
+    fun localPdfUsesPlatformRendererAndSupportsPageNavigation() = runBlocking {
+        Files.write(localRoot.resolve("misleading.txt"), syntheticPdf(pageCount = 2))
+        val provider = LocalStorageProvider(localRoot, ProviderId("vs10-local"))
+        val entry = provider.listChildren(provider.root().success().ref).success().single()
+        val result = render(provider, entry)
+        val payload = result as PreviewPayload.PdfPage
+
+        assertEquals(2, payload.pageCount)
+        assertEquals(0, payload.pageIndex)
+        assertTrue(payload.page.width <= PreviewLimits.MAX_PDF_PAGE_SIDE)
+        assertTrue(payload.page.height <= PreviewLimits.MAX_PDF_PAGE_SIDE)
+        assertTrue(payload.page.width.toLong() * payload.page.height <= PreviewLimits.MAX_PDF_PAGE_PIXELS)
+        assertEquals(payload.page.width * payload.page.height * 4, payload.page.pixels.size)
+        assertContainsRenderedColor(payload.page)
+        val secondPage = payload.session.renderPage(1)
+        assertContainsRenderedColor(secondPage)
+        payload.session.close()
+        assertNoStagedSnapshots()
+    }
+
+    @Test
+    fun pipeBackedSafSourceStagesAfterFreshGrantValidationAndRenders() = runBlocking {
+        TestDocumentsProvider.addDocument("root/pipe-pdf", "root", "scan.data", "text/plain", syntheticPdf(1))
+        val resolver = providerResolver()
+        val provider = SafStorageProvider(
+            resolver,
+            TestDocumentsProvider.ROOT_URI,
+            ProviderId("vs10-saf"),
+            grantFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION,
+        )
+        val root = provider.root().success()
+        val entry = provider.listChildren(root.ref).success().single { it.displayName == "scan.data" }
+        val result = render(provider, entry) as PreviewPayload.PdfPage
+
+        assertEquals(1, result.pageCount)
+        assertContainsRenderedColor(result.page)
+        assertTrue(TestDocumentsProvider.readOpenCalls() >= 2)
+        result.session.close()
+        assertTrue(TestDocumentsProvider.awaitPendingIo())
+        assertNoStagedSnapshots()
+    }
+
+    @Test
+    fun malformedAndTruncatedPdfStayTypedAndOversizeIsRejectedBeforeRendererOpen() = runBlocking {
+        Files.write(localRoot.resolve("truncated.pdf"), "%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>".toByteArray())
+        val provider = LocalStorageProvider(localRoot, ProviderId("vs10-errors"))
+        val root = provider.root().success()
+        val truncated = provider.listChildren(root.ref).success().single()
+        val failure = render(provider, truncated) as PreviewPayload.Failure
+        assertTrue(failure.error == PreviewError.CorruptOrMalformed || failure.error == PreviewError.RendererFailure)
+
+        Files.write(localRoot.resolve("large.pdf"), ByteArray(PreviewLimits.MAX_PDF_BYTES + 1).apply {
+            "%PDF-1.7\n".toByteArray().copyInto(this)
+        })
+        val large = provider.listChildren(root.ref).success().single { it.displayName == "large.pdf" }
+        val tooLarge = render(provider, large) as PreviewPayload.Failure
+        assertEquals(PreviewError.PdfInputTooLarge, tooLarge.error)
+        assertNoStagedSnapshots()
+    }
+
+    @Test
+    fun rendererServiceIsPrivateAndIsolated() {
+        val info = context.packageManager.getServiceInfo(
+            android.content.ComponentName(context, PdfRendererService::class.java),
+            PackageManager.GET_META_DATA,
+        )
+        assertFalse(info.exported)
+        assertTrue(info.flags and ServiceInfo.FLAG_ISOLATED_PROCESS != 0)
+        assertTrue(info.processName.endsWith(":pdf_renderer"))
+        assertEquals(PackageManager.PERMISSION_DENIED, context.checkSelfPermission(android.Manifest.permission.INTERNET))
+        assertEquals(
+            PackageManager.PERMISSION_DENIED,
+            context.checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE),
+        )
+    }
+
+    @Test
+    fun repeatedOpenRenderCloseCyclesLeaveNoSnapshotArtifacts() = runBlocking {
+        Files.write(localRoot.resolve("cycles.pdf"), syntheticPdf(3, pageWidth = 3000, pageHeight = 3000))
+        val provider = LocalStorageProvider(localRoot, ProviderId("vs10-cycles"))
+        val entry = provider.listChildren(provider.root().success().ref).success().single()
+        repeat(32) { cycle ->
+            val result = render(provider, entry) as PreviewPayload.PdfPage
+            assertEquals(3, result.pageCount)
+            assertBoundedRender(result.page)
+            val rendered = result.session.renderPage(cycle % 3)
+            assertBoundedRender(rendered)
+            assertContainsRenderedColor(rendered)
+            result.session.close()
+            assertNoStagedSnapshots()
+        }
+    }
+
+    @Test
+    fun concurrentPlatformPageRequestsAreSerializedAndReplacementClosesOldDocument() = runBlocking {
+        Files.write(localRoot.resolve("first.pdf"), syntheticPdf(3))
+        Files.write(localRoot.resolve("replacement.pdf"), syntheticPdf(1))
+        val provider = LocalStorageProvider(localRoot, ProviderId("vs10-replacement"))
+        val entries = provider.listChildren(provider.root().success().ref).success().associateBy { it.displayName }
+        val first = render(provider, entries.getValue("first.pdf")) as PreviewPayload.PdfPage
+
+        val pageOne = async { first.session.renderPage(1) }
+        val pageTwo = async { first.session.renderPage(2) }
+        assertTrue(pageOne.await().pixels.isNotEmpty())
+        assertTrue(pageTwo.await().pixels.isNotEmpty())
+
+        val replacement = render(provider, entries.getValue("replacement.pdf")) as PreviewPayload.PdfPage
+        assertEquals(1, replacement.pageCount)
+        try {
+            first.session.renderPage(0)
+            throw AssertionError("A replaced PDF session must not remain usable")
+        } catch (failure: PdfRendererFailure) {
+            assertTrue(failure.kind == PdfRendererFailureKind.UNAVAILABLE || failure.kind == PdfRendererFailureKind.WORKER_DIED)
+        } finally {
+            replacement.session.close()
+        }
+        assertNoStagedSnapshots()
+    }
+
+    @Test
+    fun rendererProcessDeathReturnsTypedFailureAndFreshOpenCanRetry() = runBlocking {
+        Files.write(localRoot.resolve("worker-death.pdf"), syntheticPdf(2))
+        val provider = LocalStorageProvider(localRoot, ProviderId("vs10-worker-death"))
+        val entry = provider.listChildren(provider.root().success().ref).success().single()
+        val source = (provider.openPreviewSource(entry) as StorageResult.Success).value
+        val item = PreviewItem(entry.ref, entry.displayName, "Test source", entry.mimeType, entry.sizeBytes)
+        val first = engine.load(PreviewRequest(item, source)) as PreviewPayload.PdfPage
+
+        val processName = context.packageName + ":pdf_renderer"
+        val pidOutput = instrumentation.uiAutomation.executeShellCommand("pidof $processName").use { descriptor ->
+            ParcelFileDescriptor.AutoCloseInputStream(descriptor).bufferedReader().use { it.readText() }
+        }
+        val workerPid = pidOutput.trim().split(Regex("\\s+")).firstOrNull()?.toIntOrNull()
+            ?: throw AssertionError("Isolated PDF renderer process was not running")
+        instrumentation.uiAutomation.executeShellCommand("kill -9 $workerPid").close()
+
+        try {
+            withTimeout(10_000) { first.session.renderPage(1) }
+            throw AssertionError("A dead renderer must fail the active session")
+        } catch (failure: PdfRendererFailure) {
+            assertTrue(failure.kind == PdfRendererFailureKind.WORKER_DIED || failure.kind == PdfRendererFailureKind.UNAVAILABLE)
+        } finally {
+            first.session.invalidate()
+        }
+
+        val retry = withTimeout(20_000) { engine.load(PreviewRequest(item, source)) } as PreviewPayload.PdfPage
+        assertEquals(2, retry.pageCount)
+        retry.session.close()
+        assertNoStagedSnapshots()
+    }
+
+    private suspend fun render(provider: com.omnifile.preview.PreviewSourceProvider, entry: StorageEntry): PreviewPayload {
+        val source = when (val result = provider.openPreviewSource(entry)) {
+            is StorageResult.Success -> result.value
+            is StorageResult.Failure -> error("Preview source resolution failed: ${result.error}")
+        }
+        val item = PreviewItem(entry.ref, entry.displayName, "Test source", entry.mimeType, entry.sizeBytes)
+        return withTimeout(20_000) { engine.load(PreviewRequest(item, source)) }
+    }
+
+    private fun providerResolver(): ContentResolver {
+        val provider = TestDocumentsProvider()
+        provider.attachInfo(instrumentation.context, ProviderInfo().apply {
+            authority = TestDocumentsProvider.AUTHORITY
+            readPermission = "android.permission.MANAGE_DOCUMENTS"
+            writePermission = "android.permission.MANAGE_DOCUMENTS"
+            exported = true
+            grantUriPermissions = true
+        })
+        return ContentResolver.wrap(provider)
+    }
+
+    private fun assertNoStagedSnapshots() {
+        val workspace = File(File(context.noBackupFilesDir, "preview"), "pdf")
+        assertTrue(workspace.listFiles().orEmpty().none { it.name.endsWith(".ready") || it.name.endsWith(".partial") })
+    }
+
+    private fun assertContainsRenderedColor(page: PdfRenderedPage) {
+        assertTrue(page.pixels.indices.step(4).any { offset ->
+            val first = page.pixels[offset].toInt() and 0xff
+            val second = page.pixels[offset + 1].toInt() and 0xff
+            val third = page.pixels[offset + 2].toInt() and 0xff
+            first != second || second != third
+        })
+    }
+
+    private fun assertBoundedRender(page: PdfRenderedPage) {
+        assertTrue(page.width <= PreviewLimits.MAX_PDF_PAGE_SIDE)
+        assertTrue(page.height <= PreviewLimits.MAX_PDF_PAGE_SIDE)
+        assertTrue(page.width.toLong() * page.height <= PreviewLimits.MAX_PDF_PAGE_PIXELS)
+        assertEquals(page.width * page.height * 4, page.pixels.size)
+    }
+
+    private fun syntheticPdf(pageCount: Int, pageWidth: Int = 120, pageHeight: Int = 160): ByteArray {
+        val bodies = mutableListOf<String>()
+        val kids = (0 until pageCount).joinToString(" ") { index -> "${3 + index * 2} 0 R" }
+        bodies += "<< /Type /Catalog /Pages 2 0 R >>"
+        bodies += "<< /Type /Pages /Kids [$kids] /Count $pageCount >>"
+        repeat(pageCount) { index ->
+            val pageObject = 3 + index * 2
+            val streamObject = pageObject + 1
+            val content = "q 0.15 0.35 0.75 rg 0 0 $pageWidth $pageHeight re f Q"
+            bodies += "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 $pageWidth $pageHeight] /Resources << >> /Contents $streamObject 0 R >>"
+            bodies += "<< /Length ${content.toByteArray().size} >>\nstream\n$content\nendstream"
+        }
+        val output = ByteArrayOutputStream()
+        output.write("%PDF-1.4\n".toByteArray())
+        val offsets = mutableListOf(0)
+        bodies.forEachIndexed { index, body ->
+            offsets += output.size()
+            output.write("${index + 1} 0 obj\n$body\nendobj\n".toByteArray())
+        }
+        val xref = output.size()
+        output.write("xref\n0 ${bodies.size + 1}\n0000000000 65535 f \n".toByteArray())
+        offsets.drop(1).forEach { offset ->
+            output.write("%010d 00000 n \n".format(offset).toByteArray())
+        }
+        output.write("trailer\n<< /Size ${bodies.size + 1} /Root 1 0 R >>\nstartxref\n$xref\n%%EOF\n".toByteArray())
+        return output.toByteArray()
+    }
+
+    private fun <T> StorageResult<T>.success(): T = when (this) {
+        is StorageResult.Success -> value
+        is StorageResult.Failure -> error("Expected success, got $error")
+    }
+}

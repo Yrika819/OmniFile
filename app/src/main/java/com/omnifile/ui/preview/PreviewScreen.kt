@@ -19,11 +19,17 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
+import android.graphics.Bitmap
+import java.nio.ByteBuffer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.omnifile.preview.PreviewError
 import com.omnifile.preview.PreviewPayload
@@ -36,6 +42,8 @@ fun PreviewScreen(
     modifier: Modifier = Modifier,
     onBack: () -> Unit,
     onRetry: () -> Unit,
+    onPreviousPage: () -> Unit = {},
+    onNextPage: () -> Unit = {},
 ) {
     val item = when (state) {
         PreviewUiState.Idle -> null
@@ -81,6 +89,35 @@ fun PreviewScreen(
                             )
                         }
                     }
+                    is PreviewPayload.PdfPage -> {
+                        Text(state.sourceLabel, modifier = Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.labelSmall)
+                        val pageBitmap = remember(payload.page) {
+                            var bitmap: Bitmap? = null
+                            try {
+                                bitmap = Bitmap.createBitmap(payload.page.width, payload.page.height, Bitmap.Config.ARGB_8888)
+                                bitmap.apply { copyPixelsFromBuffer(ByteBuffer.wrap(payload.page.pixels)) }
+                            } catch (_: OutOfMemoryError) {
+                                bitmap?.recycle()
+                                null
+                            }
+                        }
+                        DisposableEffect(pageBitmap) {
+                            onDispose { pageBitmap?.recycle() }
+                        }
+                        if (pageBitmap != null) {
+                            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                Image(
+                                    bitmap = pageBitmap.asImageBitmap(),
+                                    contentDescription = "PDF page ${payload.pageIndex + 1} of ${payload.pageCount} for ${state.item.displayName}",
+                                    modifier = Modifier.fillMaxSize().padding(16.dp),
+                                    contentScale = ContentScale.Fit,
+                                )
+                            }
+                        } else {
+                            Text("This page could not be displayed.", modifier = Modifier.weight(1f).padding(24.dp).testTag("preview.pdf.memory-error"))
+                        }
+                        PdfPageControls(payload.pageIndex, payload.pageCount, onPreviousPage, onNextPage)
+                    }
                     PreviewPayload.Unsupported -> Message("Preview is not supported for this file.", "preview.unsupported")
                     is PreviewPayload.Failure -> ErrorMessage(payload.error, onRetry)
                 }
@@ -114,6 +151,27 @@ private fun TextPreview(content: String, truncated: Boolean, modifier: Modifier)
 }
 
 @Composable
+private fun PdfPageControls(pageIndex: Int, pageCount: Int, onPreviousPage: () -> Unit, onNextPage: () -> Unit) {
+    androidx.compose.foundation.layout.Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Button(
+            onClick = onPreviousPage,
+            enabled = pageIndex > 0,
+            modifier = Modifier.testTag("preview.pdf.previous").semantics { contentDescription = "Previous page" },
+        ) { Text("Previous") }
+        Text("${pageIndex + 1} / $pageCount", modifier = Modifier.testTag("preview.pdf.page"))
+        Button(
+            onClick = onNextPage,
+            enabled = pageIndex < pageCount - 1,
+            modifier = Modifier.testTag("preview.pdf.next").semantics { contentDescription = "Next page" },
+        ) { Text("Next") }
+    }
+}
+
+@Composable
 private fun Message(message: String, tag: String) {
     Text(message, modifier = Modifier.padding(24.dp).testTag(tag), style = MaterialTheme.typography.bodyLarge)
 }
@@ -122,14 +180,25 @@ private fun Message(message: String, tag: String) {
 private fun ErrorMessage(error: PreviewError, onRetry: () -> Unit) {
     val message = when (error) {
         PreviewError.ProviderUnavailable -> "The storage provider is unavailable."
+        PreviewError.SourceVanished -> "This file is no longer available."
         PreviewError.PermissionOrGrantMissing -> "Storage permission is no longer available."
         PreviewError.CorruptOrMalformed -> "This file is corrupt or malformed."
         PreviewError.ResourceLimit -> "This file exceeds the preview safety limit."
+        PreviewError.PdfInputTooLarge -> "This PDF is larger than the preview limit."
+        PreviewError.PdfPageCountLimit -> "This PDF has too many pages to preview."
+        PreviewError.EncryptedOrUnsupported -> "Encrypted or unsupported PDFs cannot be previewed."
+        PreviewError.StagingFailure -> "The PDF preview could not be staged."
+        PreviewError.StagingTimeout -> "The file did not respond in time."
+        PreviewError.RendererTimeout -> "PDF rendering took too long."
+        PreviewError.RendererFailure -> "The PDF renderer stopped unexpectedly."
         PreviewError.Cancelled -> "Preview was cancelled."
         is PreviewError.IoFailure -> "The file could not be read."
         PreviewError.Unknown -> "This file could not be previewed."
     }
-    val retryable = error == PreviewError.ProviderUnavailable || error == PreviewError.PermissionOrGrantMissing || error is PreviewError.IoFailure
+    val retryable = error == PreviewError.ProviderUnavailable || error == PreviewError.SourceVanished ||
+        error == PreviewError.PermissionOrGrantMissing || error == PreviewError.StagingTimeout ||
+        error == PreviewError.StagingFailure || error == PreviewError.RendererTimeout ||
+        error == PreviewError.RendererFailure || error is PreviewError.IoFailure
     Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(message, modifier = Modifier.testTag("preview.error"), style = MaterialTheme.typography.bodyLarge)
         if (retryable) Button(onClick = onRetry, modifier = Modifier.testTag("preview.retry")) { Text("Retry") }

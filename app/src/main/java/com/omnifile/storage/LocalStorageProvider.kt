@@ -120,7 +120,11 @@ class LocalStorageProvider(
                 sourceLabel = "Local storage",
                 mimeType = entry.mimeType,
                 sizeBytes = entry.sizeBytes,
-                capabilities = com.omnifile.preview.PreviewCapabilities(sequentialReadable = true, canReopen = true),
+                capabilities = com.omnifile.preview.PreviewCapabilities(
+                    sequentialReadable = true,
+                    canReopen = true,
+                    canStagePdf = true,
+                ),
             ) { openSequentialRead(locator) },
         )
     }

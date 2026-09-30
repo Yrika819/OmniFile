@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -22,6 +24,8 @@ import com.omnifile.preview.PreviewError
 import com.omnifile.preview.PreviewItem
 import com.omnifile.preview.PreviewPayload
 import com.omnifile.preview.PreviewUiState
+import com.omnifile.preview.PdfDocumentSession
+import com.omnifile.preview.PdfRenderedPage
 import com.omnifile.storage.EntryRef
 import com.omnifile.storage.ProviderId
 import com.omnifile.operations.DurableLocator
@@ -102,6 +106,64 @@ class PreviewScreenInstrumentedTest {
     }
 
     @Test
+    fun pdfWorkerFailureShowsOnlySanitizedTextAndRetry() {
+        val item = PreviewItem(TestRef("pdf-worker"), "report.pdf", "Local storage", "application/pdf", null)
+        composeRule.setContent {
+            OmniFileTheme {
+                PreviewScreen(
+                    PreviewUiState.Error(item, PreviewError.RendererFailure),
+                    onBack = {},
+                    onRetry = {},
+                )
+            }
+        }
+        composeRule.onNodeWithText("The PDF renderer stopped unexpectedly.").assertExists()
+        composeRule.onNodeWithText("Retry").assertExists()
+    }
+
+    @Test
+    fun pdfPreviewShowsBoundedPageAndAccessiblePreviousNextControls() {
+        val item = PreviewItem(TestRef("pdf-file"), "document.pdf", "Local / Docs", "application/pdf", 512)
+        val uiState = mutableStateOf<PreviewUiState>(
+            PreviewUiState.Ready(
+                item,
+                "Local storage",
+                PreviewPayload.PdfPage(PdfRenderedPage(2, 3, ByteArray(24)), 0, 2, ScreenPdfSession()),
+            ),
+        )
+        var previous = 0
+        var next = 0
+        composeRule.setContent {
+            OmniFileTheme {
+                PreviewScreen(
+                    uiState.value,
+                    onBack = {},
+                    onRetry = {},
+                    onPreviousPage = { previous++ },
+                    onNextPage = { next++ },
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription("PDF page 1 of 2 for document.pdf").assertExists()
+        composeRule.onNodeWithText("1 / 2").assertExists()
+        composeRule.onNodeWithContentDescription("Previous page").assertIsNotEnabled()
+        composeRule.onNodeWithContentDescription("Next page").assertIsEnabled().performClick()
+        composeRule.runOnIdle { assertEquals(1, next); assertEquals(0, previous) }
+
+        composeRule.runOnIdle {
+            uiState.value = PreviewUiState.Ready(
+                item,
+                "Local storage",
+                PreviewPayload.PdfPage(PdfRenderedPage(3, 2, ByteArray(24)), 1, 2, ScreenPdfSession()),
+            )
+        }
+        composeRule.onNodeWithText("2 / 2").assertExists()
+        composeRule.onNodeWithContentDescription("Previous page").assertIsEnabled()
+        composeRule.onNodeWithContentDescription("Next page").assertIsNotEnabled()
+    }
+
+    @Test
     fun textPreviewKeepsAReadableLineInShortLandscapeLikeContentArea() {
         val item = PreviewItem(TestRef("short-landscape"), "notes.txt", "Acceptance folder", "text/plain", 5)
         composeRule.setContent {
@@ -160,5 +222,11 @@ class PreviewScreenInstrumentedTest {
 
     private data class TestRef(override val identityKey: String) : EntryRef {
         override val providerId = ProviderId("preview-ui-test")
+    }
+
+    private class ScreenPdfSession : PdfDocumentSession {
+        override val pageCount = 2
+        override suspend fun renderPage(pageIndex: Int) = PdfRenderedPage(1, 1, ByteArray(4))
+        override suspend fun close() = Unit
     }
 }

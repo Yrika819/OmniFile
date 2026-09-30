@@ -52,9 +52,21 @@ class PreviewContentTest {
     }
 
     @Test
-    fun pdfHeaderIsNotMisclassifiedAsPlainText() {
+    fun pdfSignatureIsRecognizedByContentEvidence() {
         val printablePdfHeader = "%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj".toByteArray()
-        assertEquals(PreviewContentType.UNKNOWN, PreviewContentClassifier.classify(printablePdfHeader, "application/pdf", "document.pdf"))
+        assertEquals(PreviewContentType.PDF, PreviewContentClassifier.classify(printablePdfHeader, "text/plain", "document.txt"))
+    }
+
+    @Test
+    fun pdfExtensionAloneDoesNotClassifyContentAsPdf() {
+        val textWithPdfName = "ordinary readable text".toByteArray()
+        assertEquals(PreviewContentType.TEXT, PreviewContentClassifier.classify(textWithPdfName, "application/pdf", "foo.pdf"))
+    }
+
+    @Test
+    fun pdfSignatureWithinHeaderAllowanceOverridesMisleadingExtension() {
+        val bytes = ByteArray(128) { ' '.code.toByte() } + "%PDF-1.4\n".toByteArray()
+        assertEquals(PreviewContentType.PDF, PreviewContentClassifier.classify(bytes, "text/plain", "payload.bin"))
     }
 
     @Test

@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/** Owns one request at a time; generation ownership protects even non-cooperative providers. */
+/** Owns Preview generations, one PDF document, and at most one in-flight page render. */
 class PreviewViewModel(
     private val engine: PreviewEngine = PreviewEngine(),
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -26,17 +26,46 @@ class PreviewViewModel(
     private val lifecycleScope = scope ?: CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val _state = MutableStateFlow<PreviewUiState>(PreviewUiState.Idle)
     private val generation = AtomicLong()
+    private val pageGeneration = AtomicLong()
+    private val pageQueueLock = Any()
     private var job: Job? = null
-    private var currentItem: PreviewItem? = null
+    @Volatile private var pageJob: Job? = null
+    private var queuedPageIndex: Int? = null
+    private var activePageIndex: Int? = null
+    @Volatile private var currentItem: PreviewItem? = null
     private var currentResolver: (suspend () -> StorageResult<PreviewSource>)? = null
+    @Volatile private var currentSourceLabel: String = ""
+    @Volatile private var currentPageIndex: Int = 0
+    @Volatile private var pdfSession: PdfDocumentSession? = null
 
     val state: StateFlow<PreviewUiState> = _state.asStateFlow()
 
     fun open(item: PreviewItem, resolveSource: suspend () -> StorageResult<PreviewSource>) {
+        openAt(item, resolveSource, 0)
+    }
+
+    private fun openAt(
+        item: PreviewItem,
+        resolveSource: suspend () -> StorageResult<PreviewSource>,
+        startingPage: Int,
+    ) {
         val owner = generation.incrementAndGet()
+        pageGeneration.incrementAndGet()
         job?.cancel()
+        pageJob?.cancel()
+        synchronized(pageQueueLock) {
+            queuedPageIndex = null
+            activePageIndex = null
+        }
+        pdfSession?.invalidate()
+        pdfSession = null
+        job = null
+        pageJob = null
         currentItem = item
         currentResolver = resolveSource
+        val requestedStartingPage = startingPage.coerceAtLeast(0)
+        currentPageIndex = requestedStartingPage
+        currentSourceLabel = ""
         _state.value = PreviewUiState.Loading(item)
         job = lifecycleScope.launch(dispatcher) {
             val source = try {
@@ -66,12 +95,28 @@ class PreviewViewModel(
                 publish(owner, PreviewUiState.Error(item, PreviewError.ProviderUnavailable))
                 return@launch
             }
-            val request = PreviewRequest(item, source)
+            val request = PreviewRequest(item, source, requestedStartingPage)
             try {
                 when (val result = engine.load(request)) {
                     PreviewPayload.Unsupported -> publish(owner, PreviewUiState.Unsupported(item))
                     is PreviewPayload.Failure -> publish(owner, PreviewUiState.Error(item, result.error))
-                    else -> publish(owner, PreviewUiState.Ready(item, source.sourceLabel, result))
+                    else -> {
+                        if (owner != generation.get()) {
+                            (result as? PreviewPayload.PdfPage)?.session?.invalidate()
+                            return@launch
+                        }
+                        if (result is PreviewPayload.PdfPage) {
+                            pdfSession = result.session
+                            currentPageIndex = result.pageIndex
+                            currentSourceLabel = source.sourceLabel
+                            if (owner != generation.get()) {
+                                if (pdfSession === result.session) pdfSession = null
+                                result.session.invalidate()
+                                return@launch
+                            }
+                        }
+                        publish(owner, PreviewUiState.Ready(item, source.sourceLabel, result))
+                    }
                 }
             } catch (cancel: kotlinx.coroutines.CancellationException) {
                 throw cancel
@@ -80,6 +125,8 @@ class PreviewViewModel(
             } catch (error: IOException) {
                 publish(owner, PreviewUiState.Error(item, PreviewError.IoFailure(error.message)))
             } catch (_: OutOfMemoryError) {
+                pdfSession?.invalidate()
+                pdfSession = null
                 publish(owner, PreviewUiState.Error(item, PreviewError.ResourceLimit))
             } catch (_: Exception) {
                 publish(owner, PreviewUiState.Error(item, PreviewError.Unknown))
@@ -87,19 +134,110 @@ class PreviewViewModel(
         }
     }
 
+    fun previousPage() = requestRelativePage(-1)
+    fun nextPage() = requestRelativePage(1)
+
+    private fun requestRelativePage(delta: Int) {
+        val session = pdfSession ?: return
+        val item = currentItem ?: return
+        val owner = generation.get()
+        var target = -1
+        var startWorker = false
+        synchronized(pageQueueLock) {
+            val base = queuedPageIndex ?: activePageIndex ?: currentPageIndex
+            target = base + delta
+            if (target in 0 until session.pageCount) {
+                pageGeneration.incrementAndGet()
+                queuedPageIndex = target
+                _state.value = PreviewUiState.Loading(item)
+                startWorker = pageJob?.isActive != true
+            }
+        }
+        if (target !in 0 until session.pageCount) return
+        if (startWorker) pageJob = lifecycleScope.launch(dispatcher) { drainPageRequests(owner, item, session) }
+    }
+
+    private suspend fun drainPageRequests(owner: Long, item: PreviewItem, session: PdfDocumentSession) {
+        try {
+            while (owner == generation.get() && session === pdfSession) {
+                val (target, requestedGeneration) = synchronized(pageQueueLock) {
+                    val target = queuedPageIndex.also {
+                        queuedPageIndex = null
+                        activePageIndex = it
+                    }
+                    target to pageGeneration.get()
+                }
+                if (target == null) return
+                val result = try {
+                    session.renderPage(target)
+                } catch (cancel: kotlinx.coroutines.CancellationException) {
+                    throw cancel
+                } catch (failure: PdfRendererFailure) {
+                    if (owner == generation.get() && requestedGeneration == pageGeneration.get()) {
+                        session.invalidate()
+                        pdfSession = null
+                        publish(owner, PreviewUiState.Error(item, failure.toPreviewError()))
+                    }
+                    return
+                } catch (_: Exception) {
+                    if (owner == generation.get() && requestedGeneration == pageGeneration.get()) {
+                        session.invalidate()
+                        pdfSession = null
+                        publish(owner, PreviewUiState.Error(item, PreviewError.RendererFailure))
+                    }
+                    return
+                }
+                val published = synchronized(pageQueueLock) {
+                    val stillCurrent = owner == generation.get() && session === pdfSession &&
+                        requestedGeneration == pageGeneration.get() && queuedPageIndex == null
+                    if (activePageIndex == target) activePageIndex = null
+                    if (stillCurrent) {
+                        currentPageIndex = target
+                        _state.value = PreviewUiState.Ready(
+                            item,
+                            currentSourceLabel,
+                            PreviewPayload.PdfPage(result, target, session.pageCount, session),
+                        )
+                    }
+                    stillCurrent
+                }
+                if (!published) continue
+            }
+        } finally {
+            var restart = false
+            synchronized(pageQueueLock) {
+                pageJob = null
+                activePageIndex = null
+                restart = queuedPageIndex != null && owner == generation.get() && session === pdfSession
+                if (restart) pageJob = lifecycleScope.launch(dispatcher) { drainPageRequests(owner, item, session) }
+            }
+        }
+    }
+
     fun retry() {
         val item = currentItem ?: return
         val resolver = currentResolver ?: return
-        open(item, resolver)
+        openAt(item, resolver, currentPageIndex)
     }
 
-    /** Called whenever navigation leaves Preview so handles, jobs, and decoded bitmaps are released. */
+    /** Navigation leaving Preview invalidates ownership before a worker can publish late output. */
     fun close() {
         generation.incrementAndGet()
+        pageGeneration.incrementAndGet()
         job?.cancel()
+        pageJob?.cancel()
         job = null
+        pageJob = null
+        synchronized(pageQueueLock) {
+            queuedPageIndex = null
+            activePageIndex = null
+        }
+        pdfSession?.invalidate()
+        pdfSession = null
         currentItem = null
         currentResolver = null
+        currentPageIndex = 0
+        currentSourceLabel = ""
         _state.value = PreviewUiState.Idle
     }
 
