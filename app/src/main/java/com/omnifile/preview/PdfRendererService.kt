@@ -63,15 +63,35 @@ class PdfRendererService : Service() {
 
     private inner class IncomingHandler : Handler(Looper.getMainLooper()) {
         override fun handleMessage(message: Message) {
-            val replyTo = message.replyTo ?: run {
-                Log.w(TAG, "request_without_reply_channel")
-                return
-            }
+            val replyChannel = message.replyTo
             val data = message.data.apply { classLoader = ParcelFileDescriptor::class.java.classLoader }
             val requestId = data.getLong(PdfRendererProtocol.REQUEST_ID, -1L)
             val sessionId = data.getString(PdfRendererProtocol.SESSION_ID) ?: return
             when (message.what) {
+                PdfRendererProtocol.CANCEL -> {
+                    if (requestId == activeRequestId && sessionId == activeRequestSessionId) {
+                        Process.killProcess(Process.myPid())
+                    }
+                }
+                PdfRendererProtocol.CLOSE -> {
+                    val ownedSession = activeSessionId == sessionId
+                    if (!ownedSession) {
+                        replyChannel?.let { sendSimple(it, PdfRendererProtocol.CLOSED, requestId) }
+                        return
+                    }
+                    startDeadline(requestId, sessionId)
+                    renderExecutor.execute {
+                        closeDocument()
+                        replyChannel?.let { sendSimple(it, PdfRendererProtocol.CLOSED, requestId) }
+                        finishDeadline(requestId, sessionId)
+                        stopSelf()
+                    }
+                }
                 PdfRendererProtocol.OPEN -> {
+                    val replyTo = replyChannel ?: run {
+                        Log.w(TAG, "open_without_reply_channel")
+                        return
+                    }
                     Log.i(TAG, "open_received")
                     val descriptor = data.getParcelable<ParcelFileDescriptor>(PdfRendererProtocol.DESCRIPTOR) ?: run {
                         sendError(replyTo, requestId, PdfRendererProtocol.ERROR_UNAVAILABLE)
@@ -81,24 +101,13 @@ class PdfRendererService : Service() {
                     renderExecutor.execute { openDocument(sessionId, requestId, descriptor, replyTo) }
                 }
                 PdfRendererProtocol.RENDER -> {
+                    val replyTo = replyChannel ?: run {
+                        Log.w(TAG, "render_without_reply_channel")
+                        return
+                    }
                     val pageIndex = data.getInt(PdfRendererProtocol.PAGE_INDEX, -1)
                     startDeadline(requestId, sessionId)
                     renderExecutor.execute { renderPage(sessionId, requestId, pageIndex, replyTo) }
-                }
-                PdfRendererProtocol.CLOSE -> {
-                    startDeadline(requestId, sessionId)
-                    renderExecutor.execute {
-                        val ownedSession = activeSessionId == sessionId
-                        if (ownedSession) closeDocument()
-                        sendSimple(replyTo, PdfRendererProtocol.CLOSED, requestId)
-                        finishDeadline(requestId, sessionId)
-                        if (ownedSession) stopSelf()
-                    }
-                }
-                PdfRendererProtocol.CANCEL -> {
-                    if (requestId == activeRequestId && sessionId == activeRequestSessionId) {
-                        Process.killProcess(Process.myPid())
-                    }
                 }
                 else -> super.handleMessage(message)
             }

@@ -191,11 +191,13 @@ class PdfRendererInstrumentedTest {
         val item = PreviewItem(entry.ref, entry.displayName, "Test source", entry.mimeType, entry.sizeBytes)
         val first = engine.load(PreviewRequest(item, source)).requirePdfPage()
 
-        val processName = context.packageName + ":pdf_renderer"
-        val pidOutput = instrumentation.uiAutomation.executeShellCommand("pidof $processName").use { descriptor ->
+        val processOutput = instrumentation.uiAutomation.executeShellCommand("ps -A -ww -o PID,NAME").use { descriptor ->
             ParcelFileDescriptor.AutoCloseInputStream(descriptor).bufferedReader().use { it.readText() }
         }
-        val workerPid = pidOutput.trim().split(Regex("\\s+")).firstOrNull()?.toIntOrNull()
+        val workerPid = processOutput.lineSequence().mapNotNull { line ->
+            val columns = line.trim().split(Regex("\\s+"), limit = 2)
+            if (columns.getOrNull(1)?.contains("pdf_renderer") == true) columns[0].toIntOrNull() else null
+        }.firstOrNull()
             ?: throw AssertionError("Isolated PDF renderer process was not running")
         instrumentation.uiAutomation.executeShellCommand("kill -9 $workerPid").close()
 
