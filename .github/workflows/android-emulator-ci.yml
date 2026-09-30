@@ -58,37 +58,37 @@ jobs:
         # `expected-tests` is the number of test cases the suite must report
         # for that API level. It is a floor, not an exact match, so growing the
         # suite never breaks CI while silently losing tests always does. Every
-        # level runs 87: one test, wavPlaysToEndedState, needs the emulator audio
+        # level reports 106 cases: one test, wavPlaysToEndedState, needs the emulator audio
         # output to run a clip to completion and is skipped everywhere. API 35
-        # runs 84, because that emulator cannot grant audio focus at all, so
+        # reports 103, because that emulator cannot grant audio focus at all, so
         # three more are skipped there. See
         # .github/scripts/run-connected-instrumentation.sh for the evidence.
         include:
           - api-level: 31
             target: google_apis
-            expected-tests: '87'
+            expected-tests: '106'
           - api-level: 32
             target: google_apis
-            expected-tests: '87'
+            expected-tests: '106'
           - api-level: 33
             target: google_apis
-            expected-tests: '87'
+            expected-tests: '106'
           - api-level: 34
             target: google_apis
-            expected-tests: '87'
+            expected-tests: '106'
           - api-level: 35
             target: google_apis
-            expected-tests: '84'
+            expected-tests: '103'
           - api-level: 36
             target: google_apis
-            expected-tests: '87'
+            expected-tests: '106'
 
     env:
       MATRIX_API_LEVEL: ${{ matrix.api-level }}
       # Floor, not an exact value: growing the suite must never break CI, but a
-      # silent loss of tests must always break it. 80 is the current size of
-      # app/src/androidTest; lower it only as part of a deliberate change to
-      # that suite.
+      # silent loss of tests must always break it. These floors match complete
+      # XML from the first remediation matrix; lower them only as part of a
+      # deliberate change to the suite.
       EXPECTED_MIN_TESTS: ${{ matrix.expected-tests }}
       # Every test allowed to skip on a cloud emulator, with its reason.
       # Anything not listed here is reported as unexplained skipped coverage

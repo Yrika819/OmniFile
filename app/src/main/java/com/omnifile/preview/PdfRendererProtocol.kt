@@ -13,12 +13,10 @@ internal object PdfRendererProtocol {
 
     const val REQUEST_ID = "request_id"
     const val SESSION_ID = "session_id"
-    const val DESCRIPTOR = "descriptor"
     const val PAGE_INDEX = "page_index"
     const val PAGE_COUNT = "page_count"
     const val WIDTH = "width"
     const val HEIGHT = "height"
-    const val SHARED_MEMORY = "shared_memory"
     const val ERROR_KIND = "error_kind"
 
     const val ERROR_MALFORMED = 1

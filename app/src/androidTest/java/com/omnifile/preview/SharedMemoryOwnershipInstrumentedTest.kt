@@ -1,7 +1,10 @@
 package com.omnifile.preview
 
+import android.os.Bundle
+import android.os.Parcel
 import android.os.SharedMemory
 import android.util.Log
+import android.system.Os
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.omnifile.storage.*
@@ -19,6 +22,7 @@ class SharedMemoryOwnershipInstrumentedTest {
     private class ManualDispatcher : CoroutineDispatcher() {
         private val queue = java.util.concurrent.ConcurrentLinkedQueue<Runnable>()
         override fun dispatch(context: CoroutineContext, block: Runnable) { queue.add(block) }
+        fun runOne() { checkNotNull(queue.poll()).run() }
         fun drain() { while (true) (queue.poll() ?: return).run() }
     }
     private class MemoryOwner(val memory: SharedMemory) {
@@ -26,13 +30,38 @@ class SharedMemoryOwnershipInstrumentedTest {
         fun close() { check(closes.incrementAndGet() == 1); memory.close() }
     }
     private fun fdCount(): Int = File("/proc/self/fd").list().orEmpty().size
+    private fun ashmemFdCount(): Int = File("/proc/self/fd").listFiles().orEmpty().count {
+        runCatching { Os.readlink(it.path).contains("ashmem") }.getOrDefault(false)
+    }
+
+    /** Include the API33 lazy Parcel's independent FD owner, as actual Messenger delivery does. */
+    private fun incomingMemory(): SharedMemory {
+        val source = SharedMemory.create("vs10-response-race", 4096)
+        val parcel = Parcel.obtain()
+        var incoming: Bundle? = null
+        var memory: SharedMemory? = null
+        try {
+            parcel.writeBundle(Bundle().apply { putParcelable("memory", source) })
+            parcel.setDataPosition(0)
+            incoming = checkNotNull(parcel.readBundle(SharedMemory::class.java.classLoader))
+            memory = checkNotNull(incoming.getParcelable<SharedMemory>("memory"))
+            return memory
+        } catch (error: Throwable) {
+            memory?.close()
+            throw error
+        } finally {
+            incoming?.clear()
+            parcel.recycle()
+            source.close()
+        }
+    }
 
     @Test fun fiftyActualSharedMemoryCallbackCancellationCyclesHaveOneClose() = runBlocking {
         val counts = mutableListOf<Int>()
         repeat(55) { cycle ->
             val dispatcher = ManualDispatcher()
             val lifecycle = CoroutineScope(SupervisorJob() + dispatcher)
-            val owner = MemoryOwner(SharedMemory.create("vs10-response-race", 4096))
+            val owner = MemoryOwner(incomingMemory())
             val holder = OwningResponse<MemoryOwner>("session", 1) { it.close() }
             var transfers = 0
             val consumer = lifecycle.launch {
@@ -89,7 +118,7 @@ class SharedMemoryOwnershipInstrumentedTest {
                     client.renderPage(0)
                     transferred = true
                 }
-                dispatcher.drain()
+                dispatcher.runOne()
                 withTimeout(10_000) { accepted.await() }
                 consumer.cancel()
                 dispatcher.drain()
@@ -97,7 +126,7 @@ class SharedMemoryOwnershipInstrumentedTest {
                 assertFalse("Consumer transferred cycle $cycle", transferred)
                 if (cycle % 5 == 4) counts.add(fdCount())
             }
-            Log.i("VS10Ownership", "messenger_25_cancel_cycles_fd_samples=$counts")
+            Log.i("VS10Ownership", "messenger_25_cancel_cycles_fd_samples=$counts anonymous_ashmem_fds=${ashmemFdCount()}")
             assertTrue("Messenger PAGE FD growth: $counts", counts.last() <= counts.first() + 3)
         } finally {
             lifecycle.cancel(); dispatcher.drain(); client.close(); snapshot.close(); document.delete(); root.delete()
@@ -128,7 +157,7 @@ class SharedMemoryOwnershipInstrumentedTest {
                             try { client.renderPage(0); fail("Death must reject the untransferred PAGE") }
                             catch (error: PdfRendererFailure) { failure = error }
                         }
-                        dispatcher.drain(); withTimeout(10_000) { accepted.await() }
+                        dispatcher.runOne(); withTimeout(10_000) { accepted.await() }
                         (client as PdfRendererDeathTestHook).killRendererForTest()
                         dispatcher.drain()
                         assertTrue(consumer.isCompleted)
@@ -142,7 +171,7 @@ class SharedMemoryOwnershipInstrumentedTest {
                 } finally { snapshot.close() }
                 counts.add(fdCount())
             }
-            Log.i("VS10Ownership", "accepted_page_death_retry_5_cycles_fd_samples=$counts")
+            Log.i("VS10Ownership", "accepted_page_death_retry_5_cycles_fd_samples=$counts anonymous_ashmem_fds=${ashmemFdCount()}")
             assertTrue("Accepted PAGE death FD growth: $counts", counts.last() <= counts.first() + 3)
         } finally { document.delete(); root.delete() }
     }

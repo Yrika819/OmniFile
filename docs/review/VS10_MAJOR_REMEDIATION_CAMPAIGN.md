@@ -244,3 +244,76 @@ Android methods now have passing evidence. GitHub Host CI run 36778208036 passed
 36 suites, 266 tests, zero failures/errors/skips, lint and both APK builds green under strict
 verification. The added Android case advances the final CI SHA; that earlier Host run is a
 checkpoint, not final authority. No further production changes were made after that checkpoint.
+
+
+## First full matrix investigation
+
+Run 36782453459 on a6bb288 completed with API31/34/35 green and API32/33/36 red.
+Actual XML contains 25 suites and106 cases (API35:103), no duplicate cases; the
+floors are strengthened to those observed totals. No exclusion or assertion is relaxed.
+
+API32:104 passed,1 failed,1 authorized skip. The malformed/oversize test asserted
+artifact absence immediately after logical error delivery, while the exact native cleanup
+owner was still closing. It now verifies a valid Retry, closes that accepted owner and then
+asserts zero artifacts. This uses the controller's existing exact physical cleanup barrier.
+
+API33:102 passed,3 failed,1 authorized skip. FD growth was real transport retention:
+Android13 BaseBundle initializes Parcelable values lazily and keeps its backing Parcel FD
+copies; copying a Bundle also sets mOwnsLazyValues=false in source and destination, preventing
+clear from reclaiming that parcel. SharedMemory.close alone therefore was insufficient.
+The callback now extracts scalar metadata plus the explicitly owned SharedMemory, never
+copies/retains Message or Bundle, and clears the incoming Bundle on every path. Worker OPEN
+also clears its IPC Bundle after transferring the decoded PFD; rejected submission closes PFD.
+The real SharedMemory stress now includes a Parcel-backed Bundle, not only direct creation.
+No GC is invoked. Existing strict FD growth assertions remain unchanged.
+
+API36:104 passed,1 failed,1 authorized skip. Logs show warm PAGE response delivery followed
+by two rapid RENDER sends and native CANCEL/process death, then the next PAGE observation
+timing out. Availability resumed the warm consumer before callback notification; it could
+arm the next observation, which the old callback consumed. The debug observation now belongs
+to the exact next request ID. An armed request yields at a deterministic consumer boundary,
+and the manual test dispatcher runs one step, preventing fast callbacks from transferring
+before the test cancels or kills the worker. Normal product input/release behavior is inert.
+
+All three failures are diagnosed (API32 test ownership barrier, API33 product transport-FD
+ownership, API36 test-hook request race). No infrastructure rerun is substituted. The fixed
+candidate receives focused Android and full Host validation, a new coherent commit/push,
+and a fresh complete matrix followed by an unchanged-SHA complete repeat.
+
+The first local API33 focus passed the Parcel-backed50-cycle case (all FD samples72),
+but two IPC cases timed out before OPEN during software-emulated cold binding. Logs show
+worker2624 never reached Application.onCreate before cancellation; worker2665 reached
+onCreate9.23s after start, near the unchanged10s bound amid boot/background ANRs/GC.
+After installing/precompiling the built target APK, service binding reached the ownership
+boundaries. An additional diagnostic assertion expecting one named PDF FD was invalid:
+this ATD kernel labels anonymous memory `/dev/ashmem<random-id>` and exposes transport
+FD copies, not the region label. That uncommitted diagnostic assertion is removed; all
+original exact-close and total-FD growth assertions remain unchanged. Anonymous ashmem
+counts are telemetry. Direct instrumentation is used after precompile because Gradle
+uninstalls APKs after connected tests; raw runner counts/statuses are retained.
+
+The intermediate clear/no-copy candidate passed all three API33 ownership methods using
+precompiled direct instrumentation:50 Parcel-backed memory cycles,25 Messenger cancellation
+cycles and5 accepted-PAGE death/Retry cycles; all FD samples73, no monotonic retention.
+
+The final IPC form removes resource Parcelables from Bundle entirely: OPEN PFD and PAGE
+SharedMemory travel through Message.obj (framework boot-class Parcelables, eagerly decoded
+by Message/Binder). Bundle holds scalar metadata only, and no Message/Bundle is copied into
+a response. This avoids depending on BaseBundle's weak Parcel lifetime for FD correctness.
+Callback/worker immediately take explicit ownership of decoded resources, transfer to
+holder/native task or close in finally. Binder transport parcels retain their framework
+transaction owner and recycle at transaction return, rather than a lazy app Bundle lifetime.
+The same native focused tests and complete Host gate are rerun before committing this form.
+
+Final eager-resource IPC candidate: the complete strict Host gate passed (36 suites,
+266 tests, zero failures/errors/skips, lint and both APK builds). Direct API33 instrumentation
+passed all3 ownership methods (21.027s) and all9 native PDF methods (211.497s), including
+32 open/render/close,10 worker-death/Retry and25 ViewModel replacement cycles. Final process
+3643 FD samples remained73 throughout all50/25/5 ownership cycles; process3858 remained72
+through10 death/Retry and25 document replacements. No GC mechanism is used. Anonymous ashmem
+FD telemetry was1 after the ownership batches. Earlier diagnostic logs are kept separately;
+these measurements identify the final run by process ID. Eight synthetic CI audit scenarios
+again passed, including required-case absence/skip, missing/malformed XML and duplicate evidence.
+Fresh whole-diff ownership/security review found0 unresolved Blockers and0 unresolved Majors.
+The API33 transport-FD Major discovered by CI is fixed and has focused real-device-emulator
+resource evidence; complete authoritative matrix validation remains required on the new SHA.

@@ -120,6 +120,13 @@ class PdfRendererInstrumentedTest {
         val large = provider.listChildren(root.ref).success().single { it.displayName == "large.pdf" }
         val tooLarge = render(provider, large) as PreviewPayload.Failure
         assertEquals(PreviewError.PdfInputTooLarge, tooLarge.error)
+        // Error delivery is logical; a subsequent native open waits for the exact failed owner's
+        // physical cleanup. Close that accepted owner before asserting filesystem release.
+        Files.write(localRoot.resolve("retry.pdf"), syntheticPdf(pageCount = 1))
+        val retry = provider.listChildren(root.ref).success().single { it.displayName == "retry.pdf" }
+        val recovered = render(provider, retry).requirePdfPage()
+        assertContainsRenderedColor(recovered.page)
+        recovered.session.close()
         assertNoStagedSnapshots()
     }
 

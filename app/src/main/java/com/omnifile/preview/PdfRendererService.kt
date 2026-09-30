@@ -66,62 +66,70 @@ class PdfRendererService : Service() {
     private inner class IncomingHandler : Handler(Looper.getMainLooper()) {
         override fun handleMessage(message: Message) {
             val replyChannel = message.replyTo
-            val data = message.data.apply { classLoader = ParcelFileDescriptor::class.java.classLoader }
-            val requestId = data.getLong(PdfRendererProtocol.REQUEST_ID, -1L)
-            val sessionId = data.getString(PdfRendererProtocol.SESSION_ID) ?: return
-            when (message.what) {
-                PdfRendererProtocol.KILL_WORKER_FOR_TEST -> {
-                    if (BuildConfig.DEBUG && acceptedSessionId.get() == sessionId) {
-                        Process.killProcess(Process.myPid())
+            val data = message.data
+            var incomingDescriptor = message.obj as? java.io.Closeable
+            message.obj = null
+            try {
+                val requestId = data.getLong(PdfRendererProtocol.REQUEST_ID, -1L)
+                val sessionId = data.getString(PdfRendererProtocol.SESSION_ID) ?: return
+                when (message.what) {
+                    PdfRendererProtocol.KILL_WORKER_FOR_TEST -> {
+                        if (BuildConfig.DEBUG && acceptedSessionId.get() == sessionId) {
+                            Process.killProcess(Process.myPid())
+                        }
                     }
+                    PdfRendererProtocol.CANCEL -> {
+                        if (requestId == activeRequestId && sessionId == activeRequestSessionId) {
+                            Process.killProcess(Process.myPid())
+                        }
+                    }
+                    PdfRendererProtocol.CLOSE -> {
+                        if (acceptedSessionId.get() != sessionId) {
+                            replyChannel?.let { sendSimple(it, PdfRendererProtocol.CLOSED, requestId, sessionId) }
+                            return
+                        }
+                        startDeadline(requestId, sessionId)
+                        renderExecutor.execute {
+                            val ownedSession = acceptedSessionId.compareAndSet(sessionId, null)
+                            if (ownedSession && activeSessionId == sessionId) closeDocument()
+                            replyChannel?.let { sendSimple(it, PdfRendererProtocol.CLOSED, requestId, sessionId) }
+                            finishDeadline(requestId, sessionId)
+                            if (ownedSession) stopSelf()
+                        }
+                    }
+                    PdfRendererProtocol.OPEN -> {
+                        val replyTo = replyChannel ?: run {
+                            Log.w(TAG, "open_without_reply_channel")
+                            return
+                        }
+                        acceptedSessionId.set(sessionId)
+                        Log.i(TAG, "open_received")
+                        val descriptor = incomingDescriptor as? ParcelFileDescriptor ?: run {
+                            sendError(replyTo, requestId, sessionId, PdfRendererProtocol.ERROR_UNAVAILABLE)
+                            return
+                        }
+                        startDeadline(requestId, sessionId)
+                        renderExecutor.execute { openDocument(sessionId, requestId, descriptor, replyTo) }
+                        incomingDescriptor = null // submitted native operation owns it; rejection stays here
+                    }
+                    PdfRendererProtocol.RENDER -> {
+                        val replyTo = replyChannel ?: run {
+                            Log.w(TAG, "render_without_reply_channel")
+                            return
+                        }
+                        if (acceptedSessionId.get() != sessionId) {
+                            sendError(replyTo, requestId, sessionId, PdfRendererProtocol.ERROR_UNAVAILABLE)
+                            return
+                        }
+                        val pageIndex = data.getInt(PdfRendererProtocol.PAGE_INDEX, -1)
+                        startDeadline(requestId, sessionId)
+                        renderExecutor.execute { renderPage(sessionId, requestId, pageIndex, replyTo) }
+                    }
+                    else -> super.handleMessage(message)
                 }
-                PdfRendererProtocol.CANCEL -> {
-                    if (requestId == activeRequestId && sessionId == activeRequestSessionId) {
-                        Process.killProcess(Process.myPid())
-                    }
-                }
-                PdfRendererProtocol.CLOSE -> {
-                    if (acceptedSessionId.get() != sessionId) {
-                        replyChannel?.let { sendSimple(it, PdfRendererProtocol.CLOSED, requestId, sessionId) }
-                        return
-                    }
-                    startDeadline(requestId, sessionId)
-                    renderExecutor.execute {
-                        val ownedSession = acceptedSessionId.compareAndSet(sessionId, null)
-                        if (ownedSession && activeSessionId == sessionId) closeDocument()
-                        replyChannel?.let { sendSimple(it, PdfRendererProtocol.CLOSED, requestId, sessionId) }
-                        finishDeadline(requestId, sessionId)
-                        if (ownedSession) stopSelf()
-                    }
-                }
-                PdfRendererProtocol.OPEN -> {
-                    val replyTo = replyChannel ?: run {
-                        Log.w(TAG, "open_without_reply_channel")
-                        return
-                    }
-                    acceptedSessionId.set(sessionId)
-                    Log.i(TAG, "open_received")
-                    val descriptor = data.getParcelable<ParcelFileDescriptor>(PdfRendererProtocol.DESCRIPTOR) ?: run {
-                        sendError(replyTo, requestId, sessionId, PdfRendererProtocol.ERROR_UNAVAILABLE)
-                        return
-                    }
-                    startDeadline(requestId, sessionId)
-                    renderExecutor.execute { openDocument(sessionId, requestId, descriptor, replyTo) }
-                }
-                PdfRendererProtocol.RENDER -> {
-                    val replyTo = replyChannel ?: run {
-                        Log.w(TAG, "render_without_reply_channel")
-                        return
-                    }
-                    if (acceptedSessionId.get() != sessionId) {
-                        sendError(replyTo, requestId, sessionId, PdfRendererProtocol.ERROR_UNAVAILABLE)
-                        return
-                    }
-                    val pageIndex = data.getInt(PdfRendererProtocol.PAGE_INDEX, -1)
-                    startDeadline(requestId, sessionId)
-                    renderExecutor.execute { renderPage(sessionId, requestId, pageIndex, replyTo) }
-                }
-                else -> super.handleMessage(message)
+            } finally {
+                incomingDescriptor?.close() // malformed headers or rejected submission never orphan a PFD
+                data.clear() // scalar metadata only; no resource-bearing lazy Bundle parcel
             }
         }
     }
@@ -188,12 +196,12 @@ class PdfRendererService : Service() {
                 return
             }
             val result = Message.obtain(null, PdfRendererProtocol.PAGE)
+            result.obj = outputMemory // boot-class Parcelable, eagerly decoded by Message/Binder
             result.data = android.os.Bundle().apply {
                 putLong(PdfRendererProtocol.REQUEST_ID, requestId)
                 putString(PdfRendererProtocol.SESSION_ID, sessionId)
                 putInt(PdfRendererProtocol.WIDTH, dimensions.width)
                 putInt(PdfRendererProtocol.HEIGHT, dimensions.height)
-                putParcelable(PdfRendererProtocol.SHARED_MEMORY, outputMemory)
             }
             replyTo.send(result)
             // Messenger has parcelled a duplicate descriptor; release the worker's copy now.

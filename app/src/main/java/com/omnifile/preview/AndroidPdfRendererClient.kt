@@ -42,7 +42,8 @@ private class AndroidPdfRendererClient(private val context: Context) : PdfRender
     private val workerDisconnected = CompletableDeferred<Unit>()
     private val service = AtomicReference<Messenger?>(null)
     private val pending = AtomicReference<Pending?>(null)
-    private val pageArrivalForTest = AtomicReference<CompletableDeferred<Unit>?>(null)
+    private data class PageArrival(val requestId: Long, val arrived: CompletableDeferred<Unit>)
+    private val pageArrivalForTest = AtomicReference<PageArrival?>(null)
     private val callbackMessenger = Messenger(CallbackHandler())
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName, binder: IBinder) {
@@ -90,14 +91,12 @@ private class AndroidPdfRendererClient(private val context: Context) : PdfRender
             throw PdfRendererFailure(PdfRendererFailureKind.UNAVAILABLE)
         }
         val response = try {
-            request(PdfRendererProtocol.OPEN) { bundle ->
-                bundle.putParcelable(PdfRendererProtocol.DESCRIPTOR, descriptor)
-            }
+            request(PdfRendererProtocol.OPEN, descriptor = descriptor)
         } finally {
             runCatching { descriptor.close() }
         }
         return response.use {
-            it.message.data.getInt(PdfRendererProtocol.PAGE_COUNT, -1).also { count ->
+            it.pageCount.also { count ->
                 if (count < 0) throw PdfRendererFailure(PdfRendererFailureKind.UNAVAILABLE)
             }
         }
@@ -106,9 +105,8 @@ private class AndroidPdfRendererClient(private val context: Context) : PdfRender
     override suspend fun renderPage(pageIndex: Int): PdfRenderedPage = request(PdfRendererProtocol.RENDER) { bundle ->
         bundle.putInt(PdfRendererProtocol.PAGE_INDEX, pageIndex)
     }.use { response ->
-        val bundle = response.message.data
-        val width = bundle.getInt(PdfRendererProtocol.WIDTH, -1)
-        val height = bundle.getInt(PdfRendererProtocol.HEIGHT, -1)
+        val width = response.width
+        val height = response.height
         if (!isValidPdfRenderSize(width, height)) throw PdfRendererFailure(PdfRendererFailureKind.RESOURCE_LIMIT)
         val memory = response.memory ?: throw PdfRendererFailure(PdfRendererFailureKind.UNAVAILABLE)
         val expected = width * height * 4
@@ -130,9 +128,9 @@ private class AndroidPdfRendererClient(private val context: Context) : PdfRender
 
     override fun armAcceptedPageResponseForTest(): kotlinx.coroutines.Deferred<Unit> {
         check(BuildConfig.DEBUG) { "Response observations are only available in debug builds" }
-        val arrival = CompletableDeferred<Unit>()
+        val arrival = PageArrival(requestIds.get() + 1, CompletableDeferred())
         check(pageArrivalForTest.compareAndSet(null, arrival))
-        return arrival
+        return arrival.arrived
     }
 
     override suspend fun killRendererForTest() {
@@ -183,6 +181,7 @@ private class AndroidPdfRendererClient(private val context: Context) : PdfRender
 
     private suspend fun request(
         operation: Int,
+        descriptor: ParcelFileDescriptor? = null,
         addPayload: (Bundle) -> Unit = {},
     ): RendererResponse {
         if (closed.get()) throw PdfRendererFailure(PdfRendererFailureKind.UNAVAILABLE)
@@ -191,8 +190,11 @@ private class AndroidPdfRendererClient(private val context: Context) : PdfRender
         val id = requestIds.incrementAndGet()
         val response = OwningResponse<RendererResponse>(sessionId, id) { it.close() }
         val entry = Pending(id, response)
+        val observedForTest = BuildConfig.DEBUG && operation == PdfRendererProtocol.RENDER &&
+            pageArrivalForTest.get()?.requestId == id
         try {
             val message = Message.obtain(null, operation)
+            message.obj = descriptor // boot-class Parcelable; Bundle contains only scalar metadata
             message.replyTo = callbackMessenger
             message.data = Bundle().apply {
                 putLong(PdfRendererProtocol.REQUEST_ID, id)
@@ -204,10 +206,13 @@ private class AndroidPdfRendererClient(private val context: Context) : PdfRender
                 target.send(message)
             }
             Log.i(TAG, "request_sent_${operationName(operation)}")
+            // An armed debug observation lets the manual test dispatcher stop before transfer,
+            // even if a fast callback arrives before await has suspended. Normal/release input is inert.
+            if (observedForTest) kotlinx.coroutines.yield()
             val result = response.awaitAndTransfer()
             try {
                 Log.i(TAG, "response_received_${operationName(operation)}")
-                if (result.message.what == PdfRendererProtocol.ERROR) throw mapError(result.message.data.getInt(PdfRendererProtocol.ERROR_KIND))
+                if (result.what == PdfRendererProtocol.ERROR) throw mapError(result.errorKind)
                 return result
             } catch (error: Throwable) { result.close(); throw error }
         } catch (failure: PdfRendererFailure) {
@@ -266,43 +271,56 @@ private class AndroidPdfRendererClient(private val context: Context) : PdfRender
 
     private inner class CallbackHandler : Handler(Looper.getMainLooper()) {
         override fun handleMessage(message: Message) {
-            val data = message.data.apply { classLoader = SharedMemory::class.java.classLoader }
-            val requestId = data.getLong(PdfRendererProtocol.REQUEST_ID, -1L)
-            if (message.what == PdfRendererProtocol.CLOSED &&
-                requestId == shutdownRequest.get() && data.getString(PdfRendererProtocol.SESSION_ID) == sessionId) {
-                closeResponseMemory(data)
-                shutdownReady.complete(Unit)
-                return
-            }
-            val active = pending.get()
-            if (closed.get() || active == null || active.requestId != requestId ||
-                data.getString(PdfRendererProtocol.SESSION_ID) != sessionId
-            ) {
-                closeResponseMemory(data)
-                return
-            }
-            if (message.what == PdfRendererProtocol.ERROR) {
-                Log.w(TAG, "error_received")
-                closeResponseMemory(data)
-                active.response.fail(mapError(data.getInt(PdfRendererProtocol.ERROR_KIND)), responseObserved = true)
-            } else {
-                Log.i(TAG, "response_delivered")
-                val memory = data.getParcelable<SharedMemory>(PdfRendererProtocol.SHARED_MEMORY)
-                // The callback owns memory until offer transfers it or disposes the rejection.
-                val response = try {
-                    RendererResponse(Message.obtain(message).apply { this.data = Bundle(data) }, memory)
-                } catch (error: Throwable) { memory?.close(); throw error }
-                val accepted = active.response.offer(response, data.getString(PdfRendererProtocol.SESSION_ID), requestId)
-                if (BuildConfig.DEBUG && accepted && message.what == PdfRendererProtocol.PAGE) {
-                    pageArrivalForTest.getAndSet(null)?.complete(Unit)
+            val data = message.data
+            var incoming = message.obj as? java.io.Closeable
+            message.obj = null // callback now owns the decoded handle, independently of the Message
+            var observedArrival: CompletableDeferred<Unit>? = null
+            try {
+                val requestId = data.getLong(PdfRendererProtocol.REQUEST_ID, -1L)
+                val responseSessionId = data.getString(PdfRendererProtocol.SESSION_ID)
+                if (message.what == PdfRendererProtocol.CLOSED &&
+                    requestId == shutdownRequest.get() && responseSessionId == sessionId) {
+                    shutdownReady.complete(Unit)
+                    return
                 }
+                val active = pending.get()
+                if (closed.get() || active == null || active.requestId != requestId ||
+                    responseSessionId != sessionId
+                ) {
+                    return
+                }
+                if (message.what == PdfRendererProtocol.ERROR) {
+                    Log.w(TAG, "error_received")
+                    active.response.fail(mapError(data.getInt(PdfRendererProtocol.ERROR_KIND)), responseObserved = true)
+                } else {
+                    Log.i(TAG, "response_delivered")
+                    val memory = incoming as? SharedMemory
+                    // The callback owns memory until offer transfers it or disposes the rejection.
+                    val response = RendererResponse(message.what, data.getInt(PdfRendererProtocol.PAGE_COUNT, -1),
+                        data.getInt(PdfRendererProtocol.WIDTH, -1), data.getInt(PdfRendererProtocol.HEIGHT, -1),
+                        data.getInt(PdfRendererProtocol.ERROR_KIND), memory)
+                    if (memory != null) incoming = null // response owns SharedMemory; unexpected PFD stays cleanup-owned
+                    val accepted = active.response.offer(response, responseSessionId, requestId)
+                    if (BuildConfig.DEBUG && accepted && message.what == PdfRendererProtocol.PAGE) {
+                        val arrival = pageArrivalForTest.get()
+                        if (arrival?.requestId == requestId && pageArrivalForTest.compareAndSet(arrival, null)) {
+                            observedArrival = arrival.arrived
+                        }
+                    }
+                }
+            } finally {
+                incoming?.close() // stale/error/rejected headers and pre-response exceptions
+                // Resource Parcelables travel in Message.obj, avoiding lazy Bundle FD copies/GC.
+                data.clear()
+                observedArrival?.complete(Unit) // observation includes transport FD disposal
             }
         }
     }
 
     private data class Pending(val requestId: Long, val response: OwningResponse<RendererResponse>)
 
-    private class RendererResponse(val message: Message, val memory: SharedMemory?) : java.io.Closeable {
+    private class RendererResponse(val what: Int, val pageCount: Int, val width: Int, val height: Int,
+        val errorKind: Int, val memory: SharedMemory?) : java.io.Closeable {
         private val closed = AtomicBoolean(false)
         override fun close() { if (closed.compareAndSet(false, true)) memory?.close() }
     }
@@ -316,10 +334,6 @@ private class AndroidPdfRendererClient(private val context: Context) : PdfRender
             else -> PdfRendererFailureKind.UNAVAILABLE
         },
     )
-
-    private fun closeResponseMemory(bundle: Bundle) {
-        runCatching { bundle.getParcelable<SharedMemory>(PdfRendererProtocol.SHARED_MEMORY)?.close() }
-    }
 
     private fun operationName(operation: Int): String = when (operation) {
         PdfRendererProtocol.OPEN -> "open"
