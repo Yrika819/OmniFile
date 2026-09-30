@@ -28,7 +28,6 @@ class PdfRendererService : Service() {
 
     // Accessed only by renderExecutor.
     private var renderer: PdfRenderer? = null
-    private var sourceDescriptor: ParcelFileDescriptor? = null
     private var activeSessionId: String? = null
     private val acceptedSessionId = AtomicReference<String?>(null)
     private var activeRequestId: Long = -1L
@@ -133,18 +132,19 @@ class PdfRendererService : Service() {
         descriptor: ParcelFileDescriptor,
         replyTo: Messenger,
     ) {
+        var descriptorTransferred = false
         try {
             Log.i(TAG, "open_started")
             closeDocument()
             val opened = PdfRenderer(descriptor)
             renderer = opened
-            sourceDescriptor = descriptor
+            descriptorTransferred = true
             activeSessionId = sessionId
             sendSimple(replyTo, PdfRendererProtocol.OPENED, requestId, sessionId) { putInt(PdfRendererProtocol.PAGE_COUNT, opened.pageCount) }
             Log.i(TAG, "open_succeeded")
         } catch (failure: Throwable) {
             Log.w(TAG, "open_failed_${failure.javaClass.simpleName}")
-            runCatching { descriptor.close() }
+            if (!descriptorTransferred) runCatching { descriptor.close() }
             sendError(replyTo, requestId, sessionId, classifyOpenFailure(failure))
         } finally {
             finishDeadline(requestId, sessionId)
@@ -210,10 +210,13 @@ class PdfRendererService : Service() {
     }
 
     private fun closeDocument() {
-        runCatching { renderer?.close() }
+        // PdfRenderer owns the descriptor after its constructor succeeds. Keep that owner
+        // installed until close returns; a failed native close cannot produce a CLOSED ack.
+        try { renderer?.close() } catch (error: Throwable) {
+            Process.killProcess(Process.myPid())
+            throw error
+        }
         renderer = null
-        runCatching { sourceDescriptor?.close() }
-        sourceDescriptor = null
         activeSessionId = null
     }
 

@@ -21,9 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.withContext
 
 class AndroidPdfRendererClientFactory(context: Context) : PdfRendererClientFactory {
     private val appContext = context.applicationContext
@@ -38,6 +36,9 @@ private class AndroidPdfRendererClient(private val context: Context) : PdfRender
     private val unbound = AtomicBoolean(false)
     private val bindFinished = AtomicBoolean(false)
     private val connectionReady = CompletableDeferred<Messenger>()
+    private val shutdownReady = CompletableDeferred<Unit>()
+    private val shutdownRequest = AtomicLong(-1)
+    private val transportLock = Any()
     private val workerDisconnected = CompletableDeferred<Unit>()
     private val service = AtomicReference<Messenger?>(null)
     private val pending = AtomicReference<Pending?>(null)
@@ -58,21 +59,24 @@ private class AndroidPdfRendererClient(private val context: Context) : PdfRender
         override fun onServiceDisconnected(name: ComponentName) {
             Log.w(TAG, "service_disconnected")
             service.set(null)
-            workerDisconnected.complete(Unit)
             failPending(PdfRendererFailure(PdfRendererFailureKind.WORKER_DIED))
+            shutdownReady.complete(Unit)
+            workerDisconnected.complete(Unit)
         }
 
         override fun onBindingDied(name: ComponentName) {
             Log.w(TAG, "service_binding_died")
             service.set(null)
-            workerDisconnected.complete(Unit)
             failPending(PdfRendererFailure(PdfRendererFailureKind.WORKER_DIED))
+            shutdownReady.complete(Unit)
+            workerDisconnected.complete(Unit)
             connectionReady.completeExceptionally(PdfRendererFailure(PdfRendererFailureKind.WORKER_DIED))
             unbind()
         }
 
         override fun onNullBinding(name: ComponentName) {
             Log.w(TAG, "service_null_binding")
+            shutdownReady.complete(Unit)
             failPending(PdfRendererFailure(PdfRendererFailureKind.UNAVAILABLE))
             connectionReady.completeExceptionally(PdfRendererFailure(PdfRendererFailureKind.UNAVAILABLE))
             unbind()
@@ -140,48 +144,40 @@ private class AndroidPdfRendererClient(private val context: Context) : PdfRender
         withTimeout(5_000) { workerDisconnected.await() }
     }
 
-    override suspend fun close() {
-        if (!closed.compareAndSet(false, true)) return
-        failPending(PdfRendererFailure(PdfRendererFailureKind.UNAVAILABLE))
-        service.get()?.let { target ->
-            runCatching {
-                val message = Message.obtain(null, PdfRendererProtocol.CLOSE)
-                message.replyTo = callbackMessenger
-                message.data = Bundle().apply {
-                    putLong(PdfRendererProtocol.REQUEST_ID, requestIds.incrementAndGet())
-                    putString(PdfRendererProtocol.SESSION_ID, sessionId)
+    override suspend fun close() { beginShutdown(); awaitShutdown() }
+
+    override fun abort() { beginShutdown() }
+
+    private fun beginShutdown() {
+        synchronized(transportLock) {
+            if (!closed.compareAndSet(false, true)) return
+            val target = service.get()
+            // A CLOSE is queued behind prior native work. The worker's existing deadline kills
+            // non-cooperative native work; CLOSED or disconnect is the physical cleanup barrier.
+            if (target == null) shutdownReady.complete(Unit) else {
+                val id = requestIds.incrementAndGet()
+                shutdownRequest.set(id)
+                try {
+                    val message = Message.obtain(null, PdfRendererProtocol.CLOSE)
+                    message.replyTo = callbackMessenger
+                    message.data = Bundle().apply {
+                        putLong(PdfRendererProtocol.REQUEST_ID, id)
+                        putString(PdfRendererProtocol.SESSION_ID, sessionId)
+                    }
+                    target.send(message)
+                } catch (_: RemoteException) {
+                    // Only observed Binder death proves physical disposal. Other transport
+                    // failures retain this owner until disconnect; never reclaim optimistically.
+                    if (!target.binder.isBinderAlive) shutdownReady.complete(Unit)
                 }
-                target.send(message)
             }
+            failPending(PdfRendererFailure(PdfRendererFailureKind.UNAVAILABLE))
+            connectionReady.completeExceptionally(PdfRendererFailure(PdfRendererFailureKind.UNAVAILABLE))
         }
-        unbind()
     }
 
-    override fun abort() {
-        if (!closed.compareAndSet(false, true)) return
-        val active = pending.get()
-        service.get()?.let { target ->
-            runCatching {
-                if (active != null) {
-                    val message = Message.obtain(null, PdfRendererProtocol.CANCEL)
-                    message.data = Bundle().apply {
-                        putLong(PdfRendererProtocol.REQUEST_ID, active.requestId)
-                        putString(PdfRendererProtocol.SESSION_ID, sessionId)
-                    }
-                    target.send(message)
-                } else {
-                    val message = Message.obtain(null, PdfRendererProtocol.CLOSE)
-                    message.data = Bundle().apply {
-                        putLong(PdfRendererProtocol.REQUEST_ID, requestIds.incrementAndGet())
-                        putString(PdfRendererProtocol.SESSION_ID, sessionId)
-                    }
-                    target.send(message)
-                }
-            }
-        }
-        if (active != null) {
-            active.response.fail(PdfRendererFailure(PdfRendererFailureKind.TIMEOUT))
-        }
+    override suspend fun awaitShutdown() {
+        shutdownReady.await()
         unbind()
     }
 
@@ -195,7 +191,6 @@ private class AndroidPdfRendererClient(private val context: Context) : PdfRender
         val id = requestIds.incrementAndGet()
         val response = OwningResponse<RendererResponse>(sessionId, id) { it.close() }
         val entry = Pending(id, response)
-        if (!pending.compareAndSet(null, entry)) throw PdfRendererFailure(PdfRendererFailureKind.UNAVAILABLE)
         try {
             val message = Message.obtain(null, operation)
             message.replyTo = callbackMessenger
@@ -204,7 +199,10 @@ private class AndroidPdfRendererClient(private val context: Context) : PdfRender
                 putString(PdfRendererProtocol.SESSION_ID, sessionId)
                 addPayload(this)
             }
-            target.send(message)
+            synchronized(transportLock) {
+                if (closed.get() || !pending.compareAndSet(null, entry)) throw PdfRendererFailure(PdfRendererFailureKind.UNAVAILABLE)
+                target.send(message)
+            }
             Log.i(TAG, "request_sent_${operationName(operation)}")
             val result = response.awaitAndTransfer()
             try {
@@ -217,7 +215,7 @@ private class AndroidPdfRendererClient(private val context: Context) : PdfRender
         } catch (_: RemoteException) {
             throw PdfRendererFailure(PdfRendererFailureKind.WORKER_DIED)
         } finally {
-            val awaiting = response.state == OwningResponse.State.WAITING
+            val awaiting = !response.hasResponse
             pending.compareAndSet(entry, null)
             response.dispose() // map removal never discards an untransferred response
             if (awaiting) {
@@ -236,11 +234,11 @@ private class AndroidPdfRendererClient(private val context: Context) : PdfRender
     private suspend fun connect(): Messenger {
         if (bindStarted.compareAndSet(false, true)) {
             val intent = Intent(context, PdfRendererService::class.java)
-            val bound = withContext(Dispatchers.Main.immediate) {
-                context.bindService(intent, connection, Context.BIND_AUTO_CREATE).also { bound ->
-                    bindFinished.set(bound)
-                    if (closed.get()) unbind()
-                }
+            // Context's default ServiceConnection callbacks still target Main; the bind itself
+            // belongs to the renderer's background operation and must not block the UI owner.
+            val bound = context.bindService(intent, connection, Context.BIND_AUTO_CREATE).also { bound ->
+                bindFinished.set(bound)
+                if (closed.get()) unbind()
             }
             Log.i(TAG, "bind_returned_$bound")
             if (!bound) {
@@ -270,6 +268,12 @@ private class AndroidPdfRendererClient(private val context: Context) : PdfRender
         override fun handleMessage(message: Message) {
             val data = message.data.apply { classLoader = SharedMemory::class.java.classLoader }
             val requestId = data.getLong(PdfRendererProtocol.REQUEST_ID, -1L)
+            if (message.what == PdfRendererProtocol.CLOSED &&
+                requestId == shutdownRequest.get() && data.getString(PdfRendererProtocol.SESSION_ID) == sessionId) {
+                closeResponseMemory(data)
+                shutdownReady.complete(Unit)
+                return
+            }
             val active = pending.get()
             if (closed.get() || active == null || active.requestId != requestId ||
                 data.getString(PdfRendererProtocol.SESSION_ID) != sessionId
@@ -280,7 +284,7 @@ private class AndroidPdfRendererClient(private val context: Context) : PdfRender
             if (message.what == PdfRendererProtocol.ERROR) {
                 Log.w(TAG, "error_received")
                 closeResponseMemory(data)
-                active.response.fail(mapError(data.getInt(PdfRendererProtocol.ERROR_KIND)))
+                active.response.fail(mapError(data.getInt(PdfRendererProtocol.ERROR_KIND)), responseObserved = true)
             } else {
                 Log.i(TAG, "response_delivered")
                 val memory = data.getParcelable<SharedMemory>(PdfRendererProtocol.SHARED_MEMORY)

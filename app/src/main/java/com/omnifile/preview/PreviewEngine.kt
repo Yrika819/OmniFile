@@ -24,10 +24,10 @@ open class PreviewEngine(
         startingPage: Int = 0,
     ): ResolvedPreview {
         val prepared = try {
-            acquisitions.acquire(dispose = { value: PreparedPreview -> value.pdf?.disposeCandidate() }, successful = { it.payload !is PreviewPayload.Failure }, transfer = { it.pdf?.transferCandidate() }) { scope ->
+            acquisitions.acquire(dispose = { value: PreparedPreview -> value.disposeCandidate() }, successful = { it.payload !is PreviewPayload.Failure }, transfer = { it.transferCandidate() }) { scope ->
                 val source = when (val result = scope.operation { resolveSource() }) {
                     is StorageResult.Success -> result.value
-                    is StorageResult.Failure -> return@acquire PreparedPreview("", PreviewPayload.Failure(previewError(result.error)))
+                    is StorageResult.Failure -> return@acquire PreparedPreview("", if (result.error == StorageError.Unsupported) PreviewPayload.Unsupported else PreviewPayload.Failure(previewError(result.error)))
                 }
                 if (source.identity.providerId != item.identity.providerId || source.identity.identityKey != item.identity.identityKey) {
                     return@acquire PreparedPreview("", PreviewPayload.Failure(PreviewError.ProviderUnavailable))
@@ -44,20 +44,33 @@ open class PreviewEngine(
         resolveAndLoad(request.item, { StorageResult.Success(request.source) }, request.startingPage).payload
 
     private suspend fun finish(prepared: PreparedPreview, startingPage: Int): ResolvedPreview {
-        val snapshot = prepared.pdf?.snapshot ?: return ResolvedPreview(prepared.label, prepared.payload)
+        val snapshot = prepared.pdf?.staged?.snapshot ?: return ResolvedPreview(prepared.label, prepared.payload)
         // Delivery is now owned here. No suspension until the controller takes responsibility.
-        val result = pdfController!!.openSnapshot(snapshot, startingPage)
-        return ResolvedPreview(prepared.label, when (result) {
-            is PdfOpenResult.Ready -> result.payload
-            is PdfOpenResult.Failure -> PreviewPayload.Failure(result.error)
-        })
+        val result = pdfController!!.openReserved(snapshot, prepared.pdf!!.reservation.value, startingPage)
+        try {
+            return ResolvedPreview(prepared.label, when (result) {
+                is PdfOpenResult.Ready -> result.payload
+                is PdfOpenResult.Failure -> PreviewPayload.Failure(result.error)
+            })
+        } catch (error: Throwable) {
+            (result as? PdfOpenResult.Ready)?.payload?.session?.invalidate()
+            throw error
+        }
     }
 
     private data class PreparedPreview(
         val label: String,
         val payload: PreviewPayload = PreviewPayload.Unsupported,
-        val pdf: PdfStageResult.Ready? = null,
-    )
+        val pdf: PdfPreparedAcquisition.Ready? = null,
+    ) {
+        fun disposeCandidate() {
+            pdf?.dispose()
+            (payload as? PreviewPayload.Image)?.bitmap?.recycle()
+        }
+        fun transferCandidate() {
+            pdf?.transfer()
+        }
+    }
 
     private suspend fun prepare(request: PreviewRequest): PreparedPreview {
         val source = request.source
@@ -86,9 +99,11 @@ open class PreviewEngine(
             PreviewContentType.IMAGE -> plain(if (!source.capabilities.canReopen) PreviewPayload.Unsupported else decodeImage(source))
             PreviewContentType.PDF -> {
                 if (!source.capabilities.canStagePdf || pdfController == null) plain(PreviewPayload.Unsupported)
-                else when (val staged = pdfController.snapshots.stage(request)) {
-                    is PdfStageResult.Ready -> PreparedPreview(source.sourceLabel, pdf = staged)
-                    is PdfStageResult.Failure -> plain(PreviewPayload.Failure(staged.error))
+                else {
+                    when (val staged = pdfController.prepareScoped(request)) {
+                        is PdfPreparedAcquisition.Ready -> PreparedPreview(source.sourceLabel, pdf = staged)
+                        is PdfPreparedAcquisition.Failure -> plain(PreviewPayload.Failure(staged.error))
+                    }
                 }
             }
             PreviewContentType.TEXT -> plain(textPayload ?: PreviewPayload.Unsupported)

@@ -43,7 +43,7 @@ class PreviewSource(
                 is StorageResult.Success -> {
                     val lease = scope.own(result.value) { it.close() }
                     StorageResult.Success(object : SequentialReadHandle {
-                        override val expectedBytes: Long? get() = result.value.expectedBytes
+                        override val expectedBytes: Long? get() = scope.blockingOperation { result.value.expectedBytes }
                         override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
                             scope.blockingOperation { result.value.read(buffer, offset, length) }
                         override fun close() = lease.close()

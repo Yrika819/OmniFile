@@ -159,10 +159,16 @@ class ReadAcquisitionScope internal constructor(
         }
     }
 
-    suspend fun <T> operation(cancel: (() -> Unit)? = null, block: suspend () -> T): T {
+    suspend fun <T> operation(cancel: (() -> Unit)? = null, dispose: (T) -> Unit = {}, block: suspend () -> T): T {
         val ticket = register(cancel)
-        return try { block().also { synchronized(lock) { finishLocked(ticket); checkLocked() } } }
-        finally { finish(ticket) }
+        return try {
+            val value = block()
+            synchronized(lock) {
+                finishLocked(ticket)
+                try { checkLocked() } catch (error: Throwable) { queueLocked { dispose(value) }; throw error }
+                value
+            }
+        } finally { finish(ticket) }
     }
 
     private fun register(cancel: (() -> Unit)?): OperationTicket = synchronized(lock) {
@@ -194,12 +200,19 @@ class ReadAcquisitionScope internal constructor(
         } finally { finish(owned.first) }
     }
 
+    /** A delivery may contain a snapshot and controller reservation; consume all or none. */
+    internal fun transferTogether(owners: List<ReadLease<*>>) = synchronized(lock) {
+        checkLocked()
+        check(owners.all { it in leases })
+        owners.forEach { leases.remove(it); it.relinquish() }
+    }
+
     internal fun <T, R> transfer(lease: ReadLease<T>, adopt: (T) -> R): R = synchronized(lock) {
         checkLocked()
         check(lease in leases) { "Lease no longer owns the resource" }
         val result = adopt(lease.value) // memory-only logical adoption, under the same terminal-state lock
         leases.remove(lease)
-        lease.claim() // caller becomes owner at this decision
+        lease.relinquish() // caller becomes owner at this decision
         result
     }
 
@@ -291,7 +304,9 @@ class ReadLease<T> internal constructor(
     private val dispose: (T) -> Unit,
 ) : AutoCloseable {
     private var owned = true // accessed only under the scope lock
-    internal fun claim(): (() -> Unit)? = if (owned) { owned = false; { dispose(value) } } else null
+    private val disposalAction: () -> Unit = { dispose(value) }
+    internal fun claim(): (() -> Unit)? = if (owned) { owned = false; disposalAction } else null
+    internal fun relinquish() { check(owned); owned = false }
     fun transfer(): T = scope.transfer(this) { it }
     fun <R> adopt(transform: (T) -> R): R = scope.transfer(this, transform)
     override fun close() = scope.closeLease(this)

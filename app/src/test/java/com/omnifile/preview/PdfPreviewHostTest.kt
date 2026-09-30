@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -51,7 +52,7 @@ class PdfPreviewHostTest {
         withWorkspace { root ->
             val bytes = pdfBytes(PreviewLimits.MAX_PDF_BYTES)
             val (request, stats) = request(bytes, advertisedSize = bytes.size.toLong())
-            val store = PdfSnapshotStore(root.toFile(), Dispatchers.Unconfined)
+            val store = PdfSnapshotStore(root.toFile())
             val staged = store.stage(request) as PdfStageResult.Ready
 
             assertEquals(PreviewLimits.MAX_PDF_BYTES.toLong(), staged.snapshot.sizeBytes)
@@ -66,14 +67,14 @@ class PdfPreviewHostTest {
     @Test
     fun knownOversizeSourceIsRejectedBeforeOpeningAndUnknownSizeReadsOnlyOneExtraByte() = runBlocking {
         withWorkspace { root ->
-            val knownStore = PdfSnapshotStore(root.toFile(), Dispatchers.Unconfined)
+            val knownStore = PdfSnapshotStore(root.toFile())
             val tooLargeKnown = pdfBytes(PreviewLimits.MAX_PDF_BYTES + 1)
             val (knownRequest, knownStats) = request(tooLargeKnown, advertisedSize = tooLargeKnown.size.toLong())
             val knownResult = knownStore.stage(knownRequest) as PdfStageResult.Failure
             assertEquals(PreviewError.PdfInputTooLarge, knownResult.error)
             assertEquals(0, knownStats.opens.get())
 
-            val unknownStore = PdfSnapshotStore(root.toFile(), Dispatchers.Unconfined)
+            val unknownStore = PdfSnapshotStore(root.toFile())
             val (unknownRequest, unknownStats) = request(
                 tooLargeKnown,
                 advertisedSize = null,
@@ -89,7 +90,7 @@ class PdfPreviewHostTest {
     @Test
     fun noProgressAndInterruptedReadsNeverPromotePartialSnapshots() = runBlocking {
         withWorkspace { root ->
-            val store = PdfSnapshotStore(root.toFile(), Dispatchers.Unconfined)
+            val store = PdfSnapshotStore(root.toFile())
             val item = item("no-progress")
             val readCount = AtomicInteger()
             val stalledSource = source(item, null, null) {
@@ -130,15 +131,17 @@ class PdfPreviewHostTest {
     @Test
     fun absoluteDeadlineClosesBlockedSourceAndLeavesNoAdoptedArtifact() = runBlocking {
         withWorkspace { root ->
-            val acquisitions = com.omnifile.storage.ReadAcquisitionExecutor(timeoutMillis = 40)
-            val store = PdfSnapshotStore(root.toFile(), Dispatchers.IO, acquisitions = acquisitions)
+            val acquisitions = com.omnifile.storage.ReadAcquisitionExecutor(timeoutMillis = 10_000)
+            val store = PdfSnapshotStore(root.toFile(), acquisitions = acquisitions)
             val item = item("stalled-provider")
+            val scope = java.util.concurrent.atomic.AtomicReference<com.omnifile.storage.ReadAcquisitionScope>()
             val readStarted = CountDownLatch(1)
             val closed = CountDownLatch(1)
             val source = source(item, null, null) {
                 StorageResult.Success(object : SequentialReadHandle {
                     override val expectedBytes: Long? = null
                     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+                        scope.set(com.omnifile.storage.ReadAcquisitionScope.current()!!)
                         readStarted.countDown()
                         closed.await(5, TimeUnit.SECONDS)
                         throw IOException("closed")
@@ -146,9 +149,11 @@ class PdfPreviewHostTest {
                     override fun close() { closed.countDown() }
                 })
             }
-            val result = store.stage(PreviewRequest(item, source)) as PdfStageResult.Failure
+            val pending = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { store.stage(PreviewRequest(item, source)) }
+            assertTrue(readStarted.await(5, TimeUnit.SECONDS))
+            scope.get().expire()
+            val result = pending.await() as PdfStageResult.Failure
             assertEquals(PreviewError.AcquisitionTimeout, result.error)
-            assertTrue(readStarted.await(1, TimeUnit.SECONDS))
             assertTrue(acquisitions.awaitIdle())
             assertEquals(0L, closed.count)
             assertEquals(0, store.workspace.listFiles().orEmpty().size)
@@ -158,7 +163,8 @@ class PdfPreviewHostTest {
     @Test
     fun abandonedArtifactsAreReconciledOnlyInsideOwnedWorkspace() = runBlocking {
         withWorkspace { root ->
-            val store = PdfSnapshotStore(root.toFile(), Dispatchers.Unconfined)
+            val store = PdfSnapshotStore(root.toFile())
+            store.reconcileAbandoned()
             val id = UUID.randomUUID().toString()
             val partial = store.workspace.resolve("$id.partial")
             val ready = store.workspace.resolve("${UUID.randomUUID()}.ready")
@@ -180,7 +186,8 @@ class PdfPreviewHostTest {
     @Test
     fun workspaceCleanupDoesNotFollowSymlinksOutsideTheOwnedTree() = runBlocking {
         withWorkspace { root ->
-            val store = PdfSnapshotStore(root.toFile(), Dispatchers.Unconfined)
+            val store = PdfSnapshotStore(root.toFile())
+            store.reconcileAbandoned()
             val outside = root.resolve("untouched")
             Files.write(outside, byteArrayOf(8))
             val link = store.workspace.resolve("${UUID.randomUUID()}.ready")
@@ -199,7 +206,7 @@ class PdfPreviewHostTest {
             val outsideArtifact = outside.resolve("${UUID.randomUUID()}.ready")
             Files.write(outsideArtifact, byteArrayOf(1))
             Files.createSymbolicLink(noBackup.resolve("preview"), outside)
-            val store = PdfSnapshotStore(noBackup.toFile(), Dispatchers.Unconfined)
+            val store = PdfSnapshotStore(noBackup.toFile())
             val (request, _) = request(pdfBytes(32))
             val failure = store.stage(request) as PdfStageResult.Failure
             assertEquals(PreviewError.StagingFailure, failure.error)
@@ -216,7 +223,7 @@ class PdfPreviewHostTest {
             val item = item("expected")
             val stats = SourceStats()
             val mismatched = source(item, pdfBytes(20), 20, identity = TestRef("another"), stats = stats)
-            val result = PdfSnapshotStore(root.toFile(), Dispatchers.Unconfined).stage(item, mismatched) as PdfStageResult.Failure
+            val result = PdfSnapshotStore(root.toFile()).stage(item, mismatched) as PdfStageResult.Failure
             assertEquals(PreviewError.SourceVanished, result.error)
             assertEquals(0, stats.opens.get())
         }
@@ -228,6 +235,7 @@ class PdfPreviewHostTest {
             val tooMany = fakeController(root, pages = PreviewLimits.MAX_PDF_PAGES + 1)
             val tooManyResult = tooMany.first.open(tooMany.second) as PdfOpenResult.Failure
             assertEquals(PreviewError.PdfPageCountLimit, tooManyResult.error)
+            awaitCleanup(tooMany.first.snapshots, tooMany.third.created.single())
             assertEquals(1, tooMany.third.created.single().aborted.get())
             assertEquals(0, tooMany.first.snapshots.workspace.listFiles().orEmpty().size)
 
@@ -261,25 +269,27 @@ class PdfPreviewHostTest {
             val timeoutRoot = Files.createDirectory(root.resolve("timeout"))
             val timeoutClient = FakeRendererClient(openWait = CompletableDeferred())
             val timeoutController = PdfPreviewController(
-                PdfSnapshotStore(timeoutRoot.toFile(), Dispatchers.Unconfined),
+                PdfSnapshotStore(timeoutRoot.toFile()),
                 PdfRendererClientFactory { timeoutClient },
                 renderTimeoutMillis = 30,
             )
             val (request, _) = request(pdfBytes(80))
             val timedOut = timeoutController.open(request) as PdfOpenResult.Failure
             assertEquals(PreviewError.RendererTimeout, timedOut.error)
+            awaitCleanup(timeoutController.snapshots, timeoutClient)
             assertEquals(1, timeoutClient.aborted.get())
             assertEquals(0, timeoutController.snapshots.workspace.listFiles().orEmpty().size)
 
             val pageTimeoutRoot = Files.createDirectory(root.resolve("page-timeout"))
             val pageTimeoutClient = FakeRendererClient(renderWait = CompletableDeferred())
             val pageTimeoutController = PdfPreviewController(
-                PdfSnapshotStore(pageTimeoutRoot.toFile(), Dispatchers.Unconfined),
+                PdfSnapshotStore(pageTimeoutRoot.toFile()),
                 PdfRendererClientFactory { pageTimeoutClient },
                 renderTimeoutMillis = 30,
             )
             val pageTimedOut = pageTimeoutController.open(request) as PdfOpenResult.Failure
             assertEquals(PreviewError.RendererTimeout, pageTimedOut.error)
+            awaitCleanup(pageTimeoutController.snapshots, pageTimeoutClient)
             assertEquals(1, pageTimeoutClient.aborted.get())
             assertEquals(0, pageTimeoutController.snapshots.workspace.listFiles().orEmpty().size)
         }
@@ -289,10 +299,11 @@ class PdfPreviewHostTest {
     fun workerDeathAndFailureMappingRemainSanitized() = runBlocking {
         withWorkspace { root ->
             val worker = FakeRendererClient(openFailure = PdfRendererFailure(PdfRendererFailureKind.WORKER_DIED))
-            val controller = PdfPreviewController(PdfSnapshotStore(root.toFile(), Dispatchers.Unconfined), PdfRendererClientFactory { worker })
+            val controller = PdfPreviewController(PdfSnapshotStore(root.toFile()), PdfRendererClientFactory { worker })
             val (request, _) = request(pdfBytes(100))
             val result = controller.open(request) as PdfOpenResult.Failure
             assertEquals(PreviewError.RendererFailure, result.error)
+            awaitCleanup(controller.snapshots, worker)
             assertEquals(1, worker.aborted.get())
             assertEquals(0, controller.snapshots.workspace.listFiles().orEmpty().size)
             assertEquals(PreviewError.EncryptedOrUnsupported, PdfRendererFailure(PdfRendererFailureKind.ENCRYPTED_OR_UNSUPPORTED).toPreviewError())
@@ -304,7 +315,7 @@ class PdfPreviewHostTest {
     fun previewRetryStagesANewSnapshotAndPageNavigationKeepsTruthfulIndex() = runBlocking {
         withWorkspace { root ->
             val created = mutableListOf<FakeRendererClient>()
-            val store = PdfSnapshotStore(root.toFile(), Dispatchers.Unconfined)
+            val store = PdfSnapshotStore(root.toFile())
             val controller = PdfPreviewController(store, PdfRendererClientFactory {
                 FakeRendererClient(pages = 2).also { created += it }
             })
@@ -344,7 +355,9 @@ class PdfPreviewHostTest {
             assertNotEquals(previousSnapshotId, created.last().snapshotId)
             assertEquals(4, opens.get())
             assertEquals(1, created.first().aborted.get())
+            val finalSession = (state.payload as PreviewPayload.PdfPage).session
             viewModel.close()
+            finalSession.close()
             assertEquals(0, store.workspace.listFiles().orEmpty().size)
             lifecycle.cancel()
         }
@@ -445,12 +458,19 @@ class PdfPreviewHostTest {
         lifecycle.cancel()
     }
 
+    private suspend fun awaitCleanup(store: PdfSnapshotStore, client: FakeRendererClient) {
+        withTimeout(5_000) {
+            client.cleaned.await()
+            while (store.workspace.listFiles().orEmpty().isNotEmpty()) kotlinx.coroutines.yield()
+        }
+    }
+
     private suspend fun fakeController(root: java.nio.file.Path, pages: Int): Triple<PdfPreviewController, PreviewRequest, FakeFactory> {
         val item = item("fake.pdf")
         val (request, _) = request(pdfBytes(40), item = item)
         val factory = FakeFactory(pages)
         return Triple(
-            PdfPreviewController(PdfSnapshotStore(root.toFile(), Dispatchers.Unconfined), factory),
+            PdfPreviewController(PdfSnapshotStore(root.toFile()), factory),
             request.copy(item = item, source = request.source),
             factory,
         )
@@ -548,6 +568,7 @@ class PdfPreviewHostTest {
         val closed = AtomicInteger()
         val aborted = AtomicInteger()
         var snapshotId: String? = null
+        val cleaned = CompletableDeferred<Unit>()
         override suspend fun open(snapshot: PdfSnapshot): Int {
             snapshotId = snapshot.id
             openFailure?.let { throw it }
@@ -560,7 +581,7 @@ class PdfPreviewHostTest {
             return page()
         }
         override suspend fun close() { closed.incrementAndGet() }
-        override fun abort() { aborted.incrementAndGet() }
+        override fun abort() { aborted.incrementAndGet(); cleaned.complete(Unit) }
     }
 
     private class FakeDocumentSession(

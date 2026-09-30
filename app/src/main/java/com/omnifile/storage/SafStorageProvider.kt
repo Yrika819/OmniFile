@@ -331,7 +331,7 @@ class SafStorageProvider(
                 contentResolver.openFileDescriptor(documentUri(parts.documentId), "r", signal)
             }
                 ?: return StorageResult.Failure(StorageError.IoFailure("Provider returned no descriptor"))
-            StorageResult.Success(
+            fun packageDescriptor(): StorageResult<SequentialReadHandle> = StorageResult.Success(
                 object : SequentialReadHandle {
                     private val input = ParcelFileDescriptor.AutoCloseInputStream(descriptor)
                     override val expectedBytes: Long? = entry.sizeBytes
@@ -341,6 +341,10 @@ class SafStorageProvider(
                     override fun close() = input.close()
                 },
             )
+            val scope = ReadAcquisitionScope.current()
+            if (scope != null) scope.own(descriptor) { it.close() }.adopt { packageDescriptor() }
+            else try { packageDescriptor() } catch (error: Throwable) { descriptor.close(); throw error }
+
         } catch (error: OperationCanceledException) {
             StorageResult.Failure(StorageError.Cancelled)
         } catch (error: SecurityException) {

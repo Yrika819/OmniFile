@@ -15,6 +15,8 @@ internal class OwningResponse<T>(
     private val lock = Any()
     private val available = CompletableDeferred<Unit>()
     private var ownership = State.WAITING
+    private var responseSeen = false
+    val hasResponse: Boolean get() = synchronized(lock) { responseSeen }
     private var response: T? = null
     private var failure: Throwable? = null
     val state: State get() = synchronized(lock) { ownership }
@@ -22,6 +24,7 @@ internal class OwningResponse<T>(
     /** Callback initially owns incoming. Rejection keeps ownership here until disposal finishes. */
     fun offer(incoming: T, sessionId: String? = this.sessionId, requestId: Long? = this.requestId): Boolean {
         val accepted = synchronized(lock) {
+            if (sessionId == this.sessionId && requestId == this.requestId) responseSeen = true
             if (ownership != State.WAITING || sessionId != this.sessionId || requestId != this.requestId) false
             else { response = incoming; ownership = State.HOLDING; true }
         }
@@ -29,8 +32,9 @@ internal class OwningResponse<T>(
         return accepted
     }
 
-    fun fail(error: Throwable) {
+    fun fail(error: Throwable, responseObserved: Boolean = false) {
         val owned = synchronized(lock) {
+            if (responseObserved) responseSeen = true
             if (ownership == State.TRANSFERRED || ownership == State.DISPOSED) return
             failure = error
             ownership = State.DISPOSED

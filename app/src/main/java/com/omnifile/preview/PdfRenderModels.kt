@@ -44,6 +44,8 @@ interface PdfRendererClient {
     suspend fun renderPage(pageIndex: Int): PdfRenderedPage
     suspend fun close()
     fun abort() = Unit
+    /** Cleanup waits for the worker's close acknowledgement or observed death. Fakes own no worker. */
+    suspend fun awaitShutdown() = Unit
 }
 
 fun interface PdfRendererClientFactory {

@@ -194,16 +194,38 @@ class LocalStorageProvider(
 
     override suspend fun openSequentialRead(
         locator: com.omnifile.operations.DurableLocator,
-    ): StorageResult<SequentialReadHandle> = guarded {
-        val path = resolveDurablePath(locator)
-        val attributes = Files.readAttributes(path, BasicFileAttributes::class.java, LinkOption.NOFOLLOW_LINKS)
-        if (!attributes.isRegularFile || attributes.isSymbolicLink) {
-            throw UnsupportedOperationException("Only regular Local files are transferable")
+    ): StorageResult<SequentialReadHandle> {
+        val scope = ReadAcquisitionScope.current()
+        if (scope == null) return guarded {
+            val path = resolveDurablePath(locator)
+            val attributes = Files.readAttributes(path, BasicFileAttributes::class.java, LinkOption.NOFOLLOW_LINKS)
+            if (!attributes.isRegularFile || attributes.isSymbolicLink) {
+                throw UnsupportedOperationException("Only regular Local files are transferable")
+            }
+            LocalReadHandle(
+                input = Files.newInputStream(path, StandardOpenOption.READ),
+                expectedBytes = attributes.size(),
+            )
         }
-        LocalReadHandle(
-            input = Files.newInputStream(path, StandardOpenOption.READ),
-            expectedBytes = attributes.size(),
-        )
+
+        return try {
+            val path = scope.blockingOperation { resolveDurablePath(locator) }
+            val attributes = scope.blockingOperation {
+                Files.readAttributes(path, BasicFileAttributes::class.java, LinkOption.NOFOLLOW_LINKS)
+            }
+            if (!attributes.isRegularFile || attributes.isSymbolicLink) {
+                throw UnsupportedOperationException("Only regular Local files are transferable")
+            }
+            val input = scope.blockingOperation(dispose = { stream: InputStream -> stream.close() }) {
+                Files.newInputStream(path, StandardOpenOption.READ)
+            }
+            // Keep the raw stream leased until both handle and result packaging succeed.
+            scope.own(input) { it.close() }.adopt { stream ->
+                StorageResult.Success(LocalReadHandle(stream, attributes.size()))
+            }
+        } catch (error: Exception) {
+            guarded { throw error }
+        }
     }
 
     override suspend fun createOperationPartial(

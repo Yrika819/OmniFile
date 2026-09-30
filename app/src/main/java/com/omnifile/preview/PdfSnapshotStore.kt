@@ -10,7 +10,6 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 
 sealed interface PdfStageResult {
     data class Ready(val snapshot: PdfSnapshot, internal val acquisitionLease: com.omnifile.storage.ReadLease<PdfSnapshot>? = null) : PdfStageResult
@@ -34,18 +33,14 @@ class PdfSnapshot internal constructor(
 /** Owns only <noBackupFilesDir>/preview/pdf and its immediate snapshot children. */
 class PdfSnapshotStore(
     noBackupFilesDir: File,
-    private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO,
-    private val acquisitions: com.omnifile.storage.ReadAcquisitionExecutor = com.omnifile.storage.ReadAcquisitionExecutor.appWide,
+    internal val acquisitions: com.omnifile.storage.ReadAcquisitionExecutor = com.omnifile.storage.ReadAcquisitionExecutor.appWide,
 ) {
-    private val noBackupRoot = noBackupFilesDir.canonicalFile
-    internal val workspace = File(File(noBackupRoot, "preview"), "pdf")
-    private val expectedWorkspace = File(noBackupRoot, "preview/pdf").absoluteFile.normalize()
+    private val noBackupRoot by lazy { noBackupFilesDir.canonicalFile }
+    internal val workspace by lazy { File(File(noBackupRoot, "preview"), "pdf") }
+    private val expectedWorkspace by lazy { File(noBackupRoot, "preview/pdf").absoluteFile.normalize() }
     private val active = ConcurrentHashMap<String, File>()
     @Volatile private var workspaceAvailable = false
 
-    init {
-        workspaceAvailable = runCatching { reconcileAbandoned(); true }.getOrDefault(false)
-    }
 
     /** Deletes only UUID-named regular files directly owned by this workspace. */
     @Synchronized
@@ -90,12 +85,11 @@ class PdfSnapshotStore(
         if (source.sizeBytes != null && source.sizeBytes > PreviewLimits.MAX_PDF_BYTES) {
             return PdfStageResult.Failure(PreviewError.PdfInputTooLarge)
         }
-        if (!workspaceAvailable) return PdfStageResult.Failure(PreviewError.StagingFailure)
-
         val id = UUID.randomUUID().toString()
-        val candidate = File(workspace, "$id.candidate")
         var fileLease: com.omnifile.storage.ReadLease<File>? = null
         try {
+            scope.blockingOperation { if (!workspaceAvailable) reconcileAbandoned() }
+            val candidate = File(workspace, "$id.candidate")
             // Claim the path before creation; a late creation stays worker-owned until own().
             scope.blockingOperation(dispose = { created: Boolean -> if (created) deleteOwned(candidate) }) {
                 if (!isDirectOwnedPath(candidate)) throw IOException("PDF workspace unavailable")
