@@ -13,6 +13,7 @@ import android.os.Process
 import android.os.SharedMemory
 import android.system.OsConstants
 import android.util.Log
+import com.omnifile.BuildConfig
 import java.io.IOException
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
@@ -70,6 +71,11 @@ class PdfRendererService : Service() {
             val requestId = data.getLong(PdfRendererProtocol.REQUEST_ID, -1L)
             val sessionId = data.getString(PdfRendererProtocol.SESSION_ID) ?: return
             when (message.what) {
+                PdfRendererProtocol.KILL_WORKER_FOR_TEST -> {
+                    if (BuildConfig.DEBUG && acceptedSessionId.get() == sessionId) {
+                        Process.killProcess(Process.myPid())
+                    }
+                }
                 PdfRendererProtocol.CANCEL -> {
                     if (requestId == activeRequestId && sessionId == activeRequestSessionId) {
                         Process.killProcess(Process.myPid())

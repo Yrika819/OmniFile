@@ -21,6 +21,11 @@ interface PdfDocumentSession {
     fun invalidate() = Unit
 }
 
+/** Debug-only control used by instrumentation to deterministically exercise worker death. */
+internal interface PdfRendererDeathTestHook {
+    suspend fun killRendererForTest()
+}
+
 enum class PdfRendererFailureKind {
     TIMEOUT,
     WORKER_DIED,

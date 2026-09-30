@@ -14,6 +14,7 @@ import android.os.ParcelFileDescriptor
 import android.os.RemoteException
 import android.os.SharedMemory
 import android.util.Log
+import com.omnifile.BuildConfig
 import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
@@ -21,6 +22,7 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withContext
 
 class AndroidPdfRendererClientFactory(context: Context) : PdfRendererClientFactory {
@@ -28,13 +30,14 @@ class AndroidPdfRendererClientFactory(context: Context) : PdfRendererClientFacto
     override fun create(): PdfRendererClient = AndroidPdfRendererClient(appContext)
 }
 
-private class AndroidPdfRendererClient(private val context: Context) : PdfRendererClient {
+private class AndroidPdfRendererClient(private val context: Context) : PdfRendererClient, PdfRendererDeathTestHook {
     private val sessionId = UUID.randomUUID().toString()
     private val requestIds = AtomicLong(0)
     private val closed = AtomicBoolean(false)
     private val bindStarted = AtomicBoolean(false)
     private val unbound = AtomicBoolean(false)
     private val connectionReady = CompletableDeferred<Messenger>()
+    private val workerDisconnected = CompletableDeferred<Unit>()
     private val service = AtomicReference<Messenger?>(null)
     private val pending = AtomicReference<Pending?>(null)
     private val callbackMessenger = Messenger(CallbackHandler())
@@ -49,12 +52,14 @@ private class AndroidPdfRendererClient(private val context: Context) : PdfRender
         override fun onServiceDisconnected(name: ComponentName) {
             Log.w(TAG, "service_disconnected")
             service.set(null)
+            workerDisconnected.complete(Unit)
             failPending(PdfRendererFailure(PdfRendererFailureKind.WORKER_DIED))
         }
 
         override fun onBindingDied(name: ComponentName) {
             Log.w(TAG, "service_binding_died")
             service.set(null)
+            workerDisconnected.complete(Unit)
             failPending(PdfRendererFailure(PdfRendererFailureKind.WORKER_DIED))
             connectionReady.completeExceptionally(PdfRendererFailure(PdfRendererFailureKind.WORKER_DIED))
             unbind()
@@ -118,6 +123,15 @@ private class AndroidPdfRendererClient(private val context: Context) : PdfRender
         } finally {
             runCatching { memory.close() }
         }
+    }
+
+    override suspend fun killRendererForTest() {
+        check(BuildConfig.DEBUG) { "The renderer death hook is only available in debug builds" }
+        val target = connect()
+        val message = Message.obtain(null, PdfRendererProtocol.KILL_WORKER_FOR_TEST)
+        message.data = Bundle().apply { putString(PdfRendererProtocol.SESSION_ID, sessionId) }
+        target.send(message)
+        withTimeout(5_000) { workerDisconnected.await() }
     }
 
     override suspend fun close() {

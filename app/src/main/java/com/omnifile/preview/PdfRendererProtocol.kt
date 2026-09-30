@@ -5,6 +5,7 @@ internal object PdfRendererProtocol {
     const val RENDER = 2
     const val CLOSE = 3
     const val CANCEL = 4
+    const val KILL_WORKER_FOR_TEST = 5
     const val OPENED = 11
     const val PAGE = 12
     const val CLOSED = 13

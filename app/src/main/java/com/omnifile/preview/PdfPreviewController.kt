@@ -115,9 +115,15 @@ private class OwnedPdfDocumentSession(
     override val pageCount: Int,
     private val renderTimeoutMillis: Long,
     private val onClosed: () -> Unit,
-) : PdfDocumentSession {
+) : PdfDocumentSession, PdfRendererDeathTestHook {
     private val closed = AtomicBoolean(false)
     private val pageMutex = Mutex()
+
+    override suspend fun killRendererForTest() {
+        val hook = client as? PdfRendererDeathTestHook
+            ?: throw UnsupportedOperationException("Renderer does not expose the instrumentation death hook")
+        hook.killRendererForTest()
+    }
 
     override fun invalidate() {
         if (closed.compareAndSet(false, true)) {

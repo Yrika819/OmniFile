@@ -5,7 +5,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ProviderInfo
 import android.content.pm.ServiceInfo
-import android.os.ParcelFileDescriptor
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.omnifile.OmniFileApplication
@@ -191,15 +190,7 @@ class PdfRendererInstrumentedTest {
         val item = PreviewItem(entry.ref, entry.displayName, "Test source", entry.mimeType, entry.sizeBytes)
         val first = engine.load(PreviewRequest(item, source)).requirePdfPage()
 
-        val processOutput = instrumentation.uiAutomation.executeShellCommand("ps -A -ww -o PID,NAME").use { descriptor ->
-            ParcelFileDescriptor.AutoCloseInputStream(descriptor).bufferedReader().use { it.readText() }
-        }
-        val workerPid = processOutput.lineSequence().mapNotNull { line ->
-            val columns = line.trim().split(Regex("\\s+"), limit = 2)
-            if (columns.getOrNull(1)?.contains("pdf_renderer") == true) columns[0].toIntOrNull() else null
-        }.firstOrNull()
-            ?: throw AssertionError("Isolated PDF renderer process was not running")
-        instrumentation.uiAutomation.executeShellCommand("kill -9 $workerPid").close()
+        (first.session as PdfRendererDeathTestHook).killRendererForTest()
 
         try {
             withTimeout(10_000) { first.session.renderPage(1) }
