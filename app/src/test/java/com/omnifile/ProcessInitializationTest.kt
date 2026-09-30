@@ -6,9 +6,8 @@ import org.junit.Test
 
 class ProcessInitializationTest {
     @Test
-    fun onlyExactPdfRendererProcessSkipsTheMainApplicationGraph() {
-        assertTrue(isPdfRendererProcessName("com.omnifile:pdf_renderer", "com.omnifile"))
-        assertFalse(isPdfRendererProcessName("com.omnifile", "com.omnifile"))
-        assertFalse(isPdfRendererProcessName("com.omnifile:pdf_renderer_test", "com.omnifile"))
+    fun isolatedProcessSkipsTheMainApplicationGraph() {
+        assertFalse(shouldInitializeMainAppGraph(isolatedProcess = true))
+        assertTrue(shouldInitializeMainAppGraph(isolatedProcess = false))
     }
 }

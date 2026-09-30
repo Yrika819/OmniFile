@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Process
 import android.util.Log
 import androidx.room.Room
 import com.omnifile.files.FilesRepository
@@ -32,7 +33,7 @@ class OmniFileApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         Log.i(PDF_INIT_TAG, "application_create_started")
-        if (isPdfRendererProcess()) {
+        if (isIsolatedRendererProcess()) {
             Log.i(PDF_INIT_TAG, "worker_process_skip_graph")
             return
         }
@@ -42,15 +43,14 @@ class OmniFileApplication : Application() {
         Log.i(PDF_INIT_TAG, "normal_graph_initialization_finished")
     }
 
-    /** Exact manifest process name check; the isolated worker skips the normal app graph. */
-    private fun isPdfRendererProcess(): Boolean =
-        isPdfRendererProcessName(Application.getProcessName(), packageName)
+    /** The only isolated application process is the manifest-declared PDF renderer. */
+    private fun isIsolatedRendererProcess(): Boolean =
+        !shouldInitializeMainAppGraph(Process.isIsolated())
 }
 
 private const val PDF_INIT_TAG = "OmniPdfInit"
 
-internal fun isPdfRendererProcessName(processName: String, packageName: String): Boolean =
-    processName == "$packageName:pdf_renderer"
+internal fun shouldInitializeMainAppGraph(isolatedProcess: Boolean): Boolean = !isolatedProcess
 
 class AppContainer(
     context: Context,

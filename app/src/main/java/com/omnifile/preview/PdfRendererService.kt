@@ -29,14 +29,20 @@ class PdfRendererService : Service() {
     private var sourceDescriptor: ParcelFileDescriptor? = null
     private var activeSessionId: String? = null
     private var activeRequestId: Long = -1L
+    private var activeRequestSessionId: String? = null
     private var deadline: Runnable? = null
 
     override fun onCreate() {
         super.onCreate()
-        Log.i(TAG, "worker_created")
+        if (Process.isIsolated()) {
+            Log.i(TAG, "worker_created")
+        } else {
+            Log.e(TAG, "worker_not_isolated")
+        }
     }
 
-    override fun onBind(intent: android.content.Intent?): IBinder {
+    override fun onBind(intent: android.content.Intent?): IBinder? {
+        if (!Process.isIsolated()) return null
         Log.i(TAG, "worker_bound")
         return messenger.binder
     }
@@ -71,26 +77,28 @@ class PdfRendererService : Service() {
                         sendError(replyTo, requestId, PdfRendererProtocol.ERROR_UNAVAILABLE)
                         return
                     }
-                    startDeadline(requestId)
+                    startDeadline(requestId, sessionId)
                     renderExecutor.execute { openDocument(sessionId, requestId, descriptor, replyTo) }
                 }
                 PdfRendererProtocol.RENDER -> {
                     val pageIndex = data.getInt(PdfRendererProtocol.PAGE_INDEX, -1)
-                    startDeadline(requestId)
+                    startDeadline(requestId, sessionId)
                     renderExecutor.execute { renderPage(sessionId, requestId, pageIndex, replyTo) }
                 }
                 PdfRendererProtocol.CLOSE -> {
-                    startDeadline(requestId)
+                    startDeadline(requestId, sessionId)
                     renderExecutor.execute {
                         val ownedSession = activeSessionId == sessionId
                         if (ownedSession) closeDocument()
                         sendSimple(replyTo, PdfRendererProtocol.CLOSED, requestId)
-                        finishDeadline(requestId)
+                        finishDeadline(requestId, sessionId)
                         if (ownedSession) stopSelf()
                     }
                 }
                 PdfRendererProtocol.CANCEL -> {
-                    if (requestId == activeRequestId) Process.killProcess(Process.myPid())
+                    if (requestId == activeRequestId && sessionId == activeRequestSessionId) {
+                        Process.killProcess(Process.myPid())
+                    }
                 }
                 else -> super.handleMessage(message)
             }
@@ -117,7 +125,7 @@ class PdfRendererService : Service() {
             runCatching { descriptor.close() }
             sendError(replyTo, requestId, classifyOpenFailure(failure))
         } finally {
-            finishDeadline(requestId)
+            finishDeadline(requestId, sessionId)
         }
     }
 
@@ -174,7 +182,7 @@ class PdfRendererService : Service() {
             runCatching { page?.close() }
             runCatching { bitmap?.recycle() }
             runCatching { shared?.close() }
-            finishDeadline(requestId)
+            finishDeadline(requestId, sessionId)
         }
     }
 
@@ -186,20 +194,24 @@ class PdfRendererService : Service() {
         activeSessionId = null
     }
 
-    private fun startDeadline(requestId: Long) {
+    private fun startDeadline(requestId: Long, sessionId: String) {
         deadline?.let(mainHandler::removeCallbacks)
         activeRequestId = requestId
+        activeRequestSessionId = sessionId
         deadline = Runnable {
-            if (activeRequestId == requestId) Process.killProcess(Process.myPid())
+            if (activeRequestId == requestId && activeRequestSessionId == sessionId) {
+                Process.killProcess(Process.myPid())
+            }
         }.also { mainHandler.postDelayed(it, PreviewLimits.PDF_RENDER_TIMEOUT_MILLIS) }
     }
 
-    private fun finishDeadline(requestId: Long) {
+    private fun finishDeadline(requestId: Long, sessionId: String) {
         val clear = Runnable {
-            if (activeRequestId == requestId) {
+            if (activeRequestId == requestId && activeRequestSessionId == sessionId) {
                 deadline?.let(mainHandler::removeCallbacks)
                 deadline = null
                 activeRequestId = -1L
+                activeRequestSessionId = null
             }
         }
         if (Looper.myLooper() == Looper.getMainLooper()) clear.run() else mainHandler.post(clear)
