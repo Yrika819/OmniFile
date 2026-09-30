@@ -129,14 +129,15 @@ class PdfRendererService : Service() {
             page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
 
             val byteCount = dimensions.width * dimensions.height * 4
-            shared = SharedMemory.create("omnifile-pdf-page", byteCount)
-            val mapped = shared.mapReadWrite()
+            val outputMemory = SharedMemory.create("omnifile-pdf-page", byteCount)
+            shared = outputMemory
+            val mapped = outputMemory.mapReadWrite()
             try {
                 bitmap.copyPixelsToBuffer(mapped)
             } finally {
                 SharedMemory.unmap(mapped)
             }
-            if (!shared.setProtect(OsConstants.PROT_READ)) {
+            if (!outputMemory.setProtect(OsConstants.PROT_READ)) {
                 sendError(replyTo, requestId, PdfRendererProtocol.ERROR_UNAVAILABLE)
                 return
             }
@@ -145,10 +146,12 @@ class PdfRendererService : Service() {
                 putLong(PdfRendererProtocol.REQUEST_ID, requestId)
                 putInt(PdfRendererProtocol.WIDTH, dimensions.width)
                 putInt(PdfRendererProtocol.HEIGHT, dimensions.height)
-                putParcelable(PdfRendererProtocol.SHARED_MEMORY, shared)
+                putParcelable(PdfRendererProtocol.SHARED_MEMORY, outputMemory)
             }
             replyTo.send(result)
-            shared = null // the receiver now owns its duplicated read-only mapping descriptor
+            // Messenger has parcelled a duplicate descriptor; release the worker's copy now.
+            runCatching { outputMemory.close() }
+            shared = null
         } catch (failure: Throwable) {
             sendError(replyTo, requestId, classifyRenderFailure(failure))
         } finally {
