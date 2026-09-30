@@ -7,10 +7,16 @@ import android.graphics.Bitmap
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.omnifile.preview.PreviewEngine
+import com.omnifile.preview.PreviewError
 import com.omnifile.preview.PreviewItem
 import com.omnifile.preview.PreviewPayload
 import com.omnifile.preview.PreviewRequest
+import com.omnifile.preview.PreviewCapabilities
+import com.omnifile.preview.PreviewSource
 import com.omnifile.preview.PreviewSourceProvider
+import com.omnifile.storage.ProviderId
+import com.omnifile.storage.SequentialReadHandle
+import java.io.IOException
 import java.io.ByteArrayOutputStream
 import java.nio.file.Files
 import kotlinx.coroutines.runBlocking
@@ -91,6 +97,48 @@ class PreviewStorageInstrumentedTest {
         assertTrue(noReadGrant.openPreviewSource(deniedText) is StorageResult.Failure)
     }
 
+    @Test
+    fun imageProviderReadIOExceptionIsReportedAsIoFailure() = runBlocking {
+        val item = PreviewItem(TestEntryRef("image-io"), "photo.png", "Fixture source", "image/png", null)
+        var opens = 0
+        val source = PreviewSource(
+            identity = item.identity,
+            sourceLabel = "Fixture source",
+            mimeType = "image/png",
+            sizeBytes = null,
+            capabilities = PreviewCapabilities(sequentialReadable = true, canReopen = true),
+        ) {
+            opens++
+            if (opens == 1) {
+                val bytes = pngFixture()
+                var readOffset = 0
+                StorageResult.Success(object : SequentialReadHandle {
+                    override val expectedBytes: Long = bytes.size.toLong()
+                    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+                        if (readOffset >= bytes.size) return -1
+                        val count = minOf(length, bytes.size - readOffset)
+                        bytes.copyInto(buffer, offset, readOffset, readOffset + count)
+                        readOffset += count
+                        return count
+                    }
+                    override fun close() = Unit
+                })
+            } else {
+                StorageResult.Success(object : SequentialReadHandle {
+                    override val expectedBytes: Long? = null
+                    override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
+                        throw IOException("controlled provider read failure")
+                    override fun close() = Unit
+                })
+            }
+        }
+
+        val result = PreviewEngine().load(PreviewRequest(item, source)) as PreviewPayload.Failure
+
+        assertEquals(2, opens)
+        assertEquals(PreviewError.IoFailure("controlled provider read failure"), result.error)
+    }
+
     private suspend fun preview(provider: PreviewSourceProvider, entry: StorageEntry): PreviewPayload {
         val source = (provider.openPreviewSource(entry) as StorageResult.Success).value
         return PreviewEngine().load(
@@ -106,6 +154,10 @@ class PreviewStorageInstrumentedTest {
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, bytes)
         bitmap.recycle()
         bytes.toByteArray()
+    }
+
+    private data class TestEntryRef(override val identityKey: String) : com.omnifile.storage.EntryRef {
+        override val providerId = ProviderId("preview-saf-test")
     }
 
     private fun <T> StorageResult<T>.requireSuccess(): T = when (this) {

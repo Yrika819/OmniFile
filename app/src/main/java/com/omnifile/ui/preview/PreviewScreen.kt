@@ -126,7 +126,7 @@ private fun ErrorMessage(error: PreviewError, onRetry: () -> Unit) {
         PreviewError.CorruptOrMalformed -> "This file is corrupt or malformed."
         PreviewError.ResourceLimit -> "This file exceeds the preview safety limit."
         PreviewError.Cancelled -> "Preview was cancelled."
-        is PreviewError.IoFailure -> "The file could not be read${error.detail?.let { ": $it" } ?: "."}"
+        is PreviewError.IoFailure -> "The file could not be read."
         PreviewError.Unknown -> "This file could not be previewed."
     }
     val retryable = error == PreviewError.ProviderUnavailable || error == PreviewError.PermissionOrGrantMissing || error is PreviewError.IoFailure

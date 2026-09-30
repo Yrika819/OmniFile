@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import com.omnifile.storage.StorageError
 import com.omnifile.storage.StorageResult
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +25,7 @@ class PreviewViewModel(
     private val ownsScope = scope == null
     private val lifecycleScope = scope ?: CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val _state = MutableStateFlow<PreviewUiState>(PreviewUiState.Idle)
-    private var generation = 0L
+    private val generation = AtomicLong()
     private var job: Job? = null
     private var currentItem: PreviewItem? = null
     private var currentResolver: (suspend () -> StorageResult<PreviewSource>)? = null
@@ -32,8 +33,7 @@ class PreviewViewModel(
     val state: StateFlow<PreviewUiState> = _state.asStateFlow()
 
     fun open(item: PreviewItem, resolveSource: suspend () -> StorageResult<PreviewSource>) {
-        generation += 1
-        val owner = generation
+        val owner = generation.incrementAndGet()
         job?.cancel()
         currentItem = item
         currentResolver = resolveSource
@@ -59,7 +59,13 @@ class PreviewViewModel(
                 publish(owner, PreviewUiState.Error(item, PreviewError.Unknown))
                 return@launch
             }
-            if (owner != generation) return@launch
+            if (owner != generation.get()) return@launch
+            if (source.identity.providerId != item.identity.providerId ||
+                source.identity.identityKey != item.identity.identityKey
+            ) {
+                publish(owner, PreviewUiState.Error(item, PreviewError.ProviderUnavailable))
+                return@launch
+            }
             val request = PreviewRequest(item, source)
             try {
                 when (val result = engine.load(request)) {
@@ -89,7 +95,7 @@ class PreviewViewModel(
 
     /** Called whenever navigation leaves Preview so handles, jobs, and decoded bitmaps are released. */
     fun close() {
-        generation += 1
+        generation.incrementAndGet()
         job?.cancel()
         job = null
         currentItem = null
@@ -106,7 +112,7 @@ class PreviewViewModel(
     }
 
     private fun publish(owner: Long, state: PreviewUiState) {
-        if (owner == generation) _state.value = state
+        if (owner == generation.get()) _state.value = state
     }
 
     override fun onCleared() {

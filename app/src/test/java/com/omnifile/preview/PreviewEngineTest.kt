@@ -65,6 +65,38 @@ class PreviewEngineTest {
     }
 
     @Test
+    fun largeTextCanBeReadFromASingleOpenSequentialSource() = runBlocking {
+        val item = item()
+        val bytes = ByteArray(12_000) { 'x'.code.toByte() }
+        var opens = 0
+        val source = PreviewSource(item.identity, "Single-open source", "text/plain", bytes.size.toLong(), PreviewCapabilities(true, false)) {
+            opens++
+            if (opens > 1) {
+                StorageResult.Failure(StorageError.Unsupported)
+            } else {
+                var readOffset = 0
+                StorageResult.Success(object : SequentialReadHandle {
+                    override val expectedBytes: Long = bytes.size.toLong()
+                    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+                        if (readOffset >= bytes.size) return -1
+                        val count = minOf(length, bytes.size - readOffset)
+                        bytes.copyInto(buffer, offset, readOffset, readOffset + count)
+                        readOffset += count
+                        return count
+                    }
+                    override fun close() = Unit
+                })
+            }
+        }
+
+        val result = PreviewEngine().load(PreviewRequest(item, source))
+
+        assertEquals(1, opens)
+        assertEquals(bytes.size, (result as PreviewPayload.Text).bytesRead)
+        assertEquals(bytes.size, result.content.length)
+    }
+
+    @Test
     fun localAdapterOpensAProviderOwnedSequentialPreviewSource() = runBlocking {
         val root = Files.createTempDirectory("omnifile-preview-local")
         try {

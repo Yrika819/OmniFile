@@ -21,8 +21,16 @@ open class PreviewEngine {
             is StorageResult.Success -> opened.value
             is StorageResult.Failure -> return PreviewPayload.Failure(previewError(opened.error))
         }
-        val prefixResult = try {
-            firstHandle.use { readAtMost(it, PreviewLimits.CLASSIFICATION_BYTES) }
+        var textPayload: PreviewPayload? = null
+        val contentType = try {
+            firstHandle.use { handle ->
+                val prefix = readAtMost(handle, PreviewLimits.CLASSIFICATION_BYTES)
+                val type = PreviewContentClassifier.classify(prefix, source.mimeType, request.item.displayName)
+                if (type == PreviewContentType.TEXT) {
+                    textPayload = readText(handle, source, request, prefix)
+                }
+                type
+            }
         } catch (cancel: kotlinx.coroutines.CancellationException) {
             throw cancel
         } catch (error: IOException) {
@@ -30,18 +38,18 @@ open class PreviewEngine {
         } catch (_: SecurityException) {
             return PreviewPayload.Failure(PreviewError.PermissionOrGrantMissing)
         }
-        val contentType = PreviewContentClassifier.classify(prefixResult, source.mimeType, request.item.displayName)
         return when (contentType) {
             PreviewContentType.IMAGE -> {
                 if (!source.capabilities.canReopen) PreviewPayload.Unsupported
                 else decodeImage(source)
             }
-            PreviewContentType.TEXT -> readText(source, request, prefixResult)
+            PreviewContentType.TEXT -> textPayload ?: PreviewPayload.Unsupported
             PreviewContentType.UNKNOWN -> PreviewPayload.Unsupported
         }
     }
 
     private suspend fun readText(
+        handle: SequentialReadHandle,
         source: PreviewSource,
         request: PreviewRequest,
         prefix: ByteArray,
@@ -50,37 +58,29 @@ open class PreviewEngine {
         output.write(prefix, 0, minOf(prefix.size, PreviewLimits.MAX_TEXT_BYTES))
         var truncated = prefix.size > PreviewLimits.MAX_TEXT_BYTES
         if (!truncated && prefix.size == PreviewLimits.CLASSIFICATION_BYTES) {
-            val opened = source.open()
-            val handle = when (opened) {
-                is StorageResult.Success -> opened.value
-                is StorageResult.Failure -> return PreviewPayload.Failure(previewError(opened.error))
-            }
             try {
-                handle.use {
-                    if (!skipFully(it, prefix.size.toLong())) return PreviewPayload.Failure(PreviewError.CorruptOrMalformed)
-                    var noProgressReads = 0
-                    while (output.size() < PreviewLimits.MAX_TEXT_BYTES) {
-                        currentCoroutineContext().ensureActive()
-                        val remaining = PreviewLimits.MAX_TEXT_BYTES - output.size()
-                        val buffer = ByteArray(minOf(8 * 1024, remaining))
-                        val count = it.read(buffer, 0, buffer.size)
-                        if (count < 0) break
-                        if (count == 0) {
-                            noProgressReads++
-                            if (noProgressReads > PreviewLimits.MAX_CONSECUTIVE_NO_PROGRESS_READS) {
-                                return PreviewPayload.Failure(PreviewError.IoFailure("Provider read made no progress"))
-                            }
-                            continue
+                var noProgressReads = 0
+                while (output.size() < PreviewLimits.MAX_TEXT_BYTES) {
+                    currentCoroutineContext().ensureActive()
+                    val remaining = PreviewLimits.MAX_TEXT_BYTES - output.size()
+                    val buffer = ByteArray(minOf(8 * 1024, remaining))
+                    val count = handle.read(buffer, 0, buffer.size)
+                    if (count < 0) break
+                    if (count == 0) {
+                        noProgressReads++
+                        if (noProgressReads > PreviewLimits.MAX_CONSECUTIVE_NO_PROGRESS_READS) {
+                            return PreviewPayload.Failure(PreviewError.IoFailure("Provider read made no progress"))
                         }
-                        noProgressReads = 0
-                        output.write(buffer, 0, count)
+                        continue
                     }
-                    if (output.size() == PreviewLimits.MAX_TEXT_BYTES) {
-                        val extra = ByteArray(1)
-                        val count = it.read(extra, 0, 1)
-                        if (count == 0) return PreviewPayload.Failure(PreviewError.IoFailure("Provider read made no progress"))
-                        truncated = count > 0
-                    }
+                    noProgressReads = 0
+                    output.write(buffer, 0, count)
+                }
+                if (output.size() == PreviewLimits.MAX_TEXT_BYTES) {
+                    val extra = ByteArray(1)
+                    val count = handle.read(extra, 0, 1)
+                    if (count == 0) return PreviewPayload.Failure(PreviewError.IoFailure("Provider read made no progress"))
+                    truncated = count > 0
                 }
             } catch (cancel: kotlinx.coroutines.CancellationException) {
                 throw cancel
@@ -103,7 +103,8 @@ open class PreviewEngine {
             is StorageResult.Failure -> return PreviewPayload.Failure(previewError(opened.error))
         }
         val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        val boundsLimit = EncodedLimitInputStream(HandleInputStream(bounds), PreviewLimits.MAX_IMAGE_ENCODED_BYTES)
+        val boundsInput = HandleInputStream(bounds)
+        val boundsLimit = EncodedLimitInputStream(boundsInput, PreviewLimits.MAX_IMAGE_ENCODED_BYTES)
         try {
             BufferedInputStream(boundsLimit, 16 * 1024).use { BitmapFactory.decodeStream(it, null, options) }
         } catch (cancel: kotlinx.coroutines.CancellationException) {
@@ -112,11 +113,12 @@ open class PreviewEngine {
             return PreviewPayload.Failure(PreviewError.ResourceLimit)
         } catch (error: SecurityException) {
             return PreviewPayload.Failure(PreviewError.PermissionOrGrantMissing)
-        } catch (error: IOException) {
-            return PreviewPayload.Failure(PreviewError.CorruptOrMalformed)
+        } catch (_: IOException) {
+            return PreviewPayload.Failure(boundsInput.ioFailure?.let { PreviewError.IoFailure(it.message) } ?: PreviewError.CorruptOrMalformed)
         } catch (_: RuntimeException) {
             return PreviewPayload.Failure(PreviewError.CorruptOrMalformed)
         }
+        boundsInput.ioFailure?.let { return PreviewPayload.Failure(PreviewError.IoFailure(it.message)) }
         if (boundsLimit.exceeded) return PreviewPayload.Failure(PreviewError.ResourceLimit)
         val width = options.outWidth
         val height = options.outHeight
@@ -133,7 +135,8 @@ open class PreviewEngine {
             inSampleSize = sampleSize
             inPreferredConfig = Bitmap.Config.ARGB_8888
         }
-        val decodeLimit = EncodedLimitInputStream(HandleInputStream(decodeHandle), PreviewLimits.MAX_IMAGE_ENCODED_BYTES)
+        val decodeInput = HandleInputStream(decodeHandle)
+        val decodeLimit = EncodedLimitInputStream(decodeInput, PreviewLimits.MAX_IMAGE_ENCODED_BYTES)
         val bitmap = try {
             BufferedInputStream(decodeLimit, 32 * 1024).use { BitmapFactory.decodeStream(it, null, decodeOptions) }
         } catch (cancel: kotlinx.coroutines.CancellationException) {
@@ -144,11 +147,12 @@ open class PreviewEngine {
             return PreviewPayload.Failure(PreviewError.PermissionOrGrantMissing)
         } catch (_: OutOfMemoryError) {
             return PreviewPayload.Failure(PreviewError.ResourceLimit)
-        } catch (_: IOException) {
-            return PreviewPayload.Failure(PreviewError.CorruptOrMalformed)
+        } catch (error: IOException) {
+            return PreviewPayload.Failure(decodeInput.ioFailure?.let { PreviewError.IoFailure(it.message) } ?: PreviewError.CorruptOrMalformed)
         } catch (_: RuntimeException) {
             return PreviewPayload.Failure(PreviewError.CorruptOrMalformed)
         }
+        decodeInput.ioFailure?.let { return PreviewPayload.Failure(PreviewError.IoFailure(it.message)) }
         if (decodeLimit.exceeded) return PreviewPayload.Failure(PreviewError.ResourceLimit)
         return if (bitmap == null) PreviewPayload.Failure(PreviewError.CorruptOrMalformed)
         else PreviewPayload.Image(bitmap, width, height)
@@ -189,41 +193,40 @@ open class PreviewEngine {
         return output.toByteArray()
     }
 
-    private suspend fun skipFully(handle: SequentialReadHandle, amount: Long): Boolean {
-        var skipped = 0L
-        val buffer = ByteArray(2048)
-        var noProgressReads = 0
-        while (skipped < amount) {
-            currentCoroutineContext().ensureActive()
-            val count = handle.read(buffer, 0, minOf(buffer.size.toLong(), amount - skipped).toInt())
-            if (count < 0) return false
-            if (count == 0) {
-                noProgressReads++
-                if (noProgressReads > PreviewLimits.MAX_CONSECUTIVE_NO_PROGRESS_READS) {
-                    throw IOException("Provider read made no progress")
-                }
-            } else {
-                noProgressReads = 0
-                skipped += count
-            }
-        }
-        return true
-    }
-
     private class HandleInputStream(private val handle: SequentialReadHandle) : InputStream() {
         private val one = ByteArray(1)
+        var ioFailure: IOException? = null
+            private set
+
         override fun read(): Int {
-            val count = handle.read(one, 0, 1)
-            if (count == 0) throw IOException("Provider read made no progress")
-            return if (count < 0) -1 else one[0].toInt() and 0xff
+            return try {
+                val count = handle.read(one, 0, 1)
+                if (count == 0) throw IOException("Provider read made no progress")
+                if (count < 0) -1 else one[0].toInt() and 0xff
+            } catch (error: IOException) {
+                ioFailure = error
+                throw error
+            }
         }
         override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
             if (length == 0) return 0
-            return handle.read(buffer, offset, length).also {
-                if (it == 0) throw IOException("Provider read made no progress")
+            return try {
+                handle.read(buffer, offset, length).also {
+                    if (it == 0) throw IOException("Provider read made no progress")
+                }
+            } catch (error: IOException) {
+                ioFailure = error
+                throw error
             }
         }
-        override fun close() = handle.close()
+        override fun close() {
+            try {
+                handle.close()
+            } catch (error: IOException) {
+                ioFailure = error
+                throw error
+            }
+        }
     }
 
     private class EncodedLimitInputStream(input: InputStream, private val maximum: Int) : java.io.FilterInputStream(input) {
