@@ -60,6 +60,23 @@ class PdfRendererInstrumentedTest {
     }
 
     @Test
+    fun validPngWithEmbeddedPdfEvidenceUsesImagePreviewWithoutPdfStaging() = runBlocking {
+        val fixtures = embeddedPdfSupportedImages()
+        fixtures.forEach { (name, bytes) -> Files.write(localRoot.resolve(name), bytes) }
+        val provider = LocalStorageProvider(localRoot, ProviderId("hardening-image"))
+        val entries = provider.listChildren(provider.root().success().ref).success()
+        entries.forEach { entry ->
+            val payload = render(provider, entry)
+            assertTrue("Expected image rather than malformed PDF for ${entry.displayName}: $payload", payload is PreviewPayload.Image)
+            val image = payload as PreviewPayload.Image
+            try { assertEquals(2, image.width); assertEquals(3, image.height) }
+            finally { image.bitmap.recycle() }
+            assertNoStagedSnapshots()
+        }
+        assertEquals(6, entries.size)
+    }
+
+    @Test
     fun localPdfUsesPlatformRendererAndSupportsPageNavigation() = runBlocking {
         Files.write(localRoot.resolve("misleading.txt"), syntheticPdf(pageCount = 2))
         val provider = LocalStorageProvider(localRoot, ProviderId("vs10-local"))

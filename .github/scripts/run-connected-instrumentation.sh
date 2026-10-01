@@ -110,6 +110,8 @@ import xml.etree.ElementTree as ET
 
 with open(".github/scripts/required-vs10-instrumentation.txt", encoding="utf-8") as contract:
     expected = {line.strip() for line in contract if line.strip()}
+with open(".github/scripts/required-post-vs10-instrumentation.txt", encoding="utf-8") as contract:
+    expected.update(line.strip() for line in contract if line.strip())
 
 roots = (
     "app/build/outputs/androidTest-results/connected",
