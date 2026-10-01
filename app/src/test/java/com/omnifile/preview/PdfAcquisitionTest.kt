@@ -163,4 +163,20 @@ class PdfAcquisitionTest {
             assertTrue(runner.awaitIdle())
         }
     }
+    @Test fun lateResolutionExceptionWithUndispatchedTimerMapsToAcquisitionTimeoutAndRetry() = runBlocking {
+        val time = AtomicLong(0)
+        ReadAcquisitionExecutor(time::get, timeoutMillis = 10_000).use { runner ->
+            val engine = PreviewEngine(acquisitions = runner)
+            val result = engine.resolveAndLoad(item, {
+                time.set(10_000_000_000)
+                throw SecurityException("provider permission failure after absolute deadline")
+            })
+            assertEquals(PreviewError.AcquisitionTimeout, (result.payload as PreviewPayload.Failure).error)
+            assertTrue(runner.awaitIdle())
+            val retry = engine.resolveAndLoad(item, { StorageResult.Failure(StorageError.PermissionDenied) })
+            assertEquals(PreviewError.PermissionOrGrantMissing, (retry.payload as PreviewPayload.Failure).error)
+            assertTrue(runner.awaitIdle())
+        }
+    }
+
 }

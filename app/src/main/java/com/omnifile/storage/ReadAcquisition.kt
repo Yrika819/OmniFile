@@ -228,8 +228,14 @@ class ReadAcquisitionScope internal constructor(
 
     internal fun fail(failure: Throwable) = synchronized(lock) {
         if (logical == ReadAcquisitionState.ACTIVE) {
-            error = failure
-            terminateLocked(ReadAcquisitionState.FAILED)
+            // The monotonic absolute deadline decides even if its timer is undispatched.
+            // Existing terminal states remain authoritative; physical ownership is unchanged.
+            if (clockNanos() - deadlineNanos >= 0) {
+                terminateLocked(ReadAcquisitionState.EXPIRED)
+            } else {
+                error = failure
+                terminateLocked(ReadAcquisitionState.FAILED)
+            }
         }
     }
     fun expire() = synchronized(lock) { if (logical == ReadAcquisitionState.ACTIVE) terminateLocked(ReadAcquisitionState.EXPIRED) }
