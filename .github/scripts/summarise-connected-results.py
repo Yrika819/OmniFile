@@ -44,13 +44,9 @@ import os
 import sys
 import xml.etree.ElementTree as ET
 
-# Ordered by preference. The first root that yields result files wins, so a
-# stale unit-test report can never be mistaken for an instrumentation report.
-RESULT_ROOTS = (
-    "app/build/outputs/androidTest-results/connected",
-    "app/build/outputs/androidTest-results",
-    "app/build/test-results",
-)
+# Only the canonical connected-test tree, cleared before each invocation, is evidence.
+# Never fall back to unrelated variants or host/test-results from an earlier invocation.
+RESULT_ROOTS = ("app/build/outputs/androidTest-results/connected",)
 
 WALL_CLOCK_FILE = "emulator-diagnostics/wall-clock.txt"
 EXCLUSIONS_FILE = "emulator-diagnostics/excluded-tests.txt"
@@ -84,72 +80,102 @@ def _assumption_reason(node):
     return first or "assumption violated"
 
 
-def parse(files):
-    """Count test cases from JUnit XML without double counting nested suites."""
-    passed = failed = skipped = 0
-    total_seconds = 0.0
-    failures = []
-    skips = []
-    suites = 0
+def case_status(case):
+    """Normalize the representations observed in actual Android/AGP reports."""
+    markers = [child for child in case if child.tag in {"failure", "error", "skipped", "assumption"}]
+    if len(markers) > 1:
+        sys.exit("Ambiguous testcase status: multiple terminal markers")
+    if not markers:
+        return "PASSED", ""
+    marker = markers[0]
+    if marker.tag in {"skipped", "assumption"} or ASSUMPTION_MARKER in (
+        (marker.get("message") or "") + (marker.text or "") + (marker.get("type") or "")
+    ):
+        return "SKIPPED", _assumption_reason(marker)
+    return "FAILED", (marker.get("message") or "").strip()
 
+
+def parse(files):
+    """Unique concrete (classname, exact runner name) records are the only evidence.
+
+    Suite totals describe roll-ups, never additional evidence. Repeated identity,
+    even with the same status, makes an invocation ambiguous and fails closed.
+    Parameter suffixes in runner-emitted names are preserved verbatim.
+    """
+    if not files:
+        sys.exit("No instrumentation XML supplied")
+    result = dict(suites=0, passed=0, failed=0, skipped=0, tests=0,
+                  seconds=0.0, failures=[], skips=[], identities={})
     for path in files:
         try:
             root = ET.parse(path).getroot()
-        except ET.ParseError as exc:
+        except (ET.ParseError, OSError) as exc:
             sys.exit(f"Unparseable instrumentation result {path}: {exc}")
-
-        for suite in root.iter("testsuite"):
-            suites += 1
-            cases = list(suite.findall("testcase"))
-            if not cases:
-                # A suite that reports counts but no cases still has to count.
-                reported = int(suite.get("tests", 0))
-                bad = int(suite.get("failures", 0)) + int(suite.get("errors", 0))
-                gone = int(suite.get("skipped", 0))
-                passed += reported - bad - gone
-                failed += bad
-                skipped += gone
+        if root.tag not in {"testsuite", "testsuites"}:
+            sys.exit("Unsupported instrumentation XML root")
+        for suite in root.iter():
+            if suite.tag not in {"testsuite", "testsuites"}:
                 continue
-
-            for case in cases:
-                name = f"{case.get('classname', '?')}#{case.get('name', '?')}"
+            if suite.tag == "testsuite":
+                result["suites"] += 1
+            cases = list(suite.iter("testcase"))
+            concrete = len(cases)
+            supported_counts = {
+                "failures": sum(case.find("failure") is not None for case in cases),
+                "errors": sum(case.find("error") is not None for case in cases),
+                # A suite may count assumptions as failures or skips; both are backed by records.
+                "skipped": sum(case_status(case)[0] == "SKIPPED" for case in cases),
+            }
+            for field in ("tests", "failures", "errors", "skipped"):
                 try:
-                    total_seconds += float(case.get("time", 0.0))
+                    count = int(suite.get(field, "0"))
                 except ValueError:
-                    pass
+                    sys.exit(f"Invalid suite {field} count")
+                if count < 0:
+                    sys.exit(f"Negative suite {field} count")
+                if concrete == 0 and count > 0:
+                    sys.exit(f"Positive anonymous suite {field} count without concrete cases")
+                if field != "tests" and count > supported_counts[field]:
+                    sys.exit(f"Suite {field} count lacks concrete status evidence")
+                if field == "tests" and field in suite.attrib and count != concrete:
+                    sys.exit("Suite test count disagrees with concrete testcase records")
+        for case in root.iter("testcase"):
+            identity = (case.get("classname"), case.get("name"))
+            if any(value is None or not value.strip() for value in identity):
+                sys.exit("Concrete testcase requires classname and name")
+            name = "#".join(identity)
+            status, detail = case_status(case)
+            prior = result["identities"].get(identity)
+            if prior is not None:
+                sys.exit(f"Duplicate testcase identity: {name} ({prior} / {status})")
+            result["identities"][identity] = status
+            result[status.lower()] += 1
+            result["tests"] += 1
+            if status == "FAILED":
+                result["failures"].append((name, detail))
+            elif status == "SKIPPED":
+                result["skips"].append((name, detail))
+            try:
+                result["seconds"] += float(case.get("time", "0"))
+            except ValueError:
+                pass
+    return result
 
-                error = case.find("failure")
-                if error is None:
-                    error = case.find("error")
-                assumed = case.find("assumption")
 
-                if case.find("skipped") is not None or assumed is not None:
-                    reason = _assumption_reason(assumed if assumed is not None else case.find("skipped"))
-                    skipped += 1
-                    skips.append((name, reason))
-                elif error is not None and ASSUMPTION_MARKER in (
-                    (error.get("message") or "") + (error.text or "")
-                    + (error.get("type") or "")
-                ):
-                    # Declined to run, not a defect. See the module docstring.
-                    skipped += 1
-                    skips.append((name, _assumption_reason(error)))
-                elif error is not None:
-                    failed += 1
-                    failures.append((name, (error.get("message") or "").strip()))
-                else:
-                    passed += 1
-
-    return {
-        "suites": suites,
-        "passed": passed,
-        "failed": failed,
-        "skipped": skipped,
-        "tests": passed + failed + skipped,
-        "seconds": total_seconds,
-        "failures": failures,
-        "skips": skips,
-    }
+def audit_mandatory(result):
+    expected = set()
+    for contract in ("required-vs10-instrumentation.txt", "required-post-vs10-instrumentation.txt"):
+        with open(os.path.join(os.path.dirname(__file__), contract), encoding="utf-8") as handle:
+            expected.update(line.strip() for line in handle if line.strip())
+    observed = {"#".join(identity): status for identity, status in result["identities"].items()}
+    not_passed = []
+    for name in sorted(expected):
+        status = observed.get(name, "MISSING")
+        print(f"PDF_TEST_RESULT {name} {status}")
+        if status != "PASSED":
+            not_passed.append(name)
+    print(f"PDF_TESTS {len(expected) - len(not_passed)}/{len(expected)} passed={len(expected) - len(not_passed)}")
+    return ["Mandatory instrumentation evidence incomplete: " + ", ".join(not_passed)] if not_passed else []
 
 
 def read_exclusions():
@@ -190,6 +216,11 @@ def main():
         )
 
     result = parse(files)
+    mandatory_problems = audit_mandatory(result)
+    if "--audit-mandatory" in sys.argv:
+        if mandatory_problems:
+            sys.exit("; ".join(mandatory_problems))
+        return
     wall_clock = read_wall_clock()
     exclusions = read_exclusions()
 
@@ -215,7 +246,7 @@ def main():
     for name in exclusions:
         print(f"  EXCLUDED (documented cloud-emulator limitation) {name}")
 
-    problems = []
+    problems = list(mandatory_problems)
     if result["failed"]:
         problems.append(f"{result['failed']} test(s) failed")
     if result["tests"] < minimum:

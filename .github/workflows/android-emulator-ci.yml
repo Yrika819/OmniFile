@@ -16,6 +16,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      targeted_hardening_only:
+        description: Run the 28 affected Preview/acquisition cases, including every mandatory case
+        type: boolean
+        default: false
 
 # Build and test only. No secrets, no signing material, no release credentials
 # are used or required anywhere in this workflow, and nothing is ever published.
@@ -89,7 +94,8 @@ jobs:
       # silent loss of tests must always break it. These floors match complete
       # XML from the first remediation matrix; lower them only as part of a
       # deliberate change to the suite.
-      EXPECTED_MIN_TESTS: ${{ matrix.expected-tests }}
+      EXPECTED_MIN_TESTS: ${{ inputs.targeted_hardening_only && '28' || matrix.expected-tests }}
+      TARGETED_HARDENING_ONLY: ${{ inputs.targeted_hardening_only && 'true' || 'false' }}
       # Every test allowed to skip on a cloud emulator, with its reason.
       # Anything not listed here is reported as unexplained skipped coverage
       # and fails the job, so a new version gate cannot slip in unnoticed.
