@@ -24,6 +24,9 @@ navigation require an image Preview and absence of PDF/error UI. Three new cases
 are mandatory under a separate post-VS10 contract; the original 19-case contract
 is untouched. Full matrix floors increase from 106/103 to **109/106** (API35).
 The targeted mode runs 28 affected cases, retaining all 22 mandatory cases.
+A runtime class annotation selects them through one runner annotation argument;
+AGP was observed forwarding only the first comma-separated class selector.
+The marker is inert in complete suites and changes no skip/exclusion policy.
 
 ## B — MIN-2: evidence integrity
 
@@ -46,7 +49,7 @@ preserves nesting and assumption representation; synthetic parameter suffix
 checks protect exact-name behavior without claiming observed parameterization.
 No serials, private paths, timestamps or machine metadata are committed.
 
-The 30 deterministic Python self-tests include the required duplicate, nested,
+The 31 deterministic Python self-tests include the required duplicate, nested,
 anonymous, skip, mandatory, missing/malformed, API35 and compatibility checks.
 The exact five false-green exploit classes reject or normalize: duplicate
 nonmandatory record rejects; anonymous tests=1 rejects; parent105/child105 counts

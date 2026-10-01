@@ -76,7 +76,7 @@ if [[ "${TARGETED_HARDENING_ONLY:-false}" == "true" ]]; then
   # All 19 VS10 cases and all three post-VS10 cases remain mandatory in this mode.
   # Three existing storage image/text cases complete the 28-case targeted floor.
   gradle_args+=(
-    "-Pandroid.testInstrumentationRunnerArguments.class=com.omnifile.preview.PdfRendererInstrumentedTest,com.omnifile.ui.preview.PdfPreviewNavigationInstrumentedTest,com.omnifile.ui.preview.PreviewScreenInstrumentedTest,com.omnifile.preview.ReadAcquisitionInstrumentedTest,com.omnifile.preview.SharedMemoryOwnershipInstrumentedTest,com.omnifile.storage.PreviewStorageInstrumentedTest"
+    "-Pandroid.testInstrumentationRunnerArguments.annotation=com.omnifile.preview.PostVs10HardeningTarget"
   )
   echo "Targeted hardening: 28 cases; every mandatory case remains required."
 elif [[ "${MATRIX_API_LEVEL:-}" == "35" ]]; then

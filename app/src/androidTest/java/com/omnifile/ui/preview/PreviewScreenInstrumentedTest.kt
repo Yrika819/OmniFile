@@ -41,6 +41,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
+@com.omnifile.preview.PostVs10HardeningTarget
 @RunWith(AndroidJUnit4::class)
 class PreviewScreenInstrumentedTest {
     @get:Rule val composeRule = createComposeRule()

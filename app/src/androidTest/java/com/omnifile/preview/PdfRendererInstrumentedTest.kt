@@ -30,6 +30,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
+@com.omnifile.preview.PostVs10HardeningTarget
 @RunWith(AndroidJUnit4::class)
 class PdfRendererInstrumentedTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()

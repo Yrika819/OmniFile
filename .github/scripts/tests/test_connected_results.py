@@ -147,6 +147,27 @@ class EvidenceTests(unittest.TestCase):
         self.assertEqual(r['tests'], 2)
         self.rejects(suite(case('method[0]') * 2))
 
+    def test_targeted_selector_preserves_mandatory_inventory_and_floor(self):
+        root = SCRIPTS.parents[1]
+        classes = {}
+        count = 0
+        for source in (root / 'app/src/androidTest/java').rglob('*.kt'):
+            content = source.read_text()
+            if '@com.omnifile.preview.PostVs10HardeningTarget' not in content:
+                continue
+            package = content.split('package ', 1)[1].splitlines()[0]
+            classes[package + '.' + source.stem] = content
+            count += content.count('@Test')
+        self.assertEqual(count, 28)
+        for contract in ('required-vs10-instrumentation.txt', 'required-post-vs10-instrumentation.txt'):
+            for identity in (SCRIPTS / contract).read_text().splitlines():
+                cls, method = identity.split('#')
+                self.assertIn(cls, classes)
+                self.assertIn('fun ' + method + '(', classes[cls])
+        runner = (SCRIPTS / 'run-connected-instrumentation.sh').read_text()
+        self.assertIn('Arguments.annotation=com.omnifile.preview.PostVs10HardeningTarget', runner)
+        self.assertNotIn('Arguments.class=', runner)
+
     def test_stale_fallback_never_discovered(self):
         with patch.object(p.os.path, 'isdir', return_value=True), patch.object(p.glob, 'glob', return_value=[]) as discovery:
             self.assertEqual(p.find_result_files(), (None, []))
