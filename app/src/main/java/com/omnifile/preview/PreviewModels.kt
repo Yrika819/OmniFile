@@ -22,6 +22,8 @@ data class PreviewCapabilities(
     val sequentialReadable: Boolean,
     /** The adapter can request a fresh sequential handle for another decode pass. */
     val canReopen: Boolean,
+    /** Provider adapter grants the bounded PDF pipeline permission to stage this source. */
+    val canStagePdf: Boolean = false,
 )
 
 /** A fresh handle is obtained for every pass; providers own all locators and transport details. */
@@ -33,17 +35,33 @@ class PreviewSource(
     val capabilities: PreviewCapabilities,
     private val opener: suspend () -> StorageResult<SequentialReadHandle>,
 ) {
-    suspend fun open(): StorageResult<SequentialReadHandle> = opener()
+    suspend fun open(): StorageResult<SequentialReadHandle> {
+        val scope = com.omnifile.storage.ReadAcquisitionScope.current() ?: return opener()
+        return scope.operation {
+            when (val result = opener()) {
+                is StorageResult.Failure -> result
+                is StorageResult.Success -> {
+                    val lease = scope.own(result.value) { it.close() }
+                    StorageResult.Success(object : SequentialReadHandle {
+                        override val expectedBytes: Long? get() = scope.blockingOperation { result.value.expectedBytes }
+                        override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
+                            scope.blockingOperation { result.value.read(buffer, offset, length) }
+                        override fun close() = lease.close()
+                    })
+                }
+            }
+        }
+    }
 }
 
-data class PreviewRequest(val item: PreviewItem, val source: PreviewSource) {
+data class PreviewRequest(val item: PreviewItem, val source: PreviewSource, val startingPage: Int = 0) {
     init {
         require(item.identity.providerId == source.identity.providerId)
         require(item.identity.identityKey == source.identity.identityKey)
     }
 }
 
-enum class PreviewContentType { TEXT, IMAGE, UNKNOWN }
+enum class PreviewContentType { TEXT, IMAGE, PDF, UNKNOWN }
 
 object PreviewCapabilityResolver {
     fun resolve(entry: StorageEntry, source: PreviewSource?): PreviewCapabilities? {
@@ -65,6 +83,12 @@ object PreviewLimits {
     const val DEFAULT_IMAGE_TARGET_WIDTH = 1600
     const val DEFAULT_IMAGE_TARGET_HEIGHT = 1600
     const val MAX_CONSECUTIVE_NO_PROGRESS_READS = 8
+    const val MAX_PDF_BYTES = 16 * 1024 * 1024
+    const val MAX_PDF_PAGES = 100
+    const val MAX_PDF_PAGE_PIXELS = 1_000_000L
+    const val MAX_PDF_PAGE_SIDE = 1600
+    const val PDF_ACQUISITION_TIMEOUT_MILLIS = 10_000L
+    const val PDF_RENDER_TIMEOUT_MILLIS = 10_000L
 }
 
 data class DecodedText(val text: String, val truncated: Boolean)
@@ -72,6 +96,7 @@ data class DecodedText(val text: String, val truncated: Boolean)
 /** Content claims are hints only. Strong image signatures and bounded text evidence decide V1. */
 object PreviewContentClassifier {
     fun classify(sample: ByteArray, mimeType: String?, displayName: String): PreviewContentType {
+        if (isPdf(sample)) return PreviewContentType.PDF
         if (isPng(sample) || isJpeg(sample) || isBmp(sample)) return PreviewContentType.IMAGE
         if (isKnownUnsupportedFormat(sample)) return PreviewContentType.UNKNOWN
         if (sample.isEmpty()) {
@@ -96,10 +121,18 @@ object PreviewContentClassifier {
 
     private fun isBmp(bytes: ByteArray): Boolean = bytes.size >= 2 && bytes[0] == 'B'.code.toByte() && bytes[1] == 'M'.code.toByte()
 
+    private fun isPdf(bytes: ByteArray): Boolean {
+        val signature = byteArrayOf('%'.code.toByte(), 'P'.code.toByte(), 'D'.code.toByte(), 'F'.code.toByte(), '-'.code.toByte())
+        val lastStart = minOf(bytes.size - signature.size, 1024)
+        if (lastStart < 0) return false
+        for (start in 0..lastStart) {
+            if (signature.indices.all { bytes[start + it] == signature[it] }) return true
+        }
+        return false
+    }
+
     private fun isKnownUnsupportedFormat(bytes: ByteArray): Boolean =
-        (bytes.size >= 5 && bytes[0] == '%'.code.toByte() && bytes[1] == 'P'.code.toByte() &&
-            bytes[2] == 'D'.code.toByte() && bytes[3] == 'F'.code.toByte() && bytes[4] == '-'.code.toByte()) ||
-            (bytes.size >= 4 && bytes[0] == 'P'.code.toByte() && bytes[1] == 'K'.code.toByte() &&
+        (bytes.size >= 4 && bytes[0] == 'P'.code.toByte() && bytes[1] == 'K'.code.toByte() &&
                 ((bytes[2] == 3.toByte() && bytes[3] == 4.toByte()) ||
                     (bytes[2] == 5.toByte() && bytes[3] == 6.toByte()) ||
                     (bytes[2] == 7.toByte() && bytes[3] == 8.toByte())))
@@ -154,9 +187,18 @@ object PreviewTextDecoder {
 
 sealed interface PreviewError {
     data object ProviderUnavailable : PreviewError
+    data object SourceVanished : PreviewError
     data object PermissionOrGrantMissing : PreviewError
     data object CorruptOrMalformed : PreviewError
     data object ResourceLimit : PreviewError
+    data object PdfInputTooLarge : PreviewError
+    data object PdfPageCountLimit : PreviewError
+    data object EncryptedOrUnsupported : PreviewError
+    data object StagingFailure : PreviewError
+    data object AcquisitionTimeout : PreviewError
+    data object AcquisitionBusy : PreviewError
+    data object RendererTimeout : PreviewError
+    data object RendererFailure : PreviewError
     data object Cancelled : PreviewError
     data class IoFailure(val detail: String?) : PreviewError
     data object Unknown : PreviewError
@@ -165,6 +207,12 @@ sealed interface PreviewError {
 sealed interface PreviewPayload {
     data class Text(val content: String, val truncated: Boolean, val bytesRead: Int) : PreviewPayload
     data class Image(val bitmap: Bitmap, val width: Int, val height: Int) : PreviewPayload
+    data class PdfPage(
+        val page: PdfRenderedPage,
+        val pageIndex: Int,
+        val pageCount: Int,
+        val session: PdfDocumentSession,
+    ) : PreviewPayload
     data object Unsupported : PreviewPayload
     data class Failure(val error: PreviewError) : PreviewPayload
 }
@@ -179,7 +227,8 @@ sealed interface PreviewUiState {
 
 internal fun previewError(error: StorageError): PreviewError = when (error) {
     StorageError.PermissionDenied -> PreviewError.PermissionOrGrantMissing
-    StorageError.ProviderUnavailable, StorageError.NotFound, StorageError.StaleReference -> PreviewError.ProviderUnavailable
+    StorageError.ProviderUnavailable -> PreviewError.ProviderUnavailable
+    StorageError.NotFound, StorageError.StaleReference, StorageError.SourceChanged -> PreviewError.SourceVanished
     StorageError.Unsupported -> PreviewError.Unknown
     StorageError.Cancelled -> PreviewError.Cancelled
     is StorageError.IoFailure -> PreviewError.IoFailure(error.detail)

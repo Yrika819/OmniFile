@@ -4,6 +4,8 @@ import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Process
+import android.util.Log
 import androidx.room.Room
 import com.omnifile.files.FilesRepository
 import com.omnifile.archive.ArchiveExtractor
@@ -19,6 +21,10 @@ import com.omnifile.storage.SafTreeGrantStore
 import com.omnifile.storage.StorageProvider
 import com.omnifile.storage.StorageTransferProvider
 import com.omnifile.storage.SupportedRootRegistry
+import com.omnifile.preview.AndroidPdfRendererClientFactory
+import com.omnifile.preview.PdfPreviewController
+import com.omnifile.preview.PdfSnapshotStore
+import com.omnifile.preview.PreviewEngine
 
 class OmniFileApplication : Application() {
     lateinit var container: AppContainer
@@ -26,11 +32,30 @@ class OmniFileApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        container = AppContainer(this)
+        Log.i(PDF_INIT_TAG, "application_create_started")
+        if (isIsolatedRendererProcess()) {
+            Log.i(PDF_INIT_TAG, "worker_process_skip_graph")
+            return
+        }
+        Log.i(PDF_INIT_TAG, "normal_graph_initialization_started")
+        val snapshots = PdfSnapshotStore(noBackupFilesDir)
+        container = AppContainer(this, snapshots)
+        Log.i(PDF_INIT_TAG, "normal_graph_initialization_finished")
     }
+
+    /** The only isolated application process is the manifest-declared PDF renderer. */
+    private fun isIsolatedRendererProcess(): Boolean =
+        !shouldInitializeMainAppGraph(Process.isIsolated())
 }
 
-class AppContainer(context: Context) {
+private const val PDF_INIT_TAG = "OmniPdfInit"
+
+internal fun shouldInitializeMainAppGraph(isolatedProcess: Boolean): Boolean = !isolatedProcess
+
+class AppContainer(
+    context: Context,
+    pdfSnapshots: PdfSnapshotStore = PdfSnapshotStore(context.applicationContext.noBackupFilesDir),
+) {
     private val appContext = context.applicationContext
     val grantStore = SafTreeGrantStore(appContext)
     val localProvider = LocalStorageProvider(
@@ -40,6 +65,9 @@ class AppContainer(context: Context) {
     val repository = FilesRepository(mapOf(localProvider.id to localProvider))
     val archiveRepository = ArchiveRepository(repository)
     val archiveExtractor = ArchiveExtractor(repository)
+    val previewEngine = PreviewEngine(
+        PdfPreviewController(pdfSnapshots, AndroidPdfRendererClientFactory(appContext)),
+    )
 
     /** Process-scoped guard for the one notification-permission prompt on first Play. */
     var notificationPermissionRequested = false

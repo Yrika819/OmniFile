@@ -71,6 +71,11 @@ public final class TestDocumentsProvider extends DocumentsProvider {
     private static int writeFailureAfterBytes = -1;
     private static final AtomicInteger pendingIo = new AtomicInteger(0);
     private static volatile boolean providerUnavailable;
+    // Instrumentation-only gates: no hook is compiled into the app or reachable from product input.
+    public static volatile Runnable beforeQueryForAcquisitionTest;
+    public static volatile Runnable beforeReadOpenForAcquisitionTest;
+    public static volatile java.util.function.Consumer<Cursor> queryResultForAcquisitionTest;
+    public static volatile java.util.function.Consumer<ParcelFileDescriptor> openResultForAcquisitionTest;
 
     static {
         reset();
@@ -112,6 +117,10 @@ public final class TestDocumentsProvider extends DocumentsProvider {
         readFailureAfterBytes = -1;
         writeFailureAfterBytes = -1;
         providerUnavailable = false;
+        beforeQueryForAcquisitionTest = null;
+        beforeReadOpenForAcquisitionTest = null;
+        queryResultForAcquisitionTest = null;
+        openResultForAcquisitionTest = null;
         pendingIo.set(0);
         REGULAR_FILE_BACKING.clear();
     }
@@ -361,11 +370,15 @@ public final class TestDocumentsProvider extends DocumentsProvider {
 
     @Override
     public Cursor queryDocument(String documentId, String[] projection) {
+        Runnable gate = beforeQueryForAcquisitionTest;
+        if (gate != null) gate.run();
         awaitSettled();
         if (providerUnavailable) throw new IllegalStateException("controlled provider unavailable");
         documentId = normalizeDocumentId(documentId);
         MatrixCursor cursor = new MatrixCursor(DOCUMENT_COLUMNS);
         addNode(cursor, NODES.get(documentId));
+        java.util.function.Consumer<Cursor> observer = queryResultForAcquisitionTest;
+        if (observer != null) observer.accept(cursor);
         return cursor;
     }
 
@@ -437,7 +450,11 @@ public final class TestDocumentsProvider extends DocumentsProvider {
     @Override
     public ParcelFileDescriptor openDocument(String documentId, String mode, CancellationSignal signal)
             throws FileNotFoundException {
-        if (mode == null || !mode.contains("w")) awaitSettled();
+        if (mode == null || !mode.contains("w")) {
+            Runnable gate = beforeReadOpenForAcquisitionTest;
+            if (gate != null) gate.run();
+            awaitSettled();
+        }
         if (providerUnavailable) throw new IllegalStateException("controlled provider unavailable");
         documentId = normalizeDocumentId(documentId);
         Node node = NODES.get(documentId);
@@ -460,15 +477,21 @@ public final class TestDocumentsProvider extends DocumentsProvider {
             java.io.File backing = REGULAR_FILE_BACKING.get(documentId);
             if (backing != null) {
                 try {
-                    return ParcelFileDescriptor.open(backing, ParcelFileDescriptor.MODE_READ_ONLY);
+                    return observedReadDescriptor(ParcelFileDescriptor.open(backing, ParcelFileDescriptor.MODE_READ_ONLY));
                 } catch (IOException error) {
                     throw fileNotFound(error);
                 }
             }
-            return openReadPipe(node);
+            return observedReadDescriptor(openReadPipe(node));
         }
         writeOpenCalls++;
         return openWritePipe(node);
+    }
+
+    private static ParcelFileDescriptor observedReadDescriptor(ParcelFileDescriptor descriptor) {
+        java.util.function.Consumer<ParcelFileDescriptor> observer = openResultForAcquisitionTest;
+        if (observer != null) observer.accept(descriptor);
+        return descriptor;
     }
 
     private static ParcelFileDescriptor openReadPipe(Node node) throws FileNotFoundException {

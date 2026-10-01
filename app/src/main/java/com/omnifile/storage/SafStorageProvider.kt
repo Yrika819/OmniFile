@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.Intent
 import android.database.Cursor
 import android.net.Uri
+import android.os.CancellationSignal
 import android.os.OperationCanceledException
 import android.os.ParcelFileDescriptor
 import android.provider.DocumentsContract
@@ -299,7 +300,11 @@ class SafStorageProvider(
                 sourceLabel = "Selected storage",
                 mimeType = entry.mimeType,
                 sizeBytes = entry.sizeBytes,
-                capabilities = com.omnifile.preview.PreviewCapabilities(sequentialReadable = true, canReopen = true),
+                capabilities = com.omnifile.preview.PreviewCapabilities(
+                    sequentialReadable = true,
+                    canReopen = true,
+                    canStagePdf = true,
+                ),
             ) { openSequentialRead(locator) },
         )
     }
@@ -322,9 +327,11 @@ class SafStorageProvider(
             return StorageResult.Failure(StorageError.Unsupported)
         }
         return try {
-            val descriptor = contentResolver.openFileDescriptor(documentUri(parts.documentId), "r")
+            val descriptor = scopedPlatformCall(dispose = { descriptor: ParcelFileDescriptor? -> descriptor?.close() }) { signal ->
+                contentResolver.openFileDescriptor(documentUri(parts.documentId), "r", signal)
+            }
                 ?: return StorageResult.Failure(StorageError.IoFailure("Provider returned no descriptor"))
-            StorageResult.Success(
+            fun packageDescriptor(): StorageResult<SequentialReadHandle> = StorageResult.Success(
                 object : SequentialReadHandle {
                     private val input = ParcelFileDescriptor.AutoCloseInputStream(descriptor)
                     override val expectedBytes: Long? = entry.sizeBytes
@@ -334,6 +341,10 @@ class SafStorageProvider(
                     override fun close() = input.close()
                 },
             )
+            val scope = ReadAcquisitionScope.current()
+            if (scope != null) scope.own(descriptor) { it.close() }.adopt { packageDescriptor() }
+            else try { packageDescriptor() } catch (error: Throwable) { descriptor.close(); throw error }
+
         } catch (error: OperationCanceledException) {
             StorageResult.Failure(StorageError.Cancelled)
         } catch (error: SecurityException) {
@@ -745,11 +756,11 @@ class SafStorageProvider(
     }
 
     private fun isWithinSelectedTree(documentId: String): Boolean = try {
-        documentId == rootDocumentId || DocumentsContract.isChildDocument(
+        documentId == rootDocumentId || scopedPlatformCall { _ -> DocumentsContract.isChildDocument(
             contentResolver,
             documentUri(rootDocumentId),
             documentUri(documentId),
-        )
+        ) }
     } catch (error: CancellationException) {
         throw error
     } catch (_: SecurityException) {
@@ -762,10 +773,24 @@ class SafStorageProvider(
         throw ProviderUnavailableException(error)
     }
 
+    /** isChildDocument exposes no CancellationSignal; its physical call still retains admission. */
+    private fun <T> scopedPlatformCall(dispose: (T) -> Unit = {}, call: (CancellationSignal?) -> T): T {
+        val scope = ReadAcquisitionScope.current() ?: return call(null)
+        val signal = CancellationSignal()
+        return scope.blockingOperation(cancel = { signal.cancel() }, dispose = dispose) { call(signal) }
+    }
+
     private fun query(uri: Uri, block: (Cursor) -> Unit) {
         try {
-            contentResolver.query(uri, PROJECTION, null, null, null)?.use(block)
-                ?: throw IOException("Provider returned no cursor")
+            val cursor = scopedPlatformCall(dispose = { cursor: Cursor? -> cursor?.close() }) { signal ->
+                contentResolver.query(uri, PROJECTION, null, null, null, signal)
+            } ?: throw IOException("Provider returned no cursor")
+            val scope = ReadAcquisitionScope.current()
+            if (scope == null) cursor.use(block)
+            else {
+                val lease = scope.own(cursor) { it.close() }
+                try { scope.blockingOperation { block(cursor) } } finally { lease.close() }
+            }
         } catch (error: IllegalStateException) {
             throw ProviderUnavailableException(error)
         }

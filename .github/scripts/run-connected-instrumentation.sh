@@ -92,9 +92,83 @@ EXCLUDED
   echo "API ${MATRIX_API_LEVEL}: skipping 1 test that needs the emulator audio output to run a clip to completion."
 fi
 
+# Generated reports must belong to this invocation, never an earlier green run.
+rm -rf app/build/outputs/androidTest-results app/build/test-results/connectedDebugAndroidTest app/build/test-results/connected
+
 status=0
 ./gradlew "${gradle_args[@]}" \
   2>&1 | tee "${DIAGNOSTICS_DIR}/connected-androidtest.log" || status=$?
+
+# Always print the named PDF cases, even when Gradle fails before the summary
+# step. This keeps the renderer/lifecycle evidence reviewable in the job log.
+pdf_audit_status=0
+python3 - <<'PY' || pdf_audit_status=$?
+import glob
+import re
+import sys
+import xml.etree.ElementTree as ET
+
+with open(".github/scripts/required-vs10-instrumentation.txt", encoding="utf-8") as contract:
+    expected = {line.strip() for line in contract if line.strip()}
+
+roots = (
+    "app/build/outputs/androidTest-results/connected",
+    "app/build/outputs/androidTest-results",
+    "app/build/test-results",
+)
+files = []
+for root in roots:
+    files = [path for path in glob.glob(root + "/**/TEST-*.xml", recursive=True) if "UnitTest" not in path]
+    if files:
+        break
+
+observed = {}
+for path in sorted(set(files)):
+    try:
+        report = ET.parse(path).getroot()
+    except ET.ParseError as error:
+        sys.exit(f"Unparseable instrumentation XML: {error}")
+    for case in report.iter("testcase"):
+        identifier = f"{case.get('classname', '?')}#{case.get('name', '?')}"
+        if identifier not in expected:
+            continue
+        failure = case.find("failure")
+        if failure is None:
+            failure = case.find("error")
+        assumption = "AssumptionViolatedException" in (
+            (failure.get("message") or "") + (failure.text or "") + (failure.get("type") or "")
+        ) if failure is not None else False
+        if case.find("skipped") is not None or case.find("assumption") is not None or assumption:
+            result = "SKIPPED"
+        elif failure is not None:
+            result = "FAILED"
+            message = failure.get("message") or failure.text or ""
+            # Keep actionable assertion text while avoiding file paths, URIs,
+            # opaque IDs, and stack traces in Actions logs.
+            message = re.sub(r"(?:content|file)://\S+", "<uri>", message)
+            message = re.sub(r"(?<![A-Za-z0-9])/(?:[^/\s]+/)+[^/\s:]*", "<path>", message)
+            message = re.sub(r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b", "<id>", message)
+            lines = [line.strip() for line in message.splitlines() if line.strip() and not line.lstrip().startswith("at ")]
+            message = " ".join(lines[:2])[:400]
+            print(f"PDF_TEST_FAILURE {identifier} type={failure.get('type', 'unknown')} message={message}")
+        else:
+            result = "PASSED"
+        if identifier in observed:
+            sys.exit(f"Duplicate instrumentation evidence: {identifier}")
+        observed[identifier] = result
+
+for identifier in sorted(expected):
+    result = observed.get(identifier, "MISSING")
+    print(f"PDF_TEST_RESULT {identifier} {result}")
+
+not_passed = [identifier for identifier in expected if observed.get(identifier) != "PASSED"]
+print(f"PDF_TESTS {len(observed)}/{len(expected)} passed={len(expected) - len(not_passed)}")
+if not_passed:
+    sys.exit("PDF instrumentation evidence incomplete: " + ", ".join(sorted(not_passed)))
+PY
+if [[ "${pdf_audit_status}" -ne 0 ]]; then
+  status=1
+fi
 
 end_epoch=$(date +%s)
 echo "instrumentation_wall_clock_seconds=$(( end_epoch - start_epoch ))" \
@@ -111,6 +185,8 @@ capture() {
 capture adb-devices.txt adb devices -l
 capture emulator-getprop.txt adb shell getprop
 capture logcat.txt adb logcat -d -v threadtime -b all -t 20000
+grep -E '(OmniPdf(Client|Worker|Init)|VS10Ownership):' "${DIAGNOSTICS_DIR}/logcat.txt" | tail -n 150 | sed 's/^/PDF_WORKER_LOG /' || true
+grep 'VS10Ownership:' "${DIAGNOSTICS_DIR}/logcat.txt" | sed 's/^/OWNERSHIP_RESOURCE_LOG /' || true
 capture dumpsys-media-session.txt adb shell dumpsys media_session
 capture dumpsys-omnifile-services.txt adb shell dumpsys activity services com.omnifile
 capture dumpsys-audio-flinger.txt adb shell dumpsys media.audio_flinger

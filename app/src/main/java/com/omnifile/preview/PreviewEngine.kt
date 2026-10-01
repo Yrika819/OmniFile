@@ -12,39 +12,102 @@ import java.io.InputStream
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
-open class PreviewEngine {
-    open suspend fun load(request: PreviewRequest): PreviewPayload {
+open class PreviewEngine(
+    private val pdfController: PdfPreviewController? = null,
+    private val acquisitions: com.omnifile.storage.ReadAcquisitionExecutor = com.omnifile.storage.ReadAcquisitionExecutor.appWide,
+) {
+
+    /** Resolution, classification, and staging share the admission and absolute deadline. */
+    open suspend fun resolveAndLoad(
+        item: PreviewItem,
+        resolveSource: suspend () -> StorageResult<PreviewSource>,
+        startingPage: Int = 0,
+    ): ResolvedPreview {
+        val prepared = try {
+            acquisitions.acquire(dispose = { value: PreparedPreview -> value.disposeCandidate() }, successful = { it.payload !is PreviewPayload.Failure }, transfer = { it.transferCandidate() }) { scope ->
+                val source = when (val result = scope.operation { resolveSource() }) {
+                    is StorageResult.Success -> result.value
+                    is StorageResult.Failure -> return@acquire PreparedPreview("", if (result.error == StorageError.Unsupported) PreviewPayload.Unsupported else PreviewPayload.Failure(previewError(result.error)))
+                }
+                if (source.identity.providerId != item.identity.providerId || source.identity.identityKey != item.identity.identityKey) {
+                    return@acquire PreparedPreview("", PreviewPayload.Failure(PreviewError.ProviderUnavailable))
+                }
+                prepare(PreviewRequest(item, source, startingPage))
+            }
+        } catch (error: com.omnifile.storage.ReadAcquisitionException) {
+            return ResolvedPreview("", PreviewPayload.Failure(acquisitionError(error)))
+        }
+        return finish(prepared, startingPage)
+    }
+
+    open suspend fun load(request: PreviewRequest): PreviewPayload =
+        resolveAndLoad(request.item, { StorageResult.Success(request.source) }, request.startingPage).payload
+
+    private suspend fun finish(prepared: PreparedPreview, startingPage: Int): ResolvedPreview {
+        val snapshot = prepared.pdf?.staged?.snapshot ?: return ResolvedPreview(prepared.label, prepared.payload)
+        // Delivery is now owned here. No suspension until the controller takes responsibility.
+        val result = pdfController!!.openReserved(snapshot, prepared.pdf!!.reservation.value, startingPage)
+        try {
+            return ResolvedPreview(prepared.label, when (result) {
+                is PdfOpenResult.Ready -> result.payload
+                is PdfOpenResult.Failure -> PreviewPayload.Failure(result.error)
+            })
+        } catch (error: Throwable) {
+            (result as? PdfOpenResult.Ready)?.payload?.session?.invalidate()
+            throw error
+        }
+    }
+
+    private data class PreparedPreview(
+        val label: String,
+        val payload: PreviewPayload = PreviewPayload.Unsupported,
+        val pdf: PdfPreparedAcquisition.Ready? = null,
+    ) {
+        fun disposeCandidate() {
+            pdf?.dispose()
+            (payload as? PreviewPayload.Image)?.bitmap?.recycle()
+        }
+        fun transferCandidate() {
+            pdf?.transfer()
+        }
+    }
+
+    private suspend fun prepare(request: PreviewRequest): PreparedPreview {
         val source = request.source
-        if (!source.capabilities.sequentialReadable) return PreviewPayload.Unsupported
-        if (source.identity.identityKey != request.item.identity.identityKey) return PreviewPayload.Unsupported
+        fun plain(payload: PreviewPayload) = PreparedPreview(source.sourceLabel, payload)
+        if (!source.capabilities.sequentialReadable) return plain(PreviewPayload.Unsupported)
         val firstHandle = when (val opened = source.open()) {
             is StorageResult.Success -> opened.value
-            is StorageResult.Failure -> return PreviewPayload.Failure(previewError(opened.error))
+            is StorageResult.Failure -> return plain(PreviewPayload.Failure(previewError(opened.error)))
         }
         var textPayload: PreviewPayload? = null
         val contentType = try {
             firstHandle.use { handle ->
                 val prefix = readAtMost(handle, PreviewLimits.CLASSIFICATION_BYTES)
                 val type = PreviewContentClassifier.classify(prefix, source.mimeType, request.item.displayName)
-                if (type == PreviewContentType.TEXT) {
-                    textPayload = readText(handle, source, request, prefix)
-                }
+                if (type == PreviewContentType.TEXT) textPayload = readText(handle, source, request, prefix)
                 type
             }
         } catch (cancel: kotlinx.coroutines.CancellationException) {
             throw cancel
         } catch (error: IOException) {
-            return PreviewPayload.Failure(PreviewError.IoFailure(error.message))
+            return plain(PreviewPayload.Failure(PreviewError.IoFailure(error.message)))
         } catch (_: SecurityException) {
-            return PreviewPayload.Failure(PreviewError.PermissionOrGrantMissing)
+            return plain(PreviewPayload.Failure(PreviewError.PermissionOrGrantMissing))
         }
         return when (contentType) {
-            PreviewContentType.IMAGE -> {
-                if (!source.capabilities.canReopen) PreviewPayload.Unsupported
-                else decodeImage(source)
+            PreviewContentType.IMAGE -> plain(if (!source.capabilities.canReopen) PreviewPayload.Unsupported else decodeImage(source))
+            PreviewContentType.PDF -> {
+                if (!source.capabilities.canStagePdf || pdfController == null) plain(PreviewPayload.Unsupported)
+                else {
+                    when (val staged = pdfController.prepareScoped(request)) {
+                        is PdfPreparedAcquisition.Ready -> PreparedPreview(source.sourceLabel, pdf = staged)
+                        is PdfPreparedAcquisition.Failure -> plain(PreviewPayload.Failure(staged.error))
+                    }
+                }
             }
-            PreviewContentType.TEXT -> textPayload ?: PreviewPayload.Unsupported
-            PreviewContentType.UNKNOWN -> PreviewPayload.Unsupported
+            PreviewContentType.TEXT -> plain(textPayload ?: PreviewPayload.Unsupported)
+            PreviewContentType.UNKNOWN -> plain(PreviewPayload.Unsupported)
         }
     }
 
@@ -260,4 +323,13 @@ open class PreviewEngine {
     }
 
     private class EncodedLimitException : IOException("Image input exceeded preview bound")
+}
+
+
+data class ResolvedPreview(val sourceLabel: String, val payload: PreviewPayload)
+
+internal fun acquisitionError(error: com.omnifile.storage.ReadAcquisitionException): PreviewError = when (error.failure) {
+    com.omnifile.storage.ReadAcquisitionFailure.BUSY -> PreviewError.AcquisitionBusy
+    com.omnifile.storage.ReadAcquisitionFailure.TIMEOUT -> PreviewError.AcquisitionTimeout
+    com.omnifile.storage.ReadAcquisitionFailure.CANCELLED -> PreviewError.Cancelled
 }

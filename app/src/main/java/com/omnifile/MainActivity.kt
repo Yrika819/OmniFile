@@ -128,7 +128,9 @@ class MainActivity : ComponentActivity() {
         archiveViewModel = ViewModelProvider(this, Factory {
             ArchiveViewModel(app.archiveRepository, app.archiveExtractor, app.localProvider)
         })[ArchiveViewModel::class.java]
-        previewViewModel = ViewModelProvider(this, Factory { PreviewViewModel() })[PreviewViewModel::class.java]
+        previewViewModel = ViewModelProvider(this, Factory {
+            PreviewViewModel(engine = app.previewEngine)
+        })[PreviewViewModel::class.java]
         searchViewModel = ViewModelProvider(this, Factory {
             SearchViewModel(
                 listChildren = app.repository::children,
@@ -214,6 +216,8 @@ class MainActivity : ComponentActivity() {
                                         state = previewState,
                                         onBack = ::closePreview,
                                         onRetry = previewViewModel::retry,
+                                        onPreviousPage = previewViewModel::previousPage,
+                                        onNextPage = previewViewModel::nextPage,
                                     )
                                     null -> when (currentTop) {
                                         TopLevelDestination.HOME -> HomeScreen(

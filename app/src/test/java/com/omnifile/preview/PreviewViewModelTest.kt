@@ -23,7 +23,7 @@ class PreviewViewModelTest {
     @Test
     fun lateACompletionCannotReplaceBAndCloseClearsPublishedContent() = runBlocking {
         val slowA = CompletableDeferred<Unit>()
-        val engine = object : PreviewEngine() {
+        val engine = object : ResolvingFakePreviewEngine() {
             override suspend fun load(request: PreviewRequest): PreviewPayload {
                 if (request.item.displayName == "A.txt") {
                     withContext(NonCancellable) { slowA.await() }
@@ -56,7 +56,7 @@ class PreviewViewModelTest {
     fun lateCompletionOnAnotherDispatcherCannotReplaceNewerRequest() = runBlocking {
         val slowAStarted = CompletableDeferred<Unit>()
         val releaseSlowA = CompletableDeferred<Unit>()
-        val engine = object : PreviewEngine() {
+        val engine = object : ResolvingFakePreviewEngine() {
             override suspend fun load(request: PreviewRequest): PreviewPayload {
                 if (request.item.displayName == "A.txt") {
                     slowAStarted.complete(Unit)
@@ -102,7 +102,8 @@ class PreviewViewModelTest {
 
         viewModel.open(item) { StorageResult.Success(source) }
 
-        assertEquals(PreviewUiState.Error(item, PreviewError.ProviderUnavailable), viewModel.state.value)
+        val state = withTimeout(5_000) { viewModel.state.first { it is PreviewUiState.Error } }
+        assertEquals(PreviewUiState.Error(item, PreviewError.ProviderUnavailable), state)
         assertTrue(!uncaught.isCompleted)
         lifecycle.cancel()
     }
@@ -125,5 +126,13 @@ class PreviewViewModelTest {
 
     private data class TestEntryRef(override val identityKey: String) : EntryRef {
         override val providerId = ProviderId("preview-test")
+    }
+}
+
+
+private abstract class ResolvingFakePreviewEngine : PreviewEngine() {
+    override suspend fun resolveAndLoad(item: PreviewItem, resolveSource: suspend () -> StorageResult<PreviewSource>, startingPage: Int): ResolvedPreview {
+        val source = (resolveSource() as StorageResult.Success).value
+        return ResolvedPreview(source.sourceLabel, load(PreviewRequest(item, source, startingPage)))
     }
 }
