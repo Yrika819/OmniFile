@@ -71,7 +71,7 @@ class PreviewOwnershipTest {
         f.open("A"); val release = f.current().holdNext(); f.vm.nextPage(); f.vm.nextPage(); f.vm.previousPage()
         release.complete(Unit); assertEquals(1, f.pageIndex())
     } }
-    @Test fun fiveHundredVariedGenerationAndDrainInterleavings() = runBlocking {
+    @Test fun fiveHundredIterationsAcrossFourDeterministicGenerationDrainScenarios() = runBlocking {
         repeat(500) { iteration -> Fixture().use { f ->
             if (iteration % 2 == 0) {
                 val release = f.pendingOpen("A"); f.open("A")

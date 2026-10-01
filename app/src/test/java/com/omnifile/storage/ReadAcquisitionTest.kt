@@ -202,7 +202,7 @@ class ReadAcquisitionTest {
         try { lease.close(); fail("expected") } catch (_: java.io.IOException) { }
         f.scope.cancel(); f.returned(); assertEquals(0, f.releases)
     }
-    @Test fun thousandVariedCompletionCancellationInterleavings() {
+    @Test fun thousandIterationsAcrossFourDeterministicTerminalDeliveryScenarios() {
         repeat(1000) { index ->
             val f = Fixture(); var closed = 0
             when (index % 4) {

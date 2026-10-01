@@ -85,7 +85,7 @@ class OwningResponseTest {
     @Test fun disposedOwnerRejectsCallback() {
         val f = Fixture(); f.holder.dispose(); assertFalse(f.holder.offer(f.resource)); f.closed()
     }
-    @Test fun fiveHundredVariedCallbackCancelTransferCycles() {
+    @Test fun fiveHundredIterationsAcrossFiveCallbackCancellationTemplates() {
         repeat(500) { index ->
             val f = Fixture(); val consumer = f.consumer()
             when (index % 5) {
@@ -105,7 +105,9 @@ class OwningResponseTest {
             else f.holder.fail(IllegalStateException())
             f.closed(); assertEquals(if (order == 0) 1 else 0, f.transfers)
         }
-    }    @Test fun fiveHundredConcurrentCallbackFailureRacesCloseExactlyOnce() {
+    }
+    // 500 concurrent callback/failure race attempts; schedule diversity unmeasured.
+    @Test fun fiveHundredConcurrentCallbackFailureRaceAttemptsCloseExactlyOnce() {
         val lanes = java.util.concurrent.Executors.newFixedThreadPool(2)
         try {
             repeat(500) {
