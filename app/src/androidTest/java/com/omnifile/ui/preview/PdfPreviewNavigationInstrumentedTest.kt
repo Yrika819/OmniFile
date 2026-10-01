@@ -21,6 +21,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
+@com.omnifile.preview.PostVs10HardeningTarget
 @RunWith(AndroidJUnit4::class)
 class PdfPreviewNavigationInstrumentedTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
@@ -79,6 +80,44 @@ class PdfPreviewNavigationInstrumentedTest {
         compose.runOnIdle { compose.activity.onBackPressedDispatcher.onBackPressed() }
         compose.onNodeWithTag("search.result.0").assertExists()
         compose.onNodeWithTag("search.query").assertExists()
+    }
+
+    @Test
+    fun filesEmbeddedPdfPngUsesImagePreview() {
+        Files.write(fixture, com.omnifile.preview.embeddedPdfPng())
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithTag("home.root.local-app-files-v1").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("home.root.local-app-files-v1").performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithTag("files.entry.$fixtureName").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("files.entry.$fixtureName").performClick()
+        assertImagePreview()
+    }
+
+    @Test
+    fun searchEmbeddedPdfPngUsesImagePreview() {
+        Files.write(fixture, com.omnifile.preview.embeddedPdfPng())
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithContentDescription("Search").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithContentDescription("Search").performClick()
+        compose.onNodeWithTag("search.query").performTextInput(fixtureName)
+        compose.onNodeWithTag("search.query").performImeAction()
+        compose.waitUntil(20_000) {
+            compose.onAllNodesWithTag("search.result.0").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("search.result.0").performClick()
+        assertImagePreview()
+    }
+
+    private fun assertImagePreview() {
+        compose.waitUntil(20_000) {
+            compose.onAllNodesWithContentDescription("Preview of $fixtureName").fetchSemanticsNodes().isNotEmpty()
+        }
+        org.junit.Assert.assertEquals(0, compose.onAllNodesWithText("corrupt or malformed", substring = true).fetchSemanticsNodes().size)
+        org.junit.Assert.assertEquals(0, compose.onAllNodesWithContentDescription("PDF page", substring = true).fetchSemanticsNodes().size)
     }
 
     private fun syntheticPdf(pageCount: Int): ByteArray {

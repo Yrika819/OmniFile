@@ -96,8 +96,8 @@ data class DecodedText(val text: String, val truncated: Boolean)
 /** Content claims are hints only. Strong image signatures and bounded text evidence decide V1. */
 object PreviewContentClassifier {
     fun classify(sample: ByteArray, mimeType: String?, displayName: String): PreviewContentType {
-        if (isPdf(sample)) return PreviewContentType.PDF
         if (isPng(sample) || isJpeg(sample) || isBmp(sample)) return PreviewContentType.IMAGE
+        if (isPdf(sample)) return PreviewContentType.PDF
         if (isKnownUnsupportedFormat(sample)) return PreviewContentType.UNKNOWN
         if (sample.isEmpty()) {
             val extension = displayName.substringAfterLast('.', "").lowercase()
@@ -121,6 +121,9 @@ object PreviewContentClassifier {
 
     private fun isBmp(bytes: ByteArray): Boolean = bytes.size >= 2 && bytes[0] == 'B'.code.toByte() && bytes[1] == 'M'.code.toByte()
 
+    /** OmniFile contract: %PDF- starts at offset 0..1024 inclusive, with all five bytes available.
+     * This application recognition window is not a universal PDF specification requirement.
+     */
     private fun isPdf(bytes: ByteArray): Boolean {
         val signature = byteArrayOf('%'.code.toByte(), 'P'.code.toByte(), 'D'.code.toByte(), 'F'.code.toByte(), '-'.code.toByte())
         val lastStart = minOf(bytes.size - signature.size, 1024)

@@ -163,4 +163,37 @@ class PdfAcquisitionTest {
             assertTrue(runner.awaitIdle())
         }
     }
+    @Test fun lateResolutionExceptionWithUndispatchedTimerMapsToAcquisitionTimeoutAndRetry() = runBlocking {
+        val time = AtomicLong(0)
+        ReadAcquisitionExecutor(time::get, timeoutMillis = 10_000).use { runner ->
+            val lifecycle = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Unconfined)
+            val model = PreviewViewModel(PreviewEngine(acquisitions = runner), kotlinx.coroutines.Dispatchers.Default, lifecycle)
+            val attempts = AtomicInteger()
+            try {
+                model.open(item) {
+                    if (attempts.incrementAndGet() == 1) {
+                        time.set(10_000_000_000)
+                        throw SecurityException("provider permission failure after absolute deadline")
+                    }
+                    StorageResult.Failure(StorageError.PermissionDenied)
+                }
+                val expired = kotlinx.coroutines.withTimeout(5_000) {
+                    model.state.first { it is PreviewUiState.Error }
+                } as PreviewUiState.Error
+                assertEquals(PreviewError.AcquisitionTimeout, expired.error)
+                assertTrue(runner.awaitIdle())
+                model.retry()
+                val retried = kotlinx.coroutines.withTimeout(5_000) {
+                    model.state.first { it is PreviewUiState.Error && it.error == PreviewError.PermissionOrGrantMissing }
+                } as PreviewUiState.Error
+                assertEquals(PreviewError.PermissionOrGrantMissing, retried.error)
+                assertEquals(2, attempts.get())
+                assertTrue(runner.awaitIdle())
+            } finally {
+                model.close()
+                lifecycle.coroutineContext[kotlinx.coroutines.Job]!!.cancel()
+            }
+        }
+    }
+
 }

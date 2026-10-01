@@ -80,6 +80,9 @@ jobs:
           java -version 2>&1
           ./gradlew --version --console=plain --dependency-verification=strict
 
+      - name: Instrumentation evidence parser self-tests
+        run: python3 -m unittest discover -s .github/scripts/tests -v
+
       # Conservative project settings, matching the validated local baseline.
       # No "|| true": any task failure fails the job.
       - name: Host verification tasks

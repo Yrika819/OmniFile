@@ -74,4 +74,56 @@ class PreviewContentTest {
         assertEquals(256 * 1024, PreviewLimits.MAX_TEXT_BYTES)
         assertEquals(32 * 1024 * 1024, PreviewLimits.MAX_IMAGE_ENCODED_BYTES)
     }
+    @Test
+    fun supportedByteZeroImageMagicWinsOverEmbeddedPdfEvidence() {
+        val signatures = listOf(
+            byteArrayOf(0x89.toByte(), 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a),
+            byteArrayOf(0xff.toByte(), 0xd8.toByte(), 0xff.toByte()),
+            "BM".toByteArray(),
+        )
+        signatures.forEach { signature ->
+            assertEquals(PreviewContentType.IMAGE, PreviewContentClassifier.classify(signature, null, "image.bin"))
+            assertEquals(PreviewContentType.IMAGE,
+                PreviewContentClassifier.classify(signature + "%PDF-1.7".toByteArray(), "application/pdf", "image.pdf"))
+        }
+    }
+
+    @Test
+    fun pdfStartOffsetWindowIsInclusiveAndRequiresTheCompleteSignature() {
+        listOf(1019, 1020, 1023, 1024, 1025).forEach { offset ->
+            val sample = ByteArray(offset) { ' '.code.toByte() } + "%PDF-".toByteArray()
+            assertEquals("start offset $offset", if (offset <= 1024) PreviewContentType.PDF else PreviewContentType.TEXT,
+                PreviewContentClassifier.classify(sample, null, "sample.bin"))
+        }
+        assertEquals(PreviewContentType.TEXT, PreviewContentClassifier.classify(
+            ByteArray(1024) { ' '.code.toByte() } + "%PDF".toByteArray(), null, "sample.bin"))
+    }
+
+    @Test
+    fun earlyPdfEvidenceInPrintableTextStillWinsOverTextHeuristics() {
+        assertEquals(PreviewContentType.PDF, PreviewContentClassifier.classify(
+            "ordinary text containing %PDF- evidence".toByteArray(), "text/plain", "notes.txt"))
+    }
+
+    @Test
+    fun pdfHintsAloneDoNotAuthorizePdf() {
+        assertEquals(PreviewContentType.TEXT, PreviewContentClassifier.classify("hello".toByteArray(), null, "file.pdf"))
+        assertEquals(PreviewContentType.TEXT, PreviewContentClassifier.classify("hello".toByteArray(), "application/pdf", "file.bin"))
+        assertEquals(PreviewContentType.UNKNOWN, PreviewContentClassifier.classify(byteArrayOf(0, 1), "application/pdf", "file.pdf"))
+    }
+
+    @Test
+    fun emptyTextRetainsExistingHintPolicy() {
+        assertEquals(PreviewContentType.TEXT, PreviewContentClassifier.classify(byteArrayOf(), "text/plain", "empty.bin"))
+        assertEquals(PreviewContentType.TEXT, PreviewContentClassifier.classify(byteArrayOf(), null, "empty.txt"))
+        assertEquals(PreviewContentType.UNKNOWN, PreviewContentClassifier.classify(byteArrayOf(), "application/pdf", "empty.pdf"))
+    }
+
+    @Test
+    fun knownZipSignaturesRemainUnsupported() {
+        listOf(byteArrayOf(3, 4), byteArrayOf(5, 6), byteArrayOf(7, 8)).forEach {
+            assertEquals(PreviewContentType.UNKNOWN, PreviewContentClassifier.classify("PK".toByteArray() + it, "text/plain", "archive.txt"))
+        }
+    }
+
 }

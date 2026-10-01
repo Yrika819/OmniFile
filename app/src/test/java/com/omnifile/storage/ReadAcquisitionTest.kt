@@ -202,7 +202,7 @@ class ReadAcquisitionTest {
         try { lease.close(); fail("expected") } catch (_: java.io.IOException) { }
         f.scope.cancel(); f.returned(); assertEquals(0, f.releases)
     }
-    @Test fun thousandVariedCompletionCancellationInterleavings() {
+    @Test fun thousandIterationsAcrossFourDeterministicTerminalDeliveryScenarios() {
         repeat(1000) { index ->
             val f = Fixture(); var closed = 0
             when (index % 4) {
@@ -214,4 +214,109 @@ class ReadAcquisitionTest {
             f.returned(); assertEquals(if (index % 4 == 0) 0 else 1, closed); assertEquals(1, f.releases)
         }
     }
+    private fun observedExceptionAt(time: Long, error: Throwable) {
+        val f = Fixture()
+        try {
+            f.scope.blockingOperation<Int> { f.time.set(time); throw error }
+            fail("Expected operation exception")
+        } catch (observed: Throwable) {
+            assertSame(error, observed)
+            // Exactly the executor boundary: deadline elapsed, timer undispatched, operation throws.
+            f.scope.fail(observed)
+        }
+        if (time < 10) {
+            try { f.scope.take(); fail("Expected original failure") }
+            catch (observed: Throwable) { assertSame(error, observed) }
+            assertEquals(ReadAcquisitionState.FAILED, f.scope.state)
+        } else {
+            failure(ReadAcquisitionFailure.TIMEOUT) { f.scope.take() }
+            assertEquals(ReadAcquisitionState.EXPIRED, f.scope.state)
+        }
+        assertEquals(0, f.releases)
+        f.returned()
+        assertEquals(1, f.releases)
+    }
+
+    @Test fun operationThrowsBeforeDeadlineKeepsOriginalFailure() = observedExceptionAt(9, IllegalStateException())
+    @Test fun operationThrowsExactlyAtDeadlineGetsTimeout() = observedExceptionAt(10, IllegalStateException())
+    @Test fun operationThrowsAfterDeadlineGetsTimeout() = observedExceptionAt(11, IllegalStateException())
+    @Test fun elapsedDeadlineUndispatchedTimerThenOperationThrowsGetsTimeout() = observedExceptionAt(11, java.io.IOException())
+    @Test fun permissionExceptionBeforeDeadlineWins() = observedExceptionAt(9, SecurityException())
+    @Test fun permissionExceptionAfterDeadlineLosesToTimeout() = observedExceptionAt(11, SecurityException())
+    @Test fun providerIoExceptionBeforeDeadlineWins() = observedExceptionAt(9, java.io.IOException())
+    @Test fun providerIoExceptionAfterDeadlineLosesToTimeout() = observedExceptionAt(11, java.io.IOException())
+    @Test fun newlyObservedOperationCancellationAfterDeadlineGetsTimeout() = observedExceptionAt(11, kotlinx.coroutines.CancellationException())
+
+    @Test fun timerExpiryBeforeExceptionKeepsExistingTimeout() {
+        val f = Fixture(); f.scope.expire(); f.scope.fail(SecurityException())
+        failure(ReadAcquisitionFailure.TIMEOUT) { f.scope.take() }
+        f.returned(); assertEquals(1, f.releases)
+    }
+    @Test fun originalFailureBeforeDeadlineSurvivesLaterTimer() {
+        val f = Fixture(); val original = java.io.IOException()
+        f.time.set(9); f.scope.fail(original); f.time.set(11); f.scope.expire()
+        try { f.scope.take(); fail("Expected original failure") }
+        catch (actual: java.io.IOException) { assertSame(original, actual) }
+        f.returned(); assertEquals(ReadAcquisitionState.FAILED, f.scope.state)
+    }
+    @Test fun externalCancellationAlreadyTerminalRemainsCancellation() {
+        val f = Fixture(); f.scope.cancel(); f.time.set(11)
+        f.scope.fail(java.io.IOException()); f.scope.expire()
+        failure(ReadAcquisitionFailure.CANCELLED) { f.scope.take() }
+        f.returned(); assertEquals(ReadAcquisitionState.CANCELLED, f.scope.state)
+    }
+    @Test fun successAlreadyDeliveredRemainsSuccessAfterExpiryAndFailure() {
+        val f = Fixture(); f.scope.complete(1) { fail("Already delivered") }
+        assertEquals(1, f.scope.take()); f.time.set(11); f.scope.expire(); f.scope.fail(java.io.IOException())
+        f.returned(); assertEquals(ReadAcquisitionState.SUCCEEDED, f.scope.state)
+    }
+    @Test fun typedFailureValueBeforeDeadlineKeepsValue() {
+        val f = Fixture(); val value = StorageResult.Failure(StorageError.PermissionDenied)
+        f.time.set(9); f.scope.complete(value, successful = false) { fail("Already delivered") }
+        assertSame(value, f.scope.take()); f.time.set(11); f.scope.expire(); f.returned()
+        assertEquals(ReadAcquisitionState.FAILED, f.scope.state)
+    }
+    @Test fun typedFailureValueAfterDeadlineGetsTimeout() {
+        val f = Fixture(); var disposed = 0; f.time.set(11)
+        f.scope.complete(StorageResult.Failure(StorageError.PermissionDenied), successful = false) { disposed++ }
+        failure(ReadAcquisitionFailure.TIMEOUT) { f.scope.take() }
+        f.returned(); assertEquals(1, disposed)
+    }
+    @Test fun lateExceptionDisposesLeaseExactlyOnceAndRetainsWorkerAdmission() {
+        val f = Fixture(); var closed = 0
+        val lease = f.scope.own(1, afterWorkerReturns = true) { closed++ }
+        f.time.set(11); f.scope.fail(java.io.IOException()); f.drain()
+        lease.close(); f.scope.expire(); f.scope.fail(SecurityException())
+        assertEquals(0, closed); assertEquals(0, f.releases)
+        f.returned(); lease.close(); f.drain()
+        assertEquals(1, closed); assertEquals(1, f.releases)
+    }
+    @Test fun lateExceptionCleanupFailureRetainsAdmission() {
+        val f = Fixture(); f.scope.own(1) { throw java.io.IOException("cleanup") }
+        f.time.set(11); f.scope.fail(java.io.IOException("provider")); f.returned()
+        failure(ReadAcquisitionFailure.TIMEOUT) { f.scope.take() }
+        assertEquals(0, f.releases)
+    }
+    @Test fun lateExceptionBlockedCleanupRetainsAdmissionUntilCleanupReturns() {
+        val f = Fixture(); val entered = CountDownLatch(1); val release = CountDownLatch(1)
+        f.scope.own(1) { entered.countDown(); release.await(); Unit }
+        f.time.set(11); f.scope.fail(java.io.IOException()); f.scope.workerReturned()
+        val drainer = Thread { f.drain() }.apply { start() }
+        try { assertTrue(entered.await(5, TimeUnit.SECONDS)); assertEquals(0, f.releases) }
+        finally { release.countDown(); drainer.join(5000) }
+        assertFalse(drainer.isAlive); assertEquals(1, f.releases)
+    }
+    @Test fun lateExceptionForbidsSubsequentSuccessfulCompletion() {
+        val f = Fixture(); var disposed = 0; f.time.set(11); f.scope.fail(java.io.IOException())
+        f.scope.complete(1) { disposed++ }
+        failure(ReadAcquisitionFailure.TIMEOUT) { f.scope.take() }
+        f.returned(); assertEquals(1, disposed)
+    }
+    @Test fun lateExceptionForbidsSnapshotAdoption() {
+        val f = Fixture(); var disposed = 0; var adopted = 0
+        val lease = f.scope.own(1) { disposed++ }; f.time.set(11); f.scope.fail(java.io.IOException())
+        failure(ReadAcquisitionFailure.TIMEOUT) { lease.adopt { adopted++ } }
+        f.returned(); assertEquals(0, adopted); assertEquals(1, disposed)
+    }
+
 }
