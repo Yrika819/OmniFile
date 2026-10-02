@@ -5,11 +5,13 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -92,9 +94,9 @@ fun FilesScreen(
     // gated separately inside the surface, so an unreadable file still shows its metadata.
     val propertiesEntry = selectedEntries.singleOrNull()?.takeIf { it.kind == EntryKind.FILE }
     val destinationCanAccept = state is FilesUiState.DestinationPicker &&
-        state.location.kind == EntryKind.DIRECTORY &&
-        state.location.supports(StorageCapability.CREATE_CHILD) &&
-        state.location.supports(StorageCapability.WRITE)
+            state.location.kind == EntryKind.DIRECTORY &&
+            state.location.supports(StorageCapability.CREATE_CHILD) &&
+            state.location.supports(StorageCapability.WRITE)
 
     Scaffold(
         modifier = modifier,
@@ -123,38 +125,6 @@ fun FilesScreen(
                             enabled = destinationCanAccept,
                             onClick = onConfirmDestination,
                         ) { Text("Use this folder") }
-                    } else if (selection != null && mutationInFlight) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp).testTag("files.mutation.progress"),
-                        )
-                    } else if (selection != null) {
-                        TextButton(
-                            modifier = Modifier.testTag("files.action.copy"),
-                            enabled = canCopy,
-                            onClick = onCopySelected,
-                        ) { Text("Copy") }
-                        TextButton(
-                            modifier = Modifier.testTag("files.action.move"),
-                            enabled = canMove,
-                            onClick = onMoveSelected,
-                        ) { Text("Move") }
-                        if (canRename) {
-                            TextButton(modifier = Modifier.testTag("files.action.rename"), onClick = {
-                                requestedName = selectedEntries.single().displayName
-                                renameDialogVisible = true
-                            }) { Text("Rename") }
-                        }
-                        if (propertiesEntry != null) {
-                            TextButton(
-                                modifier = Modifier.testTag("files.action.properties"),
-                                onClick = { onOpenProperties(propertiesEntry) },
-                            ) { Text("Properties") }
-                        }
-                        TextButton(
-                            modifier = Modifier.testTag("files.action.delete"),
-                            enabled = canDelete,
-                            onClick = { deleteDialogVisible = true },
-                        ) { Text("Delete") }
                     } else if (state is FilesUiState.Content || state is FilesUiState.Empty) {
                         IconButton(
                             modifier = Modifier.testTag("files.search"),
@@ -171,6 +141,49 @@ fun FilesScreen(
                 .padding(paddingValues)
                 .consumeWindowInsets(paddingValues),
         ) {
+            // Selection actions live here rather than in the TopAppBar: app bar actions are laid
+            // out in a non-wrapping Row, and five buttons overflow at default font scale, which
+            // would clip Properties off-screen exactly where large-font accessibility matters.
+            if (selection != null && !mutationInFlight && state !is FilesUiState.DestinationPicker) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(
+                        modifier = Modifier.testTag("files.action.copy"),
+                        enabled = canCopy,
+                        onClick = onCopySelected,
+                    ) { Text("Copy") }
+                    TextButton(
+                        modifier = Modifier.testTag("files.action.move"),
+                        enabled = canMove,
+                        onClick = onMoveSelected,
+                    ) { Text("Move") }
+                    if (canRename) {
+                        TextButton(modifier = Modifier.testTag("files.action.rename"), onClick = {
+                            requestedName = selectedEntries.single().displayName
+                            renameDialogVisible = true
+                        }) { Text("Rename") }
+                    }
+                    if (propertiesEntry != null) {
+                        TextButton(
+                            modifier = Modifier.testTag("files.action.properties"),
+                            onClick = { onOpenProperties(propertiesEntry) },
+                        ) { Text("Properties") }
+                    }
+                    TextButton(
+                        modifier = Modifier.testTag("files.action.delete"),
+                        enabled = canDelete,
+                        onClick = { deleteDialogVisible = true },
+                    ) { Text("Delete") }
+                }
+                HorizontalDivider()
+            }
+
             if (state is FilesUiState.DestinationPicker) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -199,6 +212,7 @@ fun FilesScreen(
                     onEnterSelection = {},
                     onToggleSelection = {},
                 )
+
                 is FilesUiState.Content -> EntryList(
                     breadcrumb = state.breadcrumb,
                     entries = state.entries,
@@ -210,8 +224,14 @@ fun FilesScreen(
                     onToggleSelection = onToggleSelection,
                     onPlayEntry = onPlayEntry,
                 )
+
                 is FilesUiState.Empty -> EmptyState(state.breadcrumb)
-                is FilesUiState.Error -> ErrorState(storageErrorMessage(state.error), state.location, state.breadcrumb, onRetry)
+                is FilesUiState.Error -> ErrorState(
+                    storageErrorMessage(state.error),
+                    state.location,
+                    state.breadcrumb,
+                    onRetry
+                )
             }
         }
     }
@@ -235,9 +255,9 @@ fun FilesScreen(
                     modifier = Modifier.testTag("files.dialog.rename.confirm"),
                     enabled = requestedName.isNotBlank(),
                     onClick = {
-                    renameDialogVisible = false
-                    onRenameSelected(requestedName)
-                }) { Text("Rename") }
+                        renameDialogVisible = false
+                        onRenameSelected(requestedName)
+                    }) { Text("Rename") }
             },
             dismissButton = {
                 TextButton(
@@ -257,9 +277,9 @@ fun FilesScreen(
                 TextButton(
                     modifier = Modifier.testTag("files.dialog.delete.confirm"),
                     onClick = {
-                    deleteDialogVisible = false
-                    onDeleteSelected()
-                }) { Text("Delete") }
+                        deleteDialogVisible = false
+                        onDeleteSelected()
+                    }) { Text("Delete") }
             },
             dismissButton = {
                 TextButton(
@@ -346,6 +366,7 @@ private fun EmptyState(breadcrumb: List<String>) {
 private fun storageErrorMessage(error: com.omnifile.storage.StorageError): String = when (error) {
     com.omnifile.storage.StorageError.ProviderUnavailable ->
         "The storage provider is temporarily unavailable. Retry when it is available again."
+
     else -> error.toString()
 }
 

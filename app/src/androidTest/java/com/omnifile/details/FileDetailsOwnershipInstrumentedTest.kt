@@ -19,9 +19,8 @@ import com.omnifile.storage.StorageTransferProvider
 import com.omnifile.storage.TestDocumentsProvider
 import com.omnifile.storage.TransferFileFacts
 import java.security.MessageDigest
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
@@ -29,7 +28,6 @@ import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -58,9 +56,9 @@ class FileDetailsOwnershipInstrumentedTest {
         }
         // Deterministic: the reader is parked inside a provider read that cancellation cannot
         // interrupt. Nothing has been published yet.
-        assertTrue(handle.enteredRead.await(20, TimeUnit.SECONDS))
+        withTimeout(30_000) { handle.enteredRead.await() }
         abort.set(true)
-        handle.release.countDown()
+        handle.release.complete(Unit)
 
         val outcome = withTimeout(60_000) { pending.await() }
 
@@ -150,8 +148,11 @@ class FileDetailsOwnershipInstrumentedTest {
     }
 
     /**
-     * Reads in fixed chunks and parks inside a chosen read until released, modelling a provider
-     * that does not cooperate with cancellation.
+     * Reads in fixed chunks and parks exactly once inside a chosen read until released, modelling
+     * a provider that does not cooperate with cancellation.
+     *
+     * Parking is one-shot and suspending on purpose. A timed blocking park would be re-entered on
+     * every later read, so the reader would spend the whole attempt waiting instead of stopping.
      */
     private class GatedHandle(
         private val bytes: ByteArray,
@@ -159,18 +160,21 @@ class FileDetailsOwnershipInstrumentedTest {
         private val gateFromRead: Int,
     ) : SequentialReadHandle {
         override val expectedBytes: Long = bytes.size.toLong()
-        val release = CountDownLatch(1)
-        val enteredRead = CountDownLatch(1)
+        val release = CompletableDeferred<Unit>()
+        val enteredRead = CompletableDeferred<Unit>()
         var closeCount = 0
             private set
         private var offset = 0
         private var seen = 0
+        private var parked = false
 
         override fun read(buffer: ByteArray, off: Int, length: Int): Int {
-            if (seen >= gateFromRead) {
-                enteredRead.countDown()
-                // Not a cancellable suspension point: cancellation cannot interrupt this read.
-                release.await(30, TimeUnit.SECONDS)
+            if (!parked && seen >= gateFromRead) {
+                parked = true
+                enteredRead.complete(Unit)
+                // Not a cancellable suspension point: this is the read that cancellation cannot
+                // interrupt, only outlast.
+                runBlocking { release.await() }
             }
             seen++
             if (offset >= bytes.size) return -1

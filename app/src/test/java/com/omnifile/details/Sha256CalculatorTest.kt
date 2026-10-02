@@ -282,6 +282,89 @@ class Sha256CalculatorTest {
     }
 
     @Test
+    fun aSourceThatNeverProgressesFailsInsteadOfSpinning() {
+        // A pipe-backed provider can legitimately return 0 a few times; an unbounded run of them
+        // would spin a core with no I/O, exactly as the Preview read loops guard against.
+        var reads = 0
+        val source = object : DigestSource {
+            override val declaredBytes: Long? = null
+            var closeCount = 0
+            override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+                reads++
+                if (reads > Sha256Calculator.MAX_CONSECUTIVE_NO_PROGRESS_READS * 100) {
+                    throw AssertionError("read loop did not bound zero-progress reads")
+                }
+                return 0
+            }
+
+            override fun close() {
+                closeCount++
+            }
+        }
+
+        val outcome = Sha256Calculator.calculate(source)
+
+        assertEquals(DigestOutcome.Failed(DigestFailure.ReadFailed, 0L), outcome)
+        assertTrue(
+            "must stop after the bounded retries",
+            reads <= Sha256Calculator.MAX_CONSECUTIVE_NO_PROGRESS_READS + 1
+        )
+        assertEquals(1, source.closeCount)
+    }
+
+    @Test
+    fun aFewZeroByteReadsAreToleratedBeforeRealData() {
+        var zeroReads = 0
+        var started = false
+        val input = ByteArray(64) { 5 }
+        val source = object : DigestSource {
+            override val declaredBytes: Long? = input.size.toLong()
+            private var offset = 0
+            override fun read(buffer: ByteArray, off: Int, length: Int): Int {
+                if (!started && zeroReads < Sha256Calculator.MAX_CONSECUTIVE_NO_PROGRESS_READS - 1) {
+                    zeroReads++
+                    return 0
+                }
+                started = true
+                if (offset >= input.size) return -1
+                System.arraycopy(input, offset, buffer, off, input.size - offset)
+                offset = input.size
+                return input.size
+            }
+
+            override fun close() = Unit
+        }
+
+        assertEquals(DigestOutcome.Complete(reference(input), 64L), Sha256Calculator.calculate(source))
+        assertEquals(Sha256Calculator.MAX_CONSECUTIVE_NO_PROGRESS_READS - 1, zeroReads)
+    }
+
+    @Test
+    fun aNonZeroLengthBufferRejectionDoesNotLeakTheSource() {
+        val source = FakeSource(ByteArray(16) { 1 })
+        runCatching { Sha256Calculator.calculate(source, bufferBytes = 0) }
+        // Rejected before any ownership was taken, so closing would be a second, wrong claim.
+        assertEquals(0, source.closeCount)
+    }
+
+    @Test
+    fun aSourceWhoseDeclaredSizeThrowsStillReleasesExactlyOnce() {
+        val source = object : DigestSource {
+            override val declaredBytes: Long?
+                get() = throw SecurityException("provider property is hostile")
+            var closeCount = 0
+            override fun read(buffer: ByteArray, offset: Int, length: Int): Int = -1
+            override fun close() {
+                closeCount++
+            }
+        }
+
+        // The property is read inside the owned region, so the failure still releases the source.
+        runCatching { Sha256Calculator.calculate(source) }
+        assertEquals(1, source.closeCount)
+    }
+
+    @Test
     fun aZeroLengthBufferIsRejectedRatherThanLoopingForever() {
         val failure = runCatching { Sha256Calculator.calculate(FakeSource(ByteArray(0)), bufferBytes = 0) }
         assertTrue(failure.isFailure)

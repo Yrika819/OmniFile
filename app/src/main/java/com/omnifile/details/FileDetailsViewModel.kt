@@ -4,8 +4,10 @@ import com.omnifile.files.FilesRepository
 import com.omnifile.storage.EntryKind
 import com.omnifile.storage.StorageCapability
 import com.omnifile.storage.StorageEntry
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -57,9 +59,9 @@ class FileDetailsViewModel(
      */
     fun open(entry: StorageEntry, sourceLabel: String) {
         require(entry.kind == EntryKind.FILE) { "File Details accepts one regular file only" }
-        revoke()
+        val mine = revoke()
         synchronized(lock) { source = entry }
-        publishState {
+        publishReplacing(mine) {
             FileDetailsUiState.Metadata(
                 metadata = FileDetailsMetadata(
                     displayName = entry.displayName,
@@ -75,26 +77,33 @@ class FileDetailsViewModel(
 
     fun calculate() {
         val entry = source ?: return
-        val content = _uiState.value as? FileDetailsUiState.Metadata ?: return
-        if (!content.hashingSupported) return
+        if ((_uiState.value as? FileDetailsUiState.Metadata)?.hashingSupported != true) return
         val mine = revoke()
         abort.set(false)
-        publishState {
-            (content.copy(digest = DigestUiState.Calculating(0, entry.sizeBytes?.takeIf { it >= 0 })))
-        }
-        val owned = lifecycleScope.launch(ioDispatcher) {
-            val outcome = calculator.calculate(
-                entry = entry,
-                onProgress = { progress ->
-                    publishOwned(mine) {
-                        copy(digest = DigestUiState.Calculating(progress.bytesRead, progress.expectedBytes))
-                    }
-                },
-                shouldAbort = { abort.get() || generation.get() != mine },
-            )
+        publishOwned(mine) { copy(digest = DigestUiState.Calculating(0, entry.sizeBytes?.takeIf { it >= 0 })) }
+        // Started lazily so the reference is published under the lock before any body can run.
+        // A cancel arriving in that window therefore always finds a real owner to revoke.
+        val owned = lifecycleScope.launch(ioDispatcher, start = CoroutineStart.LAZY) {
+            val outcome = try {
+                calculator.calculate(
+                    entry = entry,
+                    onProgress = { progress ->
+                        publishOwned(mine) {
+                            copy(digest = DigestUiState.Calculating(progress.bytesRead, progress.expectedBytes))
+                        }
+                    },
+                    shouldAbort = { abort.get() || generation.get() != mine },
+                )
+            } catch (error: Throwable) {
+                // An untyped provider failure must still reach a terminal, typed state rather than
+                // stranding the surface in Calculating with no way forward.
+                if (error is CancellationException) throw error
+                DigestOutcome.Failed(DigestFailure.ReadFailed, 0)
+            }
             publishOwned(mine) { copy(digest = outcome.toUiState()) }
         }
         synchronized(lock) { job = owned }
+        owned.start()
     }
 
     /**
@@ -135,7 +144,7 @@ class FileDetailsViewModel(
     fun close() {
         revoke()
         synchronized(lock) { source = null }
-        publishState { FileDetailsUiState.Unavailable }
+        synchronized(lock) { _uiState.value = FileDetailsUiState.Unavailable }
     }
 
     override fun onCleared() {
@@ -165,12 +174,20 @@ class FileDetailsViewModel(
     /** Publishes only while [mine] still owns publication authority and metadata is still shown. */
     private fun publishOwned(
         mine: Long,
-        next: FileDetailsUiState.Metadata.() -> FileDetailsUiState.Metadata,
+        next: FileDetailsUiState.Metadata.() -> FileDetailsUiState,
     ) {
         synchronized(lock) {
             if (generation.get() != mine) return
             val current = _uiState.value as? FileDetailsUiState.Metadata ?: return
             _uiState.value = current.next()
+        }
+    }
+
+    /** Publishes a whole-state replacement only while [mine] still owns publication authority. */
+    private fun publishReplacing(mine: Long, next: () -> FileDetailsUiState) {
+        synchronized(lock) {
+            if (generation.get() != mine) return
+            _uiState.value = next()
         }
     }
 

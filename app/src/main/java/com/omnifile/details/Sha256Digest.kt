@@ -93,6 +93,13 @@ object Sha256Calculator {
     /** Fixed streaming buffer. 64 KiB keeps syscall overhead low without unbounded memory. */
     const val BUFFER_BYTES: Int = 64 * 1024
 
+    /**
+     * Consecutive zero-byte reads tolerated before a source is declared non-progressing. A pipe
+     * backed SAF document can legitimately return 0, so a few are allowed; an unbounded run of
+     * them would otherwise spin a core with no I/O, exactly as the Preview read loops guard.
+     */
+    const val MAX_CONSECUTIVE_NO_PROGRESS_READS: Int = 8
+
     private const val HEX = "0123456789abcdef"
 
     fun calculate(
@@ -105,13 +112,16 @@ object Sha256Calculator {
         val digest = MessageDigest.getInstance("SHA-256")
         // One fixed buffer for the whole attempt. The file is never materialized.
         val buffer = ByteArray(bufferBytes)
-        // A negative declared size is meaningless; treat it as unproven rather than trusting it.
-        val expected = source.declaredBytes?.takeIf { it >= 0 }
+        var expected: Long? = null
         var bytesRead = 0L
+        var noProgressReads = 0
         var aborted: DigestOutcome? = null
         var closeFailed = false
 
         try {
+            // Read inside the try so even a misbehaving provider property cannot leak the source.
+            // A negative declared size is meaningless, so it counts as unproven rather than trusted.
+            expected = source.declaredBytes?.takeIf { it >= 0 }
             read@ while (true) {
                 if (shouldAbort()) {
                     aborted = DigestOutcome.Cancelled
@@ -124,13 +134,19 @@ object Sha256Calculator {
                     break@read
                 }
                 if (count < 0) break@read
-                if (count > 0) {
-                    digest.update(buffer, 0, count)
-                    bytesRead += count
-                    // Reported after the digest absorbs the bytes, so a shown progress value
-                    // always corresponds to bytes already incorporated.
-                    onProgress(DigestProgress(bytesRead, expected))
+                if (count == 0) {
+                    if (++noProgressReads > MAX_CONSECUTIVE_NO_PROGRESS_READS) {
+                        aborted = DigestOutcome.Failed(DigestFailure.ReadFailed, bytesRead)
+                        break@read
+                    }
+                    continue@read
                 }
+                noProgressReads = 0
+                digest.update(buffer, 0, count)
+                bytesRead += count
+                // Reported after the digest absorbs the bytes, so a shown progress value
+                // always corresponds to bytes already incorporated.
+                onProgress(DigestProgress(bytesRead, expected))
             }
         } finally {
             try {

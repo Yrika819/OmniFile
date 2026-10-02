@@ -75,7 +75,7 @@ gradle_args=(
 if [[ "${TARGETED_HARDENING_ONLY:-false}" == "true" ]]; then
   # All 19 VS10 cases, all three post-VS10 cases, and all three VS11 File Details cases remain
   # mandatory in this mode, so the same runner annotation selects all 31 of them.
-  # Three existing storage image/text cases complete the 31-case targeted floor.
+  # Six further annotated, non-mandatory cases bring the campaign to 31 (25 mandatory + 6).
   gradle_args+=(
     "-Pandroid.testInstrumentationRunnerArguments.annotation=com.omnifile.preview.PostVs10HardeningTarget"
   )

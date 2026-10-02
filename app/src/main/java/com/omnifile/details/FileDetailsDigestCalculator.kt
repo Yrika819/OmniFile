@@ -112,6 +112,9 @@ class FileDetailsDigestCalculator(
 
         StorageError.SourceChanged -> DigestOutcome.SourceChanged(SourceChangeEvidence.PROVIDER_REPORTED_CHANGE, 0)
         StorageError.Unsupported -> DigestOutcome.Failed(DigestFailure.Unsupported, 0)
+        // A provider that reports its own cancellation is still a read that produced no digest,
+        // and Retry is the honest affordance. It is not collapsed into a generic IOException.
+        StorageError.Cancelled -> DigestOutcome.Failed(DigestFailure.ReadFailed, 0)
         // Deliberately ignores error.detail: it can carry provider text, a document id, or a path.
         else -> DigestOutcome.Failed(DigestFailure.ReadFailed, 0)
     }
