@@ -162,9 +162,16 @@ def parse(files):
     return result
 
 
-def audit_mandatory(result):
+MANDATORY_CONTRACTS = (
+    "required-vs10-instrumentation.txt",
+    "required-post-vs10-instrumentation.txt",
+    "required-vs11-instrumentation.txt",
+)
+
+
+def audit_mandatory(result, contracts=MANDATORY_CONTRACTS):
     expected = set()
-    for contract in ("required-vs10-instrumentation.txt", "required-post-vs10-instrumentation.txt"):
+    for contract in contracts:
         with open(os.path.join(os.path.dirname(__file__), contract), encoding="utf-8") as handle:
             expected.update(line.strip() for line in handle if line.strip())
     observed = {"#".join(identity): status for identity, status in result["identities"].items()}
