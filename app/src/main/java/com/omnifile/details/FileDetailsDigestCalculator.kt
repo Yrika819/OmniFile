@@ -28,9 +28,14 @@ private class HandleDigestSource(private val handle: SequentialReadHandle) : Dig
  * transfer executor, or the media service.
  *
  * Source-change honesty: a digest is published only when the read reached EOF with a clean
- * close and no reliable change evidence. When a provider proves no size and offers no version
- * token, the digest honestly represents the bytes read during this calculation; that is a
- * stated limitation, not an immutable-snapshot claim.
+ * close and no reliable change evidence. Evidence is applied strongest-first, so a positive
+ * contradiction found early is never softened by a weaker provider check failing later.
+ *
+ * A stated limitation, not an immutable-snapshot claim: replacement detection is strengthened
+ * when a provider can offer version evidence, which Local does whenever the platform supplies a
+ * stable `fileKey`. No filesystem or provider guarantees an immutable snapshot, and when no
+ * version evidence is available the digest honestly represents the bytes read during this
+ * calculation.
  */
 class FileDetailsDigestCalculator(
     private val repository: FilesRepository,
@@ -42,6 +47,9 @@ class FileDetailsDigestCalculator(
         onProgress: (DigestProgress) -> Unit = {},
         shouldAbort: () -> Boolean = { false },
     ): DigestOutcome = withContext(ioDispatcher) {
+        // Captured before the owned read so it describes the source as it was selected. Optional:
+        // null simply means this provider could not prove a version, never a fabricated change.
+        val versionBeforeRead = repository.inspectReadVersion(entry)
         val handle = try {
             when (val opened = repository.openSequentialRead(entry)) {
                 is StorageResult.Success -> opened.value
@@ -59,7 +67,41 @@ class FileDetailsDigestCalculator(
             onProgress = onProgress,
             shouldAbort = shouldAbort,
         )
-        if (outcome is DigestOutcome.Complete) verifyUnchanged(entry, outcome) else outcome
+        if (outcome !is DigestOutcome.Complete) return@withContext outcome
+        verifyAgainstReliableEvidence(entry, outcome, versionBeforeRead)
+    }
+
+    /**
+     * Applies change evidence in decreasing order of reliability and returns COMPLETE only when
+     * none of it contradicts the read.
+     *
+     * Ordering matters: the selected entry's known size was reliable evidence *before* the read,
+     * so it is checked first and does not depend on the post-EOF refresh answering at all. A
+     * refresh that merely cannot answer is not evidence of change, so it can never turn an
+     * already-contradicted digest back into COMPLETE, and never manufactures one either.
+     */
+    private suspend fun verifyAgainstReliableEvidence(
+        entry: StorageEntry,
+        complete: DigestOutcome.Complete,
+        versionBeforeRead: String?,
+    ): DigestOutcome {
+        // 1. A size known before the read is reliable pre-read evidence. A handle that proved no
+        // size does not weaken what the selected entry already stated, and a post-EOF refresh is
+        // not required to agree for this to hold.
+        val selectedSize = entry.sizeBytes?.takeIf { it >= 0 }
+        if (selectedSize != null && selectedSize != complete.bytesRead) {
+            return changed(SourceChangeEvidence.SELECTED_SIZE_MISMATCH, complete)
+        }
+
+        // 2. Optional provider version evidence. Compared only when both sides exist, so an
+        // unavailable token falls back to the checks below instead of faking a change.
+        val versionAfterRead = repository.inspectReadVersion(entry)
+        if (versionBeforeRead != null && versionAfterRead != null && versionBeforeRead != versionAfterRead) {
+            return changed(SourceChangeEvidence.VERSION_TOKEN_CHANGED, complete)
+        }
+
+        // 3. Identity and known-metadata re-resolution.
+        return verifyUnchanged(entry, complete)
     }
 
     /**

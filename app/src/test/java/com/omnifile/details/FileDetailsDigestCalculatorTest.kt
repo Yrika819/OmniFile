@@ -11,6 +11,7 @@ import com.omnifile.storage.StorageEntry
 import com.omnifile.storage.StorageError
 import com.omnifile.storage.StorageResult
 import com.omnifile.storage.StorageTransferProvider
+import com.omnifile.storage.TransferFileFacts
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -120,15 +121,89 @@ class FileDetailsDigestCalculatorTest {
     }
 
     @Test
-    fun aProviderThatCannotOpenReportsSourceUnavailableWithoutClaimingAbsenceProof() =
+    fun aProviderUnavailableRefreshNeverResurrectsAnAlreadyContradictedDigest() =
         withLocalFixture { fixture ->
-            fixture.provider.openOverride = { StorageResult.Failure(StorageError.ProviderUnavailable) }
+            val entry = fixture.file("contradicted.bin", ByteArray(300) { 1 })
+            fixture.provider.openOverride =
+                { StorageResult.Success(CountingHandle(ByteArray(120) { 1 }, expectedBytes = null)) }
+            // The provider is down for the post-EOF re-resolve. That inability to answer is not
+            // evidence of change, but it also cannot undo evidence already found.
+            fixture.provider.refreshOverride = { StorageResult.Failure(StorageError.ProviderUnavailable) }
+            fixture.provider.versionTokens = listOf("before-token", "after-token")
 
             assertEquals(
-                DigestOutcome.Failed(DigestFailure.SourceUnavailable, 0L),
-                fixture.calculator.calculate(fixture.file("gone.txt", ByteArray(8))),
+                DigestOutcome.SourceChanged(SourceChangeEvidence.SELECTED_SIZE_MISMATCH, 120L),
+                fixture.calculator.calculate(entry),
             )
         }
+
+    @Test
+    fun aSamePathReplacementWithIdenticalSizeAndModifiedTimeIsSourceChanged() =
+        withLocalFixture { fixture ->
+            val bytes = ByteArray(64) { 1 }
+            val entry = fixture.file("replaced.bin", bytes)
+            fixture.provider.openOverride = { StorageResult.Success(CountingHandle(bytes)) }
+            // Same provider-scoped ref, same size, same modified time. Only version evidence,
+            // which Local can prove whenever the platform supplies a stable fileKey, can see this.
+            fixture.provider.refreshOverride = { StorageResult.Success(entry) }
+            fixture.provider.versionTokens = listOf("token-a", "token-b")
+
+            assertEquals(
+                DigestOutcome.SourceChanged(SourceChangeEvidence.VERSION_TOKEN_CHANGED, 64L),
+                fixture.calculator.calculate(entry),
+            )
+        }
+
+    @Test
+    fun anUnchangedVersionTokenDoesNotFabricateASourceChange() = withLocalFixture { fixture ->
+        val bytes = ByteArray(64) { 1 }
+        val entry = fixture.file("stable.bin", bytes)
+        fixture.provider.openOverride = { StorageResult.Success(CountingHandle(bytes)) }
+        fixture.provider.refreshOverride = { StorageResult.Success(entry) }
+        fixture.provider.versionTokens = listOf("token-a", "token-a")
+
+        assertEquals(DigestOutcome.Complete(reference(bytes), 64L), fixture.calculator.calculate(entry))
+    }
+
+    @Test
+    fun anAbsentVersionTokenFallsBackInsteadOfFabricatingAChange() = withLocalFixture { fixture ->
+        val bytes = ByteArray(64) { 1 }
+        val entry = fixture.file("noversion.bin", bytes)
+        fixture.provider.openOverride = { StorageResult.Success(CountingHandle(bytes)) }
+        fixture.provider.refreshOverride = { StorageResult.Success(entry) }
+        // A provider that can prove no version at all is a legitimate case, not a failure and
+        // not a change: hashing stays available and the fallback evidence decides.
+        fixture.provider.versionTokens = listOf(null, null)
+
+        assertEquals(DigestOutcome.Complete(reference(bytes), 64L), fixture.calculator.calculate(entry))
+    }
+
+    @Test
+    fun aVersionTokenAvailableOnOnlyOneSideDoesNotFabricateAChange() = withLocalFixture { fixture ->
+        val bytes = ByteArray(64) { 1 }
+        val entry = fixture.file("halftoken.bin", bytes)
+        fixture.provider.openOverride = { StorageResult.Success(CountingHandle(bytes)) }
+        fixture.provider.refreshOverride = { StorageResult.Success(entry) }
+        fixture.provider.versionTokens = listOf("token-a", null)
+
+        assertEquals(DigestOutcome.Complete(reference(bytes), 64L), fixture.calculator.calculate(entry))
+    }
+
+    @Test
+    fun versionEvidenceIsOpaqueAndNeverReachesUserVisibleOutput() = withLocalFixture { fixture ->
+        val bytes = ByteArray(16) { 4 }
+        val entry = fixture.file("opaque.bin", bytes)
+        fixture.provider.versionTokens = listOf("token-a", "token-a")
+
+        assertEquals(DigestOutcome.Complete(reference(bytes), 16L), fixture.calculator.calculate(entry))
+
+        // Version evidence is obtained twice, and each probe encodes a locator that stays inside
+        // FilesRepository. The digest layer receives only an opaque token, compared for equality
+        // and never rendered, logged, or persisted.
+        assertEquals(2, fixture.provider.inspectCount)
+        assertEquals(4, fixture.provider.encodeCount)
+        assertTrue("no locator may appear in user-visible output", !reference(bytes).contains("://"))
+    }
 
     @Test
     fun aNonReadableSourceIsUnsupportedRatherThanAReadFailure() = withLocalFixture { fixture ->
@@ -151,15 +226,68 @@ class FileDetailsDigestCalculatorTest {
     }
 
     @Test
-    fun aSizeThatDiffersFromTheBytesReadIsSourceChanged() = withLocalFixture { fixture ->
+    fun aSelectedSizeThatContradictsTheBytesReadIsSourceChanged() = withLocalFixture { fixture ->
         val entry = fixture.file("short.bin", ByteArray(300) { 1 })
         fixture.provider.openOverride =
             { StorageResult.Success(CountingHandle(ByteArray(120) { 1 }, expectedBytes = null)) }
+        // The refresh still reports the original 300-byte entry, so re-resolution alone would
+        // wave this through. The selected entry's own pre-read size is what contradicts the read.
         fixture.provider.refreshOverride = { StorageResult.Success(entry) }
 
-        // The provider proved no size, so EOF alone decides and the digest stands.
-        assertTrue(fixture.calculator.calculate(entry) is DigestOutcome.Complete)
+        assertEquals(
+            DigestOutcome.SourceChanged(SourceChangeEvidence.SELECTED_SIZE_MISMATCH, 120L),
+            fixture.calculator.calculate(entry),
+        )
     }
+
+    @Test
+    fun aSelectedSizeThatMatchesTheBytesReadStillCompletesWithAnUnprovenHandle() =
+        withLocalFixture { fixture ->
+            val bytes = ByteArray(120) { 1 }
+            val entry = fixture.file("exact.bin", bytes)
+            fixture.provider.openOverride =
+                { StorageResult.Success(CountingHandle(bytes, expectedBytes = null)) }
+            fixture.provider.refreshOverride = { StorageResult.Success(entry) }
+
+            // Control A: a handle that proves no size is not a reason to withhold a digest whose
+            // byte count agrees with the selected entry's known size.
+            assertEquals(
+                DigestOutcome.Complete(reference(bytes), 120L),
+                fixture.calculator.calculate(entry),
+            )
+        }
+
+    @Test
+    fun aSourceWithNoSizeKnownAnywhereStillCompletesRatherThanBecomingUnsupported() =
+        withLocalFixture { fixture ->
+            val bytes = ByteArray(120) { 1 }
+            val entry = fixture.file("allunknown.bin", bytes).copy(sizeBytes = null, modifiedAtEpochMillis = null)
+            fixture.provider.openOverride =
+                { StorageResult.Success(CountingHandle(bytes, expectedBytes = null)) }
+            fixture.provider.refreshOverride = { StorageResult.Success(entry) }
+
+            // Control B: an unknown-size source stays a supported source. The digest honestly
+            // represents the bytes read during this calculation.
+            assertEquals(
+                DigestOutcome.Complete(reference(bytes), 120L),
+                fixture.calculator.calculate(entry),
+            )
+        }
+
+    @Test
+    fun aHandleDeclaredSizeThatContradictsTheBytesIsRejectedByTheCoreIndependently() =
+        withLocalFixture { fixture ->
+            val bytes = ByteArray(64) { 1 }
+            val entry = fixture.file("corecheck.bin", bytes)
+            // Control C: the handle declares 128 but yields 64. The core rejects on its own
+            // declared-size evidence, without any selected-size or re-resolution check.
+            fixture.provider.openOverride = { StorageResult.Success(CountingHandle(bytes, expectedBytes = 128L)) }
+
+            assertEquals(
+                DigestOutcome.SourceChanged(SourceChangeEvidence.READ_LENGTH_MISMATCH, 64L),
+                fixture.calculator.calculate(entry),
+            )
+        }
 
     @Test
     fun aReresolvedSizeChangeIsSourceChanged() = withLocalFixture { fixture ->
@@ -258,9 +386,10 @@ class FileDetailsDigestCalculatorTest {
 
             assertEquals(DigestOutcome.Complete(reference(bytes), 16L), fixture.calculator.calculate(entry))
 
-            // Both the open and the post-EOF re-resolve encode a locator, and both happen inside
-            // FilesRepository. Nothing in the digest path accepts or returns a locator.
-            assertEquals(2, fixture.provider.encodeCount)
+            // The open, both version probes, and the post-EOF re-resolve each encode a locator, and
+            // all four happen inside FilesRepository. Nothing in the digest path accepts or
+            // returns a locator.
+            assertEquals(4, fixture.provider.encodeCount)
             assertEquals(1, fixture.provider.openCount)
             assertEquals(1, fixture.provider.refreshCount)
             assertTrue("no locator may appear in user-visible output", !reference(bytes).contains("://"))
@@ -307,7 +436,15 @@ class FileDetailsDigestCalculatorTest {
         var openCount = 0
         var refreshCount = 0
         var encodeCount = 0
+        var inspectCount = 0
         val resolvedLocators = mutableListOf<DurableLocator>()
+
+        /**
+         * Optional version tokens returned in order, one per [inspectTransfer] call. Once the
+         * list is exhausted the provider stops answering with a token, which is how the fixture
+         * models a provider that cannot prove version evidence.
+         */
+        var versionTokens: List<String?>? = null
 
         override suspend fun openSequentialRead(locator: DurableLocator): StorageResult<SequentialReadHandle> {
             openCount++
@@ -317,6 +454,23 @@ class FileDetailsDigestCalculatorTest {
         override suspend fun encodeDurableLocator(ref: com.omnifile.storage.EntryRef): StorageResult<DurableLocator> {
             encodeCount++
             return delegate.encodeDurableLocator(ref)
+        }
+
+        override suspend fun inspectTransfer(locator: DurableLocator): StorageResult<TransferFileFacts> {
+            val tokens = versionTokens ?: return delegate.inspectTransfer(locator)
+            inspectCount++
+            val index = inspectCount - 1
+            val token = tokens.getOrNull(index)
+            // A null token means the provider could not prove a version. It is never an error
+            // and never a change; it only removes one available piece of evidence.
+            return StorageResult.Success(
+                TransferFileFacts(
+                    locator = locator,
+                    kind = EntryKind.FILE,
+                    sizeBytes = null,
+                    versionToken = token,
+                ),
+            )
         }
 
         override suspend fun resolveDurableLocator(locator: DurableLocator): StorageResult<StorageEntry> {

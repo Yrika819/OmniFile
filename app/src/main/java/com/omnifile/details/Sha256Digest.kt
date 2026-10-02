@@ -2,10 +2,41 @@ package com.omnifile.details
 
 import java.security.MessageDigest
 
+/**
+ * Checked byte accounting for the digest core.
+ *
+ * Factored out so the boundary is directly testable without reading `Long.MAX_VALUE` bytes, and
+ * so the overflow rule is stated once. A stream cannot realistically reach this, but a wrapped
+ * total would publish a negative byte count and a digest of an unknown byte sequence, so the
+ * addition is rejected instead: null means "this count cannot be represented" and the caller
+ * fails the attempt rather than emitting a decreasing or wrapped total.
+ */
+internal fun checkedAddBytes(current: Long, count: Int): Long? {
+    if (count < 0) return null
+    val delta = count.toLong()
+    // Written as a subtraction guard rather than a sum so it cannot itself overflow.
+    if (current < 0L || delta > Long.MAX_VALUE - current) return null
+    return current + delta
+}
+
 /** Reliable evidence that the source moved under a completed read, so the digest is discarded. */
 enum class SourceChangeEvidence {
-    /** Bytes actually read differ from the size the provider declared before the read. */
+    /** Bytes actually read differ from the size the handle declared before the read. */
     READ_LENGTH_MISMATCH,
+
+    /**
+     * Bytes actually read differ from a size that was already known for the selected entry
+     * before the read. This is reliable pre-read evidence, so it holds even when the provider
+     * cannot re-answer the entry afterwards.
+     */
+    SELECTED_SIZE_MISMATCH,
+
+    /**
+     * Optional provider version evidence differed across the read, which detects a same-path
+     * replacement that preserved size and modified time. Only meaningful when the provider
+     * could prove a token on both sides.
+     */
+    VERSION_TOKEN_CHANGED,
 
     /** The same provider entry reported a different size after EOF. */
     RERESOLVED_SIZE_CHANGED,
@@ -142,8 +173,17 @@ object Sha256Calculator {
                     continue@read
                 }
                 noProgressReads = 0
+                // Checked before the digest absorbs the bytes, so a count that cannot be
+                // represented is never folded in and never published as progress.
+                val advanced = checkedAddBytes(bytesRead, count)
+                if (advanced == null) {
+                    // Impossible accounting, so it is an impossible stream: refuse to describe
+                    // it as a digest rather than wrap into a negative total.
+                    aborted = DigestOutcome.Failed(DigestFailure.ReadFailed, bytesRead)
+                    break@read
+                }
                 digest.update(buffer, 0, count)
-                bytesRead += count
+                bytesRead = advanced
                 // Reported after the digest absorbs the bytes, so a shown progress value
                 // always corresponds to bytes already incorporated.
                 onProgress(DigestProgress(bytesRead, expected))
