@@ -149,8 +149,15 @@ class FileDetailsDigestCalculator(
 
     private fun openFailure(error: StorageError): DigestOutcome = when (error) {
         StorageError.PermissionDenied -> DigestOutcome.Failed(DigestFailure.AccessUnavailable, 0)
-        StorageError.NotFound, StorageError.StaleReference, StorageError.ProviderUnavailable ->
+        // Only these two prove the source itself is gone.
+        StorageError.NotFound, StorageError.StaleReference ->
             DigestOutcome.Failed(DigestFailure.SourceUnavailable, 0)
+
+        // A provider that is merely down is not a statement about the file. Collapsing this into
+        // SourceUnavailable would tell the user their file vanished, which is both false and
+        // unactionable, and would hide the one state where Retry can genuinely help.
+        StorageError.ProviderUnavailable ->
+            DigestOutcome.Failed(DigestFailure.ProviderUnavailable, 0)
 
         StorageError.SourceChanged -> DigestOutcome.SourceChanged(SourceChangeEvidence.PROVIDER_REPORTED_CHANGE, 0)
         StorageError.Unsupported -> DigestOutcome.Failed(DigestFailure.Unsupported, 0)

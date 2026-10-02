@@ -24,6 +24,12 @@ enum class FileDetailsFailure {
     /** The provider or the entry disappeared. */
     SOURCE_UNAVAILABLE,
 
+    /**
+     * The storage provider could not answer right now. The file may well still exist, so this is
+     * kept separate from [SOURCE_UNAVAILABLE] and offers Retry.
+     */
+    PROVIDER_UNAVAILABLE,
+
     /** The source may not be the bytes that were read, so no digest is claimed. */
     SOURCE_CHANGED,
 
@@ -58,9 +64,13 @@ sealed interface DigestUiState {
 /**
  * Retry is offered only where it meaningfully re-opens through the existing authorized
  * provider route. Re-deriving access or relocating a vanished file is not that route.
+ *
+ * A temporarily unavailable provider qualifies: re-attempting the same route is exactly the
+ * action that can succeed once the provider recovers.
  */
 val DigestUiState.Failed.isRetryable: Boolean
-    get() = failure == FileDetailsFailure.READ_FAILURE
+    get() = failure == FileDetailsFailure.READ_FAILURE ||
+            failure == FileDetailsFailure.PROVIDER_UNAVAILABLE
 
 /** Fraction complete in 0f..1f, or null for indeterminate progress. */
 val DigestUiState.Calculating.fraction: Float?

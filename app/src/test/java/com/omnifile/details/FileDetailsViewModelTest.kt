@@ -210,6 +210,38 @@ class FileDetailsViewModelTest {
     }
 
     @Test
+    fun aTemporarilyUnavailableProviderIsNotPresentedAsAFileThatIsGone() = withFixture { fixture ->
+        fixture.provider.openResult = { StorageResult.Failure(StorageError.ProviderUnavailable) }
+        fixture.vm.open(fixture.entry(), "SAF folder")
+
+        fixture.vm.calculate()
+
+        // Kept distinct from SOURCE_UNAVAILABLE: the file may well still exist, so telling the
+        // user it is gone would be both false and unactionable.
+        assertEquals(
+            FileDetailsFailure.PROVIDER_UNAVAILABLE,
+            fixture.digest<DigestUiState.Failed>().failure,
+        )
+    }
+
+    @Test
+    fun aTemporarilyUnavailableProviderOffersRetry() = withFixture { fixture ->
+        fixture.provider.openResult = { StorageResult.Failure(StorageError.ProviderUnavailable) }
+        fixture.vm.open(fixture.entry(size = 128L), "SAF folder")
+        fixture.vm.calculate()
+        assertTrue(fixture.digest<DigestUiState.Failed>().isRetryable)
+
+        // Retry re-opens the same authorized route, which is exactly what succeeds once the
+        // provider recovers.
+        val bytes = ByteArray(128) { 4 }
+        fixture.provider.openResult = null
+        fixture.provider.nextHandle = CountingHandle(bytes, chunk = 128)
+        fixture.vm.retry()
+
+        assertEquals(reference(bytes), fixture.digest<DigestUiState.Complete>().hex)
+    }
+
+    @Test
     fun revokedAuthorityIsTypedAsAccessUnavailable() = withFixture { fixture ->
         fixture.provider.openResult = { StorageResult.Failure(StorageError.PermissionDenied) }
         fixture.vm.open(fixture.entry(), "SAF folder")
@@ -251,7 +283,7 @@ class FileDetailsViewModelTest {
     }
 
     @Test
-    fun onlyAReadFailureOffersRetry() = withFixture { fixture ->
+    fun onlyAReadFailureAndATemporarilyUnavailableProviderOfferRetry() = withFixture { fixture ->
         fixture.provider.openResult = { StorageResult.Failure(StorageError.PermissionDenied) }
         fixture.vm.open(fixture.entry(), "SAF folder")
         fixture.vm.calculate()
@@ -261,7 +293,13 @@ class FileDetailsViewModelTest {
         fixture.vm.calculate()
         assertFalse(fixture.failure(FileDetailsFailure.UNSUPPORTED).isRetryable)
 
+        // A vanished source still offers nothing: re-deriving or relocating it is not the route
+        // Retry uses. Only a transient provider outage joins the read failure here.
         fixture.provider.openResult = { StorageResult.Failure(StorageError.NotFound) }
+        fixture.vm.calculate()
+        assertFalse(fixture.failure(FileDetailsFailure.SOURCE_UNAVAILABLE).isRetryable)
+
+        fixture.provider.openResult = { StorageResult.Failure(StorageError.StaleReference) }
         fixture.vm.calculate()
         assertFalse(fixture.failure(FileDetailsFailure.SOURCE_UNAVAILABLE).isRetryable)
     }

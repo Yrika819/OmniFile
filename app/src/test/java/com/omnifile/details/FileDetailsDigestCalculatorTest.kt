@@ -121,6 +121,18 @@ class FileDetailsDigestCalculatorTest {
     }
 
     @Test
+    fun aTemporarilyUnavailableProviderIsNotReportedAsAFileThatIsGone() = withLocalFixture { fixture ->
+        fixture.provider.openOverride = { StorageResult.Failure(StorageError.ProviderUnavailable) }
+
+        // A provider that is merely down says nothing about the file, so it must not be reported
+        // as source absence: that would be false and would hide the retryable case.
+        assertEquals(
+            DigestOutcome.Failed(DigestFailure.ProviderUnavailable, 0L),
+            fixture.calculator.calculate(fixture.file("gone.txt", ByteArray(8))),
+        )
+    }
+
+    @Test
     fun aProviderUnavailableRefreshNeverResurrectsAnAlreadyContradictedDigest() =
         withLocalFixture { fixture ->
             val entry = fixture.file("contradicted.bin", ByteArray(300) { 1 })

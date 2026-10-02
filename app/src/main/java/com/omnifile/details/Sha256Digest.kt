@@ -62,6 +62,12 @@ sealed interface DigestFailure {
     /** The provider or the entry itself disappeared. */
     data object SourceUnavailable : DigestFailure
 
+    /**
+     * The provider could not answer. This is deliberately not [SourceUnavailable]: the file may
+     * well still exist, the condition is transient, and Retry is an honest affordance.
+     */
+    data object ProviderUnavailable : DigestFailure
+
     /** This provider cannot sequentially read the entry, so no digest can be produced. */
     data object Unsupported : DigestFailure
 

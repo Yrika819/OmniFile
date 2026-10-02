@@ -133,7 +133,10 @@ class FileDetailsViewModel(
         }
     }
 
-    /** Retry is only offered for a read failure, which re-opens the same authorized source. */
+    /**
+     * Retry is offered for failures that can genuinely be retried through the same authorized
+     * source, which includes a provider that is temporarily unavailable.
+     */
     fun retry() {
         val digest = (_uiState.value as? FileDetailsUiState.Metadata)?.digest
         if ((digest as? DigestUiState.Failed)?.isRetryable != true) return
@@ -195,6 +198,8 @@ class FileDetailsViewModel(
             when (failure) {
                 DigestFailure.AccessUnavailable -> FileDetailsFailure.ACCESS_UNAVAILABLE
                 DigestFailure.SourceUnavailable -> FileDetailsFailure.SOURCE_UNAVAILABLE
+                // A transient provider outage is never reported as the file being gone.
+                DigestFailure.ProviderUnavailable -> FileDetailsFailure.PROVIDER_UNAVAILABLE
                 DigestFailure.Unsupported -> FileDetailsFailure.UNSUPPORTED
                 DigestFailure.ReadFailed, DigestFailure.CloseFailed -> FileDetailsFailure.READ_FAILURE
             },

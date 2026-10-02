@@ -260,6 +260,7 @@ private fun StatusState(tag: String, text: String) {
 private fun failureText(failure: FileDetailsFailure): String = when (failure) {
     FileDetailsFailure.ACCESS_UNAVAILABLE -> "Access to this file is no longer granted."
     FileDetailsFailure.SOURCE_UNAVAILABLE -> "This file is no longer available."
+    FileDetailsFailure.PROVIDER_UNAVAILABLE -> "The storage provider is temporarily unavailable."
     FileDetailsFailure.SOURCE_CHANGED -> "This file changed or moved while it was being read."
     FileDetailsFailure.READ_FAILURE -> "The file could not be read."
     FileDetailsFailure.UNSUPPORTED -> "This file cannot be hashed."
