@@ -167,10 +167,6 @@ class FileDetailsViewModel(
         return mine
     }
 
-    private inline fun publishState(next: () -> FileDetailsUiState) {
-        synchronized(lock) { _uiState.value = next() }
-    }
-
     /** Publishes only while [mine] still owns publication authority and metadata is still shown. */
     private fun publishOwned(
         mine: Long,
