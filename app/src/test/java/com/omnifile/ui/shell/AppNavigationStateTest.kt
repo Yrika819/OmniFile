@@ -2,6 +2,7 @@ package com.omnifile.ui.shell
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AppNavigationStateTest {
@@ -128,6 +129,56 @@ class AppNavigationStateTest {
         val music = files.selectTopLevel(TopLevelDestination.MUSIC)
 
         assertEquals(AppNavigationState(topLevel = TopLevelDestination.MUSIC), music)
-        assertEquals(AppNavigationState(topLevel = TopLevelDestination.SETTINGS), music.selectTopLevel(TopLevelDestination.SETTINGS))
+        assertEquals(
+            AppNavigationState(topLevel = TopLevelDestination.SETTINGS),
+            music.selectTopLevel(TopLevelDestination.SETTINGS)
+        )
+    }
+
+    @Test
+    fun fileDetailsIsReachableFromFilesAndBackReturnsToTheSameFilesContext() {
+        val files = AppNavigationState(topLevel = TopLevelDestination.SEARCH)
+            .openFiles(FilesOrigin.TOP_LEVEL_SEARCH)
+        val details = files.openFileDetails()
+
+        assertEquals(DetailSurface.FILE_DETAILS, details.detail)
+        assertEquals(DetailSurface.FILES, details.fileDetailsOrigin)
+        assertEquals("Back must restore the exact Files surface", files, details.closeFileDetails())
+    }
+
+    @Test
+    fun fileDetailsCannotBeReachedFromAnySurfaceOtherThanFiles() {
+        val fromHome = AppNavigationState()
+        val fromArchive = fromHome.openArchive(ArchiveOrigin.TOP_LEVEL_SEARCH)
+        val fromPreview = fromHome.openPreview()
+
+        listOf(fromHome, fromArchive, fromPreview).forEach { state ->
+            assertTrue(
+                "File Details must not open from ${state.detail}",
+                runCatching { state.openFileDetails() }.isFailure,
+            )
+        }
+    }
+
+    @Test
+    fun fileDetailsCannotBeOpenedTwiceOrReachPreview() {
+        val details = AppNavigationState().openFiles(FilesOrigin.HOME).openFileDetails()
+
+        assertTrue(runCatching { details.openFileDetails() }.isFailure)
+        assertTrue(runCatching { details.openPreview() }.isFailure)
+    }
+
+    @Test
+    fun leavingFileDetailsForAnotherDestinationDoesNotLeaveItInRouteState() {
+        val details = AppNavigationState().openFiles(FilesOrigin.HOME).openFileDetails()
+
+        val music = details.selectTopLevel(TopLevelDestination.MUSIC)
+        assertNull(music.fileDetailsOrigin)
+        assertNull(music.detail)
+
+        val reopened = AppNavigationState().openFiles(FilesOrigin.HOME).openFileDetails()
+        assertNull(reopened.openArchive(ArchiveOrigin.FILES_HOME).fileDetailsOrigin)
+        assertNull(reopened.closeDetail().fileDetailsOrigin)
+        assertNull(reopened.openFiles(FilesOrigin.HOME).fileDetailsOrigin)
     }
 }

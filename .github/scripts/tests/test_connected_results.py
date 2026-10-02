@@ -73,8 +73,8 @@ class EvidenceTests(unittest.TestCase):
             self.assertTrue(p.audit_mandatory(self.parse(suite(case()))))
 
     def mandatory_report(self, first_status=''):
-        contracts = ['required-vs10-instrumentation.txt', 'required-post-vs10-instrumentation.txt']
-        ids = [line for contract in contracts for line in (SCRIPTS / contract).read_text().splitlines() if line]
+        ids = [line for contract in p.MANDATORY_CONTRACTS
+               for line in (SCRIPTS / contract).read_text().splitlines() if line]
         return suite(''.join(case(name, first_status if i == 0 else '', cls) for i, (cls, name) in enumerate(identity.split('#') for identity in ids)))
 
     def test_mandatory_skip_rejected_even_if_allowed(self):
@@ -130,12 +130,12 @@ class EvidenceTests(unittest.TestCase):
 
     def test_api35_floor_and_exclusions_configuration(self):
         workflow = (SCRIPTS.parent / 'workflows/android-emulator-ci.yml').read_text()
-        self.assertIn("api-level: 35\n            target: google_apis\n            expected-tests: '106'", workflow)
+        self.assertIn("api-level: 35\n            target: google_apis\n            expected-tests: '109'", workflow)
         runner = (SCRIPTS / 'run-connected-instrumentation.sh').read_text()
         self.assertIn('RequiresAudioClock', runner)
         self.assertIn('wavPlaysToEndedState', runner)
         with self.assertRaises(SystemExit):
-            self.gate('<skipped/>', minimum=106)
+            self.gate('<skipped/>', minimum=109)
 
     def test_representative_actual_agp_xml(self):
         r = p.parse([str(Path(__file__).parent / 'fixtures/actual-agp-api36.xml')])
@@ -158,8 +158,10 @@ class EvidenceTests(unittest.TestCase):
             package = content.split('package ', 1)[1].splitlines()[0]
             classes[package + '.' + source.stem] = content
             count += content.count('@Test')
-        self.assertEqual(count, 28)
-        for contract in ('required-vs10-instrumentation.txt', 'required-post-vs10-instrumentation.txt'):
+        # 28 post-VS10 cases plus the three VS11 File Details cases. The targeted campaign has to
+        # keep proving the whole mandatory set, so VS11 is selected by the same runner argument.
+        self.assertEqual(count, 31)
+        for contract in p.MANDATORY_CONTRACTS:
             for identity in (SCRIPTS / contract).read_text().splitlines():
                 cls, method = identity.split('#')
                 self.assertIn(cls, classes)
@@ -167,6 +169,22 @@ class EvidenceTests(unittest.TestCase):
         runner = (SCRIPTS / 'run-connected-instrumentation.sh').read_text()
         self.assertIn('Arguments.annotation=com.omnifile.preview.PostVs10HardeningTarget', runner)
         self.assertNotIn('Arguments.class=', runner)
+
+    def test_mandatory_contract_covers_every_slice_exactly_once(self):
+        ids = []
+        for contract in p.MANDATORY_CONTRACTS:
+            for line in (SCRIPTS / contract).read_text().splitlines():
+                if line.strip():
+                    ids.append(line.strip())
+        # 19 VS10 + 3 post-VS10 + 3 VS11, with no identity listed twice.
+        self.assertEqual(len(ids), 25)
+        self.assertEqual(len(set(ids)), 25)
+        self.assertEqual(len(p.MANDATORY_CONTRACTS), 3)
+
+    def test_duplicate_mandatory_identity_across_contracts_is_still_rejected(self):
+        identity = (SCRIPTS / 'required-vs11-instrumentation.txt').read_text().splitlines()[0]
+        cls, name = identity.split('#')
+        self.rejects(suite(case(name, cls=cls) * 2))
 
     def test_stale_fallback_never_discovered(self):
         with patch.object(p.os.path, 'isdir', return_value=True), patch.object(p.glob, 'glob', return_value=[]) as discovery:

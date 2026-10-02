@@ -73,12 +73,13 @@ gradle_args=(
 #   notClass        always  -> wavPlaysToEndedState, addressed by Class#method
 #   notAnnotation   API 35  -> the three tests that need audio focus granted
 if [[ "${TARGETED_HARDENING_ONLY:-false}" == "true" ]]; then
-  # All 19 VS10 cases and all three post-VS10 cases remain mandatory in this mode.
-  # Three existing storage image/text cases complete the 28-case targeted floor.
+  # All 19 VS10 cases, all three post-VS10 cases, and all three VS11 File Details cases remain
+  # mandatory in this mode, so the same runner annotation selects all 31 of them.
+  # Six further annotated, non-mandatory cases bring the campaign to 31 (25 mandatory + 6).
   gradle_args+=(
     "-Pandroid.testInstrumentationRunnerArguments.annotation=com.omnifile.preview.PostVs10HardeningTarget"
   )
-  echo "Targeted hardening: 28 cases; every mandatory case remains required."
+  echo "Targeted hardening: 31 cases; every mandatory case remains required."
 elif [[ "${MATRIX_API_LEVEL:-}" == "35" ]]; then
   gradle_args+=(
     "-Pandroid.testInstrumentationRunnerArguments.notClass=com.omnifile.media.MediaPlaybackInstrumentedTest#wavPlaysToEndedState"

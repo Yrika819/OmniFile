@@ -8,6 +8,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.nio.file.Files
 import java.nio.file.LinkOption
+import java.nio.file.StandardCopyOption
+import java.nio.file.attribute.FileTime
 
 class LocalStorageTransferTest {
     @Test
@@ -35,8 +37,9 @@ class LocalStorageTransferTest {
             val facts = transfer.inspectTransfer(partial).requireSuccess()
             assertEquals(EntryKind.FILE, facts.kind)
             assertEquals(bytes.size.toLong(), facts.sizeBytes)
-            val finalized = transfer.finalizeOperationPartial(partial, destinationParent, "copy.txt", operationId = "op-1")
-                .requireSuccess()
+            val finalized =
+                transfer.finalizeOperationPartial(partial, destinationParent, "copy.txt", operationId = "op-1")
+                    .requireSuccess()
             val finalLocator = (finalized as FinalizationResult.Finalized).finalLocator
             assertEquals("copy.txt", transfer.resolveDurableLocator(finalLocator).requireSuccess().displayName)
             assertArrayEquals(bytes, Files.readAllBytes(root.resolve("copy.txt")))
@@ -77,6 +80,61 @@ class LocalStorageTransferTest {
             val provider = LocalStorageProvider(root, ProviderId("local-containment"))
             val escaped = DurableLocator(ProviderId("local-containment"), "root-relative-v1", "../outside")
             assertEquals(StorageError.StaleReference, provider.inspectTransfer(escaped).failure().error)
+        } finally {
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun localVersionTokenIncludesFileKeySoAReplacementIsDetectable() = runBlocking {
+        val root = Files.createTempDirectory("omnifile-version")
+        try {
+            val path = root.resolve("target.bin")
+            val bytes = ByteArray(64) { 1 }
+            Files.write(path, bytes)
+            val fixedTime = FileTime.fromMillis(1_700_000_000_000L)
+            Files.setLastModifiedTime(path, fixedTime)
+            val provider = LocalStorageProvider(root, ProviderId("local-version"))
+            val transfer = provider as StorageTransferProvider
+            val entry = provider.listChildren(provider.root().requireSuccess().ref).requireSuccess().single()
+            val locator = transfer.encodeDurableLocator(entry.ref).requireSuccess()
+
+            val before = transfer.inspectTransfer(locator).requireSuccess().versionToken
+            assertTrue("Local must always offer version evidence", before != null)
+
+            // Replace the file at the same path with different content, then restore identical
+            // size and modified time. This is exactly the case that size and mtime alone cannot
+            // see, and that only the fileKey distinguishes.
+            val replacement = root.resolve("replacement.bin")
+            Files.write(replacement, ByteArray(64) { 2 })
+            Files.setLastModifiedTime(replacement, fixedTime)
+            Files.move(replacement, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+            Files.setLastModifiedTime(path, fixedTime)
+
+            val after = transfer.inspectTransfer(locator).requireSuccess().versionToken
+            assertTrue(
+                "a same-path, same-size, same-mtime replacement must change the version token",
+                before != after,
+            )
+        } finally {
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun localVersionTokenIsStableWhenNothingChanged() = runBlocking {
+        val root = Files.createTempDirectory("omnifile-version-stable")
+        try {
+            Files.write(root.resolve("stable.bin"), ByteArray(32) { 3 })
+            val provider = LocalStorageProvider(root, ProviderId("local-version-stable"))
+            val transfer = provider as StorageTransferProvider
+            val entry = provider.listChildren(provider.root().requireSuccess().ref).requireSuccess().single()
+            val locator = transfer.encodeDurableLocator(entry.ref).requireSuccess()
+
+            assertEquals(
+                transfer.inspectTransfer(locator).requireSuccess().versionToken,
+                transfer.inspectTransfer(locator).requireSuccess().versionToken,
+            )
         } finally {
             root.toFile().deleteRecursively()
         }

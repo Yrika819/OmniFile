@@ -1,5 +1,7 @@
 package com.omnifile
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.os.Bundle
 import android.os.Build
@@ -25,6 +27,8 @@ import com.omnifile.files.FilesUiState
 import com.omnifile.archive.ArchiveSupport
 import com.omnifile.archive.ArchiveUiState
 import com.omnifile.archive.ArchiveViewModel
+import com.omnifile.details.FileDetailsUiState
+import com.omnifile.details.FileDetailsViewModel
 import com.omnifile.files.FilesViewModel
 import com.omnifile.search.SearchScope
 import com.omnifile.search.SearchUiState
@@ -35,6 +39,7 @@ import com.omnifile.preview.PreviewUiState
 import com.omnifile.preview.PreviewViewModel
 import com.omnifile.ui.files.FilesScreen
 import com.omnifile.ui.archive.ArchiveScreen
+import com.omnifile.ui.details.FileDetailsScreen
 import com.omnifile.ui.home.HomeUiState
 import com.omnifile.ui.home.HomeViewModel
 import com.omnifile.ui.home.HomeScreen
@@ -57,6 +62,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var searchViewModel: SearchViewModel
     private lateinit var archiveViewModel: ArchiveViewModel
     private lateinit var previewViewModel: PreviewViewModel
+    private lateinit var fileDetailsViewModel: FileDetailsViewModel
     private lateinit var homeViewModel: HomeViewModel
     private lateinit var operationsViewModel: com.omnifile.operations.OperationsViewModel
     private var navigation by mutableStateOf(AppNavigationState())
@@ -105,7 +111,17 @@ class MainActivity : ComponentActivity() {
         val restoredPreviewOrigin = savedInstanceState?.getString(KEY_PREVIEW_ORIGIN)?.let {
             runCatching { DetailSurface.valueOf(it) }.getOrNull()
         }
-        navigation = AppNavigationState(restoredTopLevel, restoredDetail, restoredFilesOrigin, restoredArchiveOrigin, restoredPreviewOrigin)
+        val restoredFileDetailsOrigin = savedInstanceState?.getString(KEY_FILE_DETAILS_ORIGIN)?.let {
+            runCatching { DetailSurface.valueOf(it) }.getOrNull()
+        }
+        navigation = AppNavigationState(
+            restoredTopLevel,
+            restoredDetail,
+            restoredFilesOrigin,
+            restoredArchiveOrigin,
+            restoredPreviewOrigin,
+            restoredFileDetailsOrigin
+        )
 
         operationsViewModel = ViewModelProvider(
             this,
@@ -131,6 +147,9 @@ class MainActivity : ComponentActivity() {
         previewViewModel = ViewModelProvider(this, Factory {
             PreviewViewModel(engine = app.previewEngine)
         })[PreviewViewModel::class.java]
+        fileDetailsViewModel = ViewModelProvider(this, Factory {
+            FileDetailsViewModel(app.repository)
+        })[FileDetailsViewModel::class.java]
         searchViewModel = ViewModelProvider(this, Factory {
             SearchViewModel(
                 listChildren = app.repository::children,
@@ -169,6 +188,11 @@ class MainActivity : ComponentActivity() {
             // Archive source/index state is intentionally restart-required and not persisted.
             navigation = navigation.closeDetail()
         }
+        if (navigation.detail == DetailSurface.FILE_DETAILS && fileDetailsViewModel.uiState.value !is FileDetailsUiState.Metadata) {
+            // Source ownership lives only in memory. A restored route without it returns to the
+            // same Files context rather than rebuilding authority from a stale locator.
+            navigation = navigation.closeFileDetails()
+        }
 
         if (navigation.topLevel == TopLevelDestination.SEARCH && navigation.detail == null) {
             searchViewModel.restoreRequest(
@@ -191,6 +215,7 @@ class MainActivity : ComponentActivity() {
             val searchState by searchViewModel.state.collectAsState()
             val archiveState by archiveViewModel.uiState.collectAsState()
             val previewState by previewViewModel.state.collectAsState()
+            val fileDetailsState by fileDetailsViewModel.uiState.collectAsState()
             val homeState by homeViewModel.state.collectAsState()
             val playbackState by app.playbackCoordinator.state.collectAsState()
             val operations by operationsViewModel.operations.collectAsState()
@@ -219,6 +244,13 @@ class MainActivity : ComponentActivity() {
                                         onPreviousPage = previewViewModel::previousPage,
                                         onNextPage = previewViewModel::nextPage,
                                     )
+
+                                    DetailSurface.FILE_DETAILS -> FileDetailsSurface(
+                                        state = fileDetailsState,
+                                        onBack = ::closeFileDetails,
+                                        onCopy = ::copySha256,
+                                    )
+
                                     null -> when (currentTop) {
                                         TopLevelDestination.HOME -> HomeScreen(
                                             homeState,
@@ -272,6 +304,7 @@ class MainActivity : ComponentActivity() {
             onEnterSelection = filesViewModel::enterSelection,
             onToggleSelection = filesViewModel::toggleSelection,
             onClearSelection = filesViewModel::clearSelection,
+            onOpenProperties = ::openFileDetails,
             onRenameSelected = filesViewModel::renameSelected,
             onDeleteSelected = filesViewModel::deleteSelected,
             onCopySelected = filesViewModel::copySelectedToCurrentDirectory,
@@ -284,6 +317,22 @@ class MainActivity : ComponentActivity() {
             mutationInFlight = mutationInFlight,
             onBack = ::consumeFilesBack,
             onRetry = filesViewModel::retry,
+        )
+    }
+
+    @Composable
+    private fun FileDetailsSurface(
+        state: FileDetailsUiState,
+        onBack: () -> Boolean,
+        onCopy: (String) -> Unit,
+    ) {
+        FileDetailsScreen(
+            state = state,
+            onBack = { onBack() },
+            onCalculate = fileDetailsViewModel::calculate,
+            onCancel = fileDetailsViewModel::cancel,
+            onRetry = fileDetailsViewModel::retry,
+            onCopy = onCopy,
         )
     }
 
@@ -318,6 +367,7 @@ class MainActivity : ComponentActivity() {
     private fun selectTopLevel(destination: TopLevelDestination) {
         if (destination == navigation.topLevel && navigation.detail == null) return
         if (navigation.detail == DetailSurface.PREVIEW) previewViewModel.close()
+        if (navigation.detail == DetailSurface.FILE_DETAILS) fileDetailsViewModel.close()
         navigation = navigation.selectTopLevel(destination)
         if (destination == TopLevelDestination.SEARCH && searchViewModel.scope != SearchScope.ThisDevice) {
             searchViewModel.setScope(SearchScope.ThisDevice)
@@ -410,6 +460,31 @@ class MainActivity : ComponentActivity() {
         return true
     }
 
+    /**
+     * Opens the one supported entry point: exactly one selected regular file from Files.
+     * The route carries no source identity; ownership stays in the Activity-scoped ViewModel.
+     */
+    private fun openFileDetails(entry: com.omnifile.storage.StorageEntry) {
+        if (entry.kind != com.omnifile.storage.EntryKind.FILE) return
+        if (navigation.detail != DetailSurface.FILES) return
+        val label = if (entry.ref.providerId == app.localProvider.id) "Local storage" else "SAF folder"
+        fileDetailsViewModel.open(entry, label)
+        navigation = navigation.openFileDetails()
+    }
+
+    private fun closeFileDetails(): Boolean {
+        if (navigation.detail != DetailSurface.FILE_DETAILS) return false
+        fileDetailsViewModel.close()
+        navigation = navigation.closeFileDetails()
+        return true
+    }
+
+    /** Digest only, on explicit user action. No filename, path, or URI is ever placed on the clip. */
+    private fun copySha256(digest: String) {
+        val clipboard = getSystemService(ClipboardManager::class.java) ?: return
+        clipboard.setPrimaryClip(ClipData.newPlainText("SHA-256", digest))
+    }
+
     private fun openArchiveFromFiles(entry: com.omnifile.storage.StorageEntry) {
         if (!ArchiveSupport.isZip(entry)) return
         archiveViewModel.open(entry)
@@ -444,8 +519,10 @@ class MainActivity : ComponentActivity() {
             closeContextualSearch()
             true
         }
+
         DetailSurface.ARCHIVE -> consumeArchiveBack()
         DetailSurface.PREVIEW -> closePreview()
+        DetailSurface.FILE_DETAILS -> closeFileDetails()
 
         null -> false
     }
@@ -463,6 +540,7 @@ class MainActivity : ComponentActivity() {
         outState.putString(KEY_FILES_ORIGIN, navigation.filesOrigin?.name)
         outState.putString(KEY_ARCHIVE_ORIGIN, navigation.archiveOrigin?.name)
         outState.putString(KEY_PREVIEW_ORIGIN, navigation.previewOrigin?.name)
+        outState.putString(KEY_FILE_DETAILS_ORIGIN, navigation.fileDetailsOrigin?.name)
         outState.putString(KEY_SEARCH_QUERY, searchViewModel.query)
         super.onSaveInstanceState(outState)
     }
@@ -476,6 +554,7 @@ class MainActivity : ComponentActivity() {
         private const val KEY_FILES_ORIGIN = "omnifile.files-origin"
         private const val KEY_ARCHIVE_ORIGIN = "omnifile.archive-origin"
         private const val KEY_PREVIEW_ORIGIN = "omnifile.preview-origin"
+        private const val KEY_FILE_DETAILS_ORIGIN = "omnifile.file-details-origin"
         private const val KEY_SEARCH_QUERY = "omnifile.search-query"
     }
 }
