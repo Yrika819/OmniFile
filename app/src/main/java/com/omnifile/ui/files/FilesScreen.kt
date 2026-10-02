@@ -62,6 +62,7 @@ fun FilesScreen(
     onEnterSelection: (StorageEntry) -> Unit,
     onToggleSelection: (StorageEntry) -> Unit,
     onClearSelection: () -> Unit,
+    onOpenProperties: (StorageEntry) -> Unit = {},
     onRenameSelected: (String) -> Unit,
     onDeleteSelected: () -> Unit,
     onCopySelected: () -> Unit = {},
@@ -87,6 +88,9 @@ fun FilesScreen(
     val canMove = regularFilesOnly && selectedEntries.all { it.supports(StorageCapability.MOVE_SOURCE) }
     val canRename = selectedEntries.size == 1 && selectedEntries.single().supports(StorageCapability.RENAME)
     val canDelete = selectedEntries.isNotEmpty() && selectedEntries.all { it.supports(StorageCapability.DELETE) }
+    // File Details is a Files-nested surface for exactly one regular file. Hashing is
+    // gated separately inside the surface, so an unreadable file still shows its metadata.
+    val propertiesEntry = selectedEntries.singleOrNull()?.takeIf { it.kind == EntryKind.FILE }
     val destinationCanAccept = state is FilesUiState.DestinationPicker &&
         state.location.kind == EntryKind.DIRECTORY &&
         state.location.supports(StorageCapability.CREATE_CHILD) &&
@@ -139,6 +143,12 @@ fun FilesScreen(
                                 requestedName = selectedEntries.single().displayName
                                 renameDialogVisible = true
                             }) { Text("Rename") }
+                        }
+                        if (propertiesEntry != null) {
+                            TextButton(
+                                modifier = Modifier.testTag("files.action.properties"),
+                                onClick = { onOpenProperties(propertiesEntry) },
+                            ) { Text("Properties") }
                         }
                         TextButton(
                             modifier = Modifier.testTag("files.action.delete"),
