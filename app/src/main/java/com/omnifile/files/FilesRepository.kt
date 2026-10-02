@@ -46,6 +46,21 @@ class FilesRepository(providers: Map<ProviderId, StorageProvider>) {
         return provider.openSequentialRead(locator)
     }
 
+    /**
+     * Re-resolves the same provider-scoped entry through the provider's own durable locator.
+     * The locator is used and discarded here, so callers can detect source change without ever
+     * holding a provider locator.
+     */
+    suspend fun refreshEntry(entry: StorageEntry): StorageResult<StorageEntry> {
+        val provider = providers[entry.ref.providerId] as? StorageTransferProvider
+            ?: return StorageResult.Failure(StorageError.Unsupported)
+        val locator = when (val result = provider.encodeDurableLocator(entry.ref)) {
+            is StorageResult.Success -> result.value
+            is StorageResult.Failure -> return result
+        }
+        return provider.resolveDurableLocator(locator)
+    }
+
     suspend fun rename(
         entry: StorageEntry,
         requestedName: String,
