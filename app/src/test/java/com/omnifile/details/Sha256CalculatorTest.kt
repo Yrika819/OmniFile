@@ -158,6 +158,47 @@ class Sha256CalculatorTest {
     }
 
     @Test
+    fun checkedByteAccountingAcceptsAnAdditionThatStaysInRange() {
+        assertEquals(0L, checkedAddBytes(0L, 0))
+        assertEquals(64L, checkedAddBytes(0L, 64))
+        assertEquals(Long.MAX_VALUE, checkedAddBytes(Long.MAX_VALUE - 1L, 1))
+        assertEquals(Long.MAX_VALUE, checkedAddBytes(Long.MAX_VALUE, 0))
+    }
+
+    @Test
+    fun checkedByteAccountingRejectsAnOverflowInsteadOfWrapping() {
+        // Directly at the boundary rather than by reading Long.MAX_VALUE bytes.
+        assertNull(checkedAddBytes(Long.MAX_VALUE, 1))
+        assertNull(checkedAddBytes(Long.MAX_VALUE, Int.MAX_VALUE))
+        assertNull(checkedAddBytes(Long.MAX_VALUE - 10L, 11))
+    }
+
+    @Test
+    fun checkedByteAccountingRejectsNegativeCountsAndTotals() {
+        // A negative count must never decrease the total, and a negative total can only be the
+        // result of a previous wrap, so both are refused rather than published.
+        assertNull(checkedAddBytes(0L, -1))
+        assertNull(checkedAddBytes(1024L, Int.MIN_VALUE))
+        assertNull(checkedAddBytes(-1L, 1))
+    }
+
+    @Test
+    fun progressNeverReportsANegativeOrDecreasingByteTotal() {
+        // The overflow rule is proven directly against the boundary above, because reaching it
+        // through the core would require reading Long.MAX_VALUE bytes. What the core can still
+        // prove cheaply is that every published total is non-negative and never decreases, so a
+        // wrapped value could never be observed even if the guard were ever removed.
+        val input = ByteArray(200_000) { (it % 251).toByte() }
+        val ticks = mutableListOf<Long>()
+
+        Sha256Calculator.calculate(FakeSource(input), onProgress = { ticks += it.bytesRead })
+
+        assertEquals(200_000L, ticks.last())
+        assertTrue(ticks.all { it >= 0L })
+        assertEquals(ticks.sorted(), ticks)
+    }
+
+    @Test
     fun readingFewerBytesThanTheDeclaredSizeIsSourceChangedNotComplete() {
         val input = ByteArray(100) { 3 }
         // The source stops early: 100 bytes declared, only 40 actually readable.
